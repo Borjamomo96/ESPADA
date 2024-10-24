@@ -2,7 +2,7 @@
 import os, yaml, logging
 from pathlib import Path
 
-#logging
+#Logging
 import logging
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ class Config(dict):
 
     _instance = None
     _configured = False
-
+    
+    #This turn Config class into a singleton
     def __new__(cls, *args, **kwargs):
         """ returns always the same instance of the class. """
         if Config._instance is None:
@@ -47,31 +48,42 @@ class Config(dict):
         for data download from remote sources, etc.
         """
 
-
+        #The dict constructor is used and every key phrase in the .yaml file become an attribute of this class
         super(Config, self).__init__(**kwargs)
-        self.__dict__ = self
+        #Garantiza que cualquier acceso futuro al diccionario o la adición de nuevas claves también se refleje en la estructura de atributos de la instancia.
+        self.__dict__ = self # Load config file and set attributes
 
         if reconfigure or not Config._configured:
             self.configure(**kwargs)
 
 
-        # Load config file and set attributes
+        
 
     def configure(self, config_path=None, **kwargs):
 
         if config_path is None:
             config_path = Path("config.yaml")
-            logger.info(f"The file in {config_path} have been loaded")
+
+            if not config_path.exists():
+                raise FileNotFoundError(f"Config file {config_path} not found. Checked if the config.yaml example have bee deleted")
+            else:
+                logger.info(f"The file in {config_path} have been loaded successfully")
+                   
+        elif config_path is not None:
+            config_path = Path(config_path)
 
             if not config_path.exists():
                 raise FileNotFoundError(f"Config file {config_path} not found.")
-                   
+            else:
+                logger.info(f"The file in {config_path} have been loaded successfully")
+
         else:
             raise FileNotFoundError(f"Something with the config_path or the config file went wrong")
             
         with open(config_path, 'r') as f:
             config_dict = yaml.safe_load(f)
-
+        
+        #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in config_dict.items():
             setattr(self, k, v)
             

@@ -15,22 +15,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# Funciones de tu pipeline (puedes descomponer las tareas en módulos)
+# Functions 
 def step_1(input_data):
-    """Primer paso de la pipeline: puede ser preprocesamiento, validación de datos, etc."""
-    logger.info("Ejecutando el paso 1")
-    # Aquí va tu código
-    processed_data = input_data  # Ejemplo de procesamiento
-    return processed_data
-
-
-def step_2(processed_data):
-    """Segundo paso de la pipeline: podría ser el procesamiento del modelo, análisis, etc."""
-    logger.info("Ejecutando el paso 2")
-    # Aquí va tu código
-    result = processed_data  # Ejemplo de salida
-    return result
-
+    """."""
+    logger.info("1")
+    return 
 
 def main():
 
@@ -42,9 +31,10 @@ def main():
                     description='The ALMA advance data product pipeline',
                     epilog= __doc__) 
 
-    parser.add_argument('-conf', '--config-file', dest='config_file', default=None,
-                        help='<Optional> Path to the config file to use. By default, APDALMAP will try to use (in order) the file config.yaml, or the the example config file.')
-    
+    parser.add_argument('-c', '--config-file', dest='config_file', default=None,
+                        help='<Optional> Path to the config file to use. By default, APDALMAP will try to use (in order) the file config.yaml, or the example config file.')
+    parser.add_argument('-d', '--download-file', dest='download_file', default=None, 
+                        help='<Optional> Path to the file with the parameters to download the date.')
     args = parser.parse_args()
 
 
@@ -64,25 +54,30 @@ def main():
     #global adpalmap_conf
     from config import Config
     
-    adpalmap_config = Config(config_path=args.config_file, check1=True) 
+    adpalmap_config = Config(config_path=args.config_file) 
 
-    # Data query || This needs to be convert into a Class, it would be more efficient 
+    #print(adpalmap_config)
+    #print(adpalmap_config.prueba['par1'])
 
-    service = pyvo.dal.TAPService(adpalmap_config.server_address)
 
-    output = service.search(adpalmap_config.query).to_table().to_pandas()
-    final = output.head(5)
+    # Data query || Se puede crear una función en este mismo archivo para que haga todo esto y poder escribirlo en una línea.
+    
+    #CHANGE. La logica de esto hay que repensarla. Si corro directamente la pipeline sin argumentos por defecto -d será 'tap/dowload_par.yaml' 
+    # si lo cambio a None, es False y se salta la descarga.
+    if args.download_file:
+        from tap.datap import datap
 
-    mous_ids = np.unique(output['member_ous_uid'])[0]
+        adpalmap_datap = datap(download_path=args.download_file)
+        query = adpalmap_datap.proposal_id()
+        logger.info('La query se obtenido')
 
-    datalink = pyvo.dal.adhoc.DatalinkResults.from_result_url(f"https://almascience.eso.org/datalink/sync?ID={mous_ids}")
-    #print(type(datalink))
-    #print(datalink)
+        adpalmap_datap.download_data(query)
+        
+    else:
+        logger.info('Skipping data download')
+    
 
-    for dl in datalink:    
-        dl.cachedataset(filename=os.path.basename(dl['access_url']))
-
-    '''sys.exit(1)'''
+    
 
     logger.info("ADPALMAP end point")
 

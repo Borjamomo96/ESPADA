@@ -1,0 +1,95 @@
+###############
+### LOGGING ###
+###############
+
+#This is and example of a download file. 
+
+#log_file:  # <str> Path to log file.
+log_date_format: '%Y-%m-%d %H:%M:%S' # <log date format>
+log_format: '%(asctime)s - %(levelname)s - %(message)s - %(process)d (%(proc_memory)s' # <log format> You can also add '%(process)d (%(proc_memory)s)' to the format to show pid and memory usage per process.
+#log_level: 20 # <int>. Possible values are: 10 (DEBUG), 20 (INFO), 30 (WARNING), 40 (ERROR), 50 (CRITICAL).
+
+
+
+
+################
+#    SERVER    #
+################
+
+#The archive service to use. By default the server address is set to 'ESO'
+
+server_address: 'https://almascience.eso.org' #<str> URL of the server website to query the data.
+
+Options are:
+#'ESO' Europe ('https://almascience.eso.org'),
+#'NRAO' North America ('https://almascience.nrao.edu'), or
+#'NAOJ' East Asia ('https://almascience.nao.ac.jp')
+
+
+#The ALMA TAP service allow you to log in using your crendencials. By default is set to False
+#Setting True will give you priority in the server queu that allow a faster download
+
+credentials:  False # <bool> 
+stored_credentials: False # <bool>
+
+###############
+#    QUERY    #
+###############
+
+#( By default the query type is set to 'Proposal ID')
+#THIS PART MAY SUFFER FUTURE STRUCTE CHANGES. 
+
+query_type: 'proposal'
+
+#The query type options available are:
+# 'conesearch' Query the ALMA archive for a given position and radius around it.
+# 'target'
+# 'catalog'
+# 'keysearch'
+# 'free'
+
+##Parameters for the query indicated in 'query_type':
+
+query_par:
+#query type = proposal
+  proposal_id: '2019.1.01408.S' 
+#query_type = conesearch
+  #ra: None
+  #dec: None
+  #search_radius: 1.
+#query_type = target
+  #sources: None
+  #search_radius: 1.
+#query_type = catalogue
+  #target_df: None 
+  #search_radius: 1.
+#query_type = keysearch
+  #search_dict:None
+
+#Common parameters for the query
+  point: False 
+  public: True
+  published: None
+  print_targets: True 
+  print_query: False
+
+
+
+## Parameters for data download
+
+download_par:
+  fitsonly : True # <bool> (Default value = True) Download individual fits files only (fitsonly=True). This option will not download the raw data
+  dryrun : False # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
+                 # downloading the data (dryrun=True). To download the data, set testrun=False.
+  print_urls : False # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
+  filename_must_include : ['sci.spw29.cube'] #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
+                             # download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
+                             #the science target or calibrators (by including their names). The choice is largely dependent on the
+                             #cycle and type of reduction that was performed and data products that exist on the archive as a result.
+                             #In most recent cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
+  data_dir : './archive_data' #<str> The path of the directory where the downloaded data should be placed.
+
+
+#query: "SELECT * FROM ivoa.obscore WHERE obs_publisher_did like '%2019.1.01408.S%'" 
+
+
