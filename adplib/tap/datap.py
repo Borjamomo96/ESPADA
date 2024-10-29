@@ -189,19 +189,23 @@ class datap(dict):
         
         # change download location if specified by user, else the location will be a folder called 'data' in the current working directory
         if self.download_par['data_dir'] != default_location:
+
             if os.path.isdir(self.download_par['data_dir']):
                 self.alma.cache_location = self.download_par['data_dir']
+
             else:
                 logger.warning("{} is not a directory. The download location will be set to {}".format(self.download_par['data_dir'], default_location))
                 self.alma.cache_location = default_location
+
         elif (self.download_par['data_dir'] == default_location) and not os.path.isdir(self.download_par['data_dir']):  # create the 'data' subdirectory
+            #CHANGE. If this directory alrealy exists will display an error
             os.makedirs(default_location)
             self.alma.cache_location = default_location
 
         #Fits only and phrase within the file to download
         if self.download_par['fitsonly']:
 
-            print('ENTROOOO')
+            
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
             # filter the data_table and keep only rows with "fits" in 'access_url' and the strings provided by user in 'filename_must_include' parameter
             dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if v.endswith(".fits") and all(fmi in v for fmi in self.download_par['filename_must_include'])]]
@@ -250,6 +254,7 @@ class datap(dict):
             #This option will be potentially removed. REMOVE
             if self.download_par['print_urls']:
                 print("File URLs to download = {}".format("\n".join(dl_link_list)))
+                
         else:
             print("Nothing to download.")
             print("Note: often only a subset of the observations (e.g. the representative window) is ingested into "
