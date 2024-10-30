@@ -1,6 +1,8 @@
 """
 __doc__ to add in an appropiate way, formatter_class=argparse.RawDescriptionHelpFormatter have been set
 Contact: Borja Montoro Molina (borjamomo96@gmail.com)
+
+SOFIA_LOGIC BRANCH
 """
 
 import os
