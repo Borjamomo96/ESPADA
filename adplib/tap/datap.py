@@ -29,7 +29,7 @@ class datap(dict):
 
     def __init__(self, **kwargs):
         """
-        Reads the tap_parameters file and creates an datap object.
+        Reads the tap_parameters file and creates a datap object.
         
         Parameters
         ----------
@@ -42,14 +42,15 @@ class datap(dict):
 
         Attributes
         ----------
-        Different configuration parameters such as database path, log format, server
+        Different parameters such as database, path, log format, server
         for data download from remote sources, etc.
         """
 
-        #The dict constructor is used and every key phrase in the .yaml file become an attribute of this class
+        #CHANGE. This is not needs in this class. This would be if additional par=val beyond the path is required, e.g datap('path', condition=True, const=1). These extra para
+        #will be storage as a attr as well. 
         super(datap, self).__init__(**kwargs)
-        #Garantiza que cualquier acceso futuro al diccionario o la adición de nuevas claves también se refleje en la estructura de atributos de la instancia.
-        self.__dict__ = self # Load config file and set attributes
+        #This line set the keys of the previous key=val pair introduce through **kwargs as attributes of the class as well.
+        self.__dict__ = self 
         self.d_configure(**kwargs)
 
         #Initialize Alma() instance. <Attribute>

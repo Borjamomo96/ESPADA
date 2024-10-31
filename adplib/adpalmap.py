@@ -29,7 +29,7 @@ def run_sofia(comand, output_dir=None):
 
 
     #Create a directory on the used data location
-    output_dir = f"{data_loc.parent}"
+    output_dir = f"{output_dir.parent}"
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -71,6 +71,30 @@ def key_par_sofia(sofia_par, par_name=''):
             output_loc = v
             return v
 
+
+def sofia_conditions(input_fits, download_data, sofia_file, sofia_par):
+
+    match (input_fits, download_data, sofia_file, sofia_par):
+
+        case (True, False, True, True): 
+            scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} {' '.join(args.sofia_par)}"
+            logger.info(f"-f=not None -d=None and -s=not None SoFia will be run using {args.sofia_file} and {data_loc}")
+            run_sofia(scomand.split(), data_loc)
+        
+        case (True, False, True, False):
+            scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} --special"
+            logger.info(f"-f=not None -d=None and -s=None, special case with {data_loc}")
+            run_sofia(scomand.split(), data_loc)
+        
+        case (True, False, False, True):
+            scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} {' '.join(args.sofia_par)} --mode=advanced"
+            logger.info(f"-f=None -d=None, advanced mode with {data_loc}")
+            run_sofia(scomand.split(), data_loc)
+        
+        case (True, False, False, False):
+            scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} {' '.join(args.sofia_par)} --mode=advanced"
+            logger.info(f"-f=None -d=None, advanced mode with {data_loc}")
+            run_sofia(scomand.split(), data_loc)
 
 
 def main():
@@ -138,113 +162,21 @@ def main():
 
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
-    #CHANGE. This file works for the moments but it has to be change. When adpalmap will be installed in other device by default would be convient to create a adpalmap directory in 
-    #~/adpalmap/ with a sofia_default.par
-    default_sofia_par = Path('sofia/sofia_default.par').resolve()
 
-    
-    if (args.input_fits and args.download_file): logger.warning('Both -f and -d parameters have been introduced the input fits file will prevail above download data from the archive')
+    if args.sofia_file:
+        from sofia.sopar import SoPar
 
-    #Check if several input.data have been introduced
-    #multiple_par_sofia(args.sofia_par, par='input.data')
-
-    #the argument -f=not None. Case where the user speficy a data cube
-    if args.input_fits:
-        
-        #check if the user input one or more than 1 file. This needs to be implemented. CHANGE
-        if(len(args.input_fits)==1): data_loc = Path(args.input_fits[0]).resolve()
+        sopar = SoPar(sofia_file_path=args.sofia_file) #All the parameters in the SoFia parameters file are set as attr within SoPar class
 
 
-        #the sofia.par specify by the user will be used. Case where -f=not None -d=None and -s=not None
-        if args.sofia_file:
 
-            if args.sofia_par:
-                
-                output_dir = key_par_sofia(args.sofia_par)
-                #This imply that the input.data parameters is set to the download directory either by default or specified by the user independently whether the user also 
-                # specified other location in the terminal. This may display a warning or other possibilities to be disscused. CHANGES
-                scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} {' '.join(args.sofia_par)}"
-                logger.info(f"-f=not None -d=None and -s=not None SoFia will be run using {args.sofia_file}")
-                run_sofia(scomand.split(), output_dir=output_dir) 
-            
-            else:
-                scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc}"
-                logger.info(f"-f=not None -d=None and -s=not None SoFia will be run using {args.sofia_file}")
-                run_sofia(scomand.split()) 
+    # Llamar a la función con las condiciones
+    ejecutar_condicion(A, B, C, D, args, data_loc)
 
-        #the sofia_defeult.par file will be used instead. Case where -f=not None -d=None and -s=None
-        else:
 
-            #Check the if conditions. similar. CHANGE
-            if not default_sofia_par.exists():
-                raise FileNotFoundError(f"{default_sofia_par} not found in the corresponding directory please. Introduce the correct Path of a valid sofia.par file or include the sofia_default.par file in the sofia directory") 
-            
-            else:
-                if args.sofia_par:
-                    output_dir = key_par_sofia(args.sofia_par)
-                    scomand = f"sofia {default_sofia_par} input.data={data_loc} {' '.join(args.sofia_par)}"
-                    logger.info(f"-f=not None -d=None and -s=None SoFia will be run using {default_sofia_par}")
-                    run_sofia(scomand.split(), output_dir=output_dir)
-
-                else:
-                    scomand = f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc}"
-                    logger.info(f"-f=not None -d=None and -s=None SoFia will be run using {default_sofia_par}")
-                    run_sofia(scomand.split()) 
-        
-    #the argument -f=None. Case where the user do not specify a data cube
-    else:
-
-        #download data from the archive have been required. Case where -f=None and -d=not None 
-        
-        if args.download_file:
-
-            data_loc = Path(adpalmap_datap.download_file['data_dir']).resolve()
-
-            #the sofia.par specify by the user will be used. Case where -f=None -d=not None and -s=not None
-            if args.sofia_file:
-
-                if args.sofia_par:
-                    output_dir = key_par_sofia(args.sofia_par)
-                    #This imply that the input.data parameters is set to the download directory either by default or specified by the user independently whether the user also 
-                    # specified other location in the terminal. This may display a warning or other possibilities to be disscused. CHANGES
-                    scomand = [f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc} {' '.join(args.sofia_par)}"]
-                    logger.info(f"-f=None -d=not None and -s=not None SoFia will be run using {args.sofia_file}")
-                    run_sofia(scomand.split(), output_dir=output_dir)
-                else:
-                    scomand = [f"sofia {Path(args.sofia_file).resolve()} input.data={data_loc}"]
-                    logger.info(f"-f=None -d=not None and -s=not None SoFia will be run using {args.sofia_file}")
-                    run_sofia(scomand.split())
-
-                    
-
-            #the sofia_defeult.par file will be used instead. Case where -f=None -d=not None and -s=None
-            else:
-
-                #Check the if conditions. similar. CHANGE
-                if not default_sofia_par.exists():
-                    raise FileNotFoundError(f"{default_sofia_par} not found in the corresponding directory please.") 
-                
-                else:
-                    if args.sofia_par:
-                        output_dir = key_par_sofia(args.sofia_par)
-                        scomand = [f"sofia {default_sofia_par} input.data={data_loc} {' '.join(args.sofia_par)}"]
-                        #print('Programar para que busque los archivos descargados y use sofia_default.par')
-                        logger.info(f"-f=None -d=not None and -s=None SoFia will be run using {default_sofia_par}")
-                        run_sofia(scomand.split(), output_dir=output_dir)
-                    else:
-                        scomand = [f"sofia {default_sofia_par} input.data={data_loc}"]
-                        #print('Programar para que busque los archivos descargados y use sofia_default.par')
-                        logger.info(f"-f=None -d=not None and -s=None SoFia will be run using {default_sofia_par}")
-                        run_sofia(scomand.split())
-
-        #skipping the download of the data. Case where -f=None and -d=None 
-        else:
-            logger.error("Neither data cube nor download from the archive have been indicated. Please specified either options with -i or -d || The data_example and sofia_default.par will be used (this options needs to be implemented)" )
-        
     
     #--------------------------------------------------------------------------------------------#
 
-    
 
     logger.info("ADPALMAP end point")
 
