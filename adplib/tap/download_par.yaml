@@ -20,7 +20,7 @@ log_format: '%(asctime)s - %(levelname)s - %(message)s - %(process)d (%(proc_mem
 
 server_address: 'https://almascience.eso.org' #<str> URL of the server website to query the data.
 
-Options are:
+#Options are:
 #'ESO' Europe ('https://almascience.eso.org'),
 #'NRAO' North America ('https://almascience.nrao.edu'), or
 #'NAOJ' East Asia ('https://almascience.nao.ac.jp')
@@ -78,7 +78,7 @@ query_par:
 ## Parameters for data download
 
 download_par:
-  fitsonly : True # <bool> (Default value = True) Download individual fits files only (fitsonly=True). This option will not download the raw data
+  fitsgzonly : True # <bool> (Default value = True) Download individual fits or gz files only (fitsgzonly=True). This option will not download the raw data
   dryrun : False # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
                  # downloading the data (dryrun=True). To download the data, set testrun=False.
   print_urls : False # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.

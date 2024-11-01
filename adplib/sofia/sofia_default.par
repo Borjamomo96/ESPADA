@@ -10,7 +10,8 @@ pipeline.threads           =  0
 
 # Input
 
-input.data                 =  sofia_test_datacube.fits
+input.data                 =  sofia_test_datacube
+input.primaryBeam          =  
 input.region               =  
 input.gain                 =  
 input.noise                =  
@@ -27,6 +28,7 @@ flag.radius                =  5
 flag.auto                  =  false
 flag.threshold             =  5.0
 flag.log                   =  false
+flag.cube                  =  
 
 
 # Continuum subtraction
@@ -113,6 +115,7 @@ reliability.iterations     =  10000
 reliability.tolerance      =  0.05
 reliability.catalog        =  
 reliability.plot           =  true
+reliability.plotExtra      =  false
 reliability.debug          =  false
 
 
@@ -140,13 +143,16 @@ output.filename            =  sofia_test_output
 output.writeCatASCII       =  true
 output.writeCatXML         =  true
 output.writeCatSQL         =  false
+output.writeKarma          =  false
 output.writeNoise          =  false
 output.writeFiltered       =  false
 output.writeMask           =  true
 output.writeMask2d         =  true
 output.writeRawMask        =  false
 output.writeMoments        =  true
-output.writeCubelets       =  false
+output.writeCubelets       =  true
+output.writePV             =  true
+output.marginAperSpec      =  10
 output.marginCubelets      =  10
 output.thresholdMom12      =  0.0
 output.overwrite           =  true

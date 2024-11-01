@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 class SoPar(dict): 
 
     def __init__(self, **kwargs):
-
         """
         Reads the SoFia parameters file and creates a SoPar object.
         
@@ -26,6 +25,7 @@ class SoPar(dict):
         """
 
         self.configure(**kwargs)
+
 
         
     def configure(self, sofia_file_path=None, **kwargs):
@@ -48,6 +48,7 @@ class SoPar(dict):
 
         with open(sofia_file_path, 'r') as file:
                 for line in file:
+                    
                     # Remove both blank space sides and comment and skip blank lines
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -67,10 +68,12 @@ class SoPar(dict):
                                 v = float(v)
                             except ValueError:
                                 pass
-
+         
                         # Set attributes to the class dinamically
                         setattr(self, k, v)
-                    
+                        #print(f"Atributo '{k}' ahora tiene valor: '{getattr(self, k)}'")
+                        
+                        
                     except ValueError:
                         print(f"The line '{line}' has not a valid format (parameter = value) and it will be ignore.")
 
