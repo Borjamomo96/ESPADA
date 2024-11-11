@@ -30,6 +30,7 @@ class SoPar(dict):
         
     def configure(self, sofia_file_path=None, **kwargs):
 
+
         if sofia_file_path is None:
             sofia_file_path='sofia/sofia_default.par'
             if Path(sofia_file_path).exists():
@@ -75,7 +76,7 @@ class SoPar(dict):
                         
                         
                     except ValueError:
-                        print(f"The line '{line}' has not a valid format (parameter = value) and it will be ignore.")
+                        logger.warning(f"The line '{line}' has not a valid format (parameter = value) and it will be ignore.")
 
 
 
