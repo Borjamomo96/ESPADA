@@ -1,6 +1,10 @@
 #import re
 import numpy as np
+import gzip
+import shutil
+import re
 import os
+import sys
 import pandas as pd
 from pathlib import Path
 import yaml
@@ -21,9 +25,20 @@ from astroquery.alma import Alma
 import pyvo
 from pyvo.dal import tap
 
-#Logging
-import logging
-logger = logging.getLogger(__name__)
+# Configuration:
+from config import Config
+config = Config()
+logger = config.get_logger()
+
+
+VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'instrument_name', 'obs_id',
+                      'dataproduct_type', 'target_name', 's_region', 'pol_states', 'o_ucd', 'band_list',
+                      'authors', 'pub_abstract', 'proposal_abstract', 'schedblock_name', 'proposal_authors',
+                      'group_ous_uid', 'member_ous_uid', 'asdm_uid', 'obs_title', 'type', 'scan_intent',
+                      'science_observation', 'antenna_arrays', 'is_mosaic', 'obs_release_date', 'frequency_support',
+                      'obs_creator_name', 'pub_title', 'first_author', 'qa2_passed', 'bib_reference',
+                      'science_keyword', 'scientific_category', 'lastModified', 'access_url', 'access_format',
+                      'proposal_id', 'data_rights')
 
 class datap(dict): 
 
@@ -46,12 +61,17 @@ class datap(dict):
         for data download from remote sources, etc.
         """
 
-        #CHANGE. This is not needs in this class. This would be if additional par=val beyond the path is required, e.g datap('path', condition=True, const=1). These extra para
+        #CHANGE. This is not needs in this class. This would be if additional par=val beyond the path is required, e.g datap('path', condition=True, const=1). These extra par
         #will be storage as a attr as well. 
         super(datap, self).__init__(**kwargs)
         #This line set the keys of the previous key=val pair introduce through **kwargs as attributes of the class as well.
         self.__dict__ = self 
-        self.d_configure(**kwargs)
+        self.configure(**kwargs)
+
+        #Check the parameter for the query type before continue:
+        self.check_query_par()
+        #Chech the parameter in download_par expect query_type:
+        self.check_download_par()
 
         #Initialize Alma() instance. <Attribute>
         self.alma = Alma()
@@ -60,7 +80,7 @@ class datap(dict):
         if self.credentials:
 
             print("Introduce your ALMA credentials: ")
-            username = input("- Usuario: ")
+            username = input("- Username: ")
     
             try:
                 self.alma.login(username, store_password=self.stored_credentials)
@@ -75,7 +95,7 @@ class datap(dict):
         self._service = tap.TAPService(f"{self.server_address}/tap")
 
 
-    def d_configure(self, download_path=None, **kwargs):
+    def configure(self, download_path=None, **kwargs):
 
         #Esta condición nunca se considera. La clase no se inicializa si el parámetro -d no se usa (None por defecto). Si es not None pasa a las siguiente, por lo que es código que no 
         # se usa. REMOVE
@@ -97,12 +117,11 @@ class datap(dict):
                 logger.info(f"The file in {download_path} have been loaded successfully")
 
         else:
-            raise FileNotFoundError(f"Something with the download_path or the download file went wrong")
+            raise FileNotFoundError(f"Something with the Download file path or the download file went wrong")
             
         with open(download_path, 'r') as f:
             download_dict = yaml.safe_load(f)
         
-        #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in download_dict.items():
             setattr(self, k, v)
 
@@ -165,7 +184,7 @@ class datap(dict):
 
 
         print("================================")
-        
+        #CHANGE. Definir asi el directorio puede provocar problemas
         default_location = './tap/archive_data'
         
         #Check the input Dataframe
@@ -180,15 +199,15 @@ class datap(dict):
             # when len(uids_list) == 0, it's because the DataFrame included only proprietary data and we removed them in the above if statement, so the DataFrame is now empty
 
             if len(uids_list) == 0:
-                logger.critical("No data to download. Check the input DataFrame. It is likely that your query results include only proprietary data which cannot be freely downloaded.")
-                return
+                logger.error("No data to download. Check the input DataFrame. It is likely that your query results include only proprietary data which cannot be freely downloaded.")
+                sys.exit(-1)
             
         # this is the case where the query had no results to begin with.
         except TypeError:
-            logger.critical("No data to download. Check the input DataFrame.")
-            return
+            logger.error("No data to download. Check the input DataFrame.")
+            sys.exit(-1)
         
-        # change download location if specified by user, else the location will be a folder called 'data' in the current working directory
+        # change download location if specified by user, else the location will be a folder called 'archive_data' in the tap directory
         if self.download_par['data_dir'] != default_location:
 
             if os.path.isdir(self.download_par['data_dir']):
@@ -206,18 +225,23 @@ class datap(dict):
             else:
                 logger.warning('The default directory {default_location} already exits. The data from the archive wiil be storaged in this directory.')
 
-        #Fits only and phrase within the file to download
-        if self.download_par['fitsgzonly']:
 
-            
+        #Fits only and phrase within the file to download
+        if self.download_par['fitsonly']:
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
             # filter the data_table and keep only rows with "fits" in 'access_url' and the strings provided by user in 'filename_must_include' parameter
-            dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (v.endswith(".fits") or v.endswith(".gz")) and all(fmi in v for fmi in self.download_par['filename_must_include'])]]
+            if self.download_par['include_pb']:
+                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if ((v.endswith(".fits") or ".pb." in v) and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
+            else:
+                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (v.endswith(".fits")  and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
 
         else:
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=False)
             # filter the data_table and keep only rows with "fits" in 'access_url' and the strings provided by user in 'filename_must_include' parameter
-            dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if all(fmi in v for fmi in self.download_par['filename_must_include'])]]
+            if self.download_par['include_pb']:
+                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (".pb." in v) and all(fmi in v for fmi in self.download_par['filename_must_include'])]]
+            else:
+                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if all(fmi in v for fmi in self.download_par['filename_must_include'])]]
 
 
         dl_df = dl_table.to_pandas()
@@ -230,8 +254,6 @@ class datap(dict):
         dl_uid_list = list(dl_df['ID'].unique())
 
 
-
-        #This options will be potentially removed. REMOVE
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
             print("================================")
@@ -255,7 +277,7 @@ class datap(dict):
             dl_size_fmt, dl_format = self._format_bytes(dl_size)
             print("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
 
-            #This option will be potentially removed. REMOVE
+            
             if self.download_par['print_urls']:
                 print("File URLs to download = {}".format("\n".join(dl_link_list)))
                 
@@ -266,7 +288,14 @@ class datap(dict):
                 "measurement set, and image the observations of interest. It is also possible to request calibrated "
                 "measurement sets through a Helpdesk ticket to the European ARC "
                 "(see https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe).")
-        print("--------------------------------")
+        print("================================")
+
+        
+        if self.download_par['dryrun']:
+            sys.exit(-1)
+
+        #Set Attr data locations of the just downloaded data
+        self.get_downloaded_file_path(Path(self.alma.cache_location))
     
 
     def run_query(self, query_str):
@@ -301,6 +330,35 @@ class datap(dict):
         return TAP_df
 
 
+    def get_downloaded_file_path(self, base_dir):
+        
+        #CHANGE. Por el momento solo trabaja con fits y pb, pero habría que mejorar esta parte porque si se descarga otra cosa que no sean o .fits o pb (también .fits) Va haber problemas
+        fits_files = list(base_dir.glob("*.fits"))  
+        pb_gz_files = list(base_dir.glob("*.pb.*"))  
+
+        pb_files = [] 
+        if not fits_files and not pb_gz_files:
+                raise FileNotFoundError(f"No fits files founds in {base_dir}.")
+        
+        for file in pb_gz_files:
+            try:
+                extracted_file_path = file.with_suffix('')  # Eliminar .gz de la extensión
+                with gzip.open(file, 'rb') as gz_in:
+                    with open(extracted_file_path, 'wb') as extracted_out:
+                        shutil.copyfileobj(gz_in, extracted_out)
+                if self.download_par['remove_uncompress_files']:
+                    file.unlink()  # Eliminar el archivo .gz original
+                pb_files.append(extracted_file_path)  # Agregar el archivo descomprimido a la lista
+            except Exception as e:
+                print(f"Error trying to uncompress {file}: Error {e}")
+        
+        
+        most_recent_fitsfile = max(fits_files, key=lambda f: f.stat().st_mtime)  
+        most_recent_pbfile = max(pb_files, key=lambda f: f.stat().st_mtime)  
+        self.data_loc_fits = most_recent_fitsfile
+        self.data_loc_pb = most_recent_pbfile 
+
+
     # Type of querys available     
 
     def proposal_id(self):
@@ -313,9 +371,11 @@ class datap(dict):
 
         Returns
         -------
-        pandas.DataFrame containing the query results
+        'TAP_df' pandas.DataFrame containing the query results
 
         """
+
+        
 
         query = f"SELECT *  FROM ivoa.obscore WHERE obs_publisher_did like '%{self.query_par['proposal_id']}%'"
 
@@ -331,12 +391,12 @@ class datap(dict):
         
         TAP_df = self.run_query(query)
 
-        #CAMBIOS. Aquí filter_results es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte    
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte    
         '''if TAP_df is not None:
-            if self.query_par['published']:  # case pf published = True
+            if self.query_par['published']:  # case of self.query_par['published'] = True
                 TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
 
-            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of published = False
+            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of self.query_par['published'] = False
                 TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
 
             filtered_df = self.filter_results(TAP_df)
@@ -345,10 +405,7 @@ class datap(dict):
         return TAP_df
         
 
-
-    ''' !!DANGER!! FUNCTIONS TO BE REVISED. NOT IMPLEMENTE PROPERLY YET'''
-    '''
-    def conesearch(ra, dec, search_radius=1., tap_service='ESO', point=False, public=True, published=None, print_targets=True, print_query=False):
+    def conesearch(self):
         """
         Query the ALMA archive for a given position and radius around it.
 
@@ -361,63 +418,100 @@ class datap(dict):
         search_radius : float, optional
             (Default value = 1. arcmin)
             Search radius (in arcmin) around the source coordinates.
-        tap_service : str, optional
-            (Default value = 'ESO')
-            The TAP service to use. Options are:
-            'ESO' for Europe (https://almascience.eso.org/tap),
-            'NRAO' for North America (https://almascience.nrao.edu/tap), or
-            'NAOJ' for East Asia (https://almascience.nao.ac.jp/tap)
-        point : bool, optional
-            (Default value = True)
-            Search whether the specified position (ra, dec) is contained within any ALMA observations (point=True)
-            or query all ALMA observations that overlap with a cone centred at the specified position (ra, dec) and
-            extending the search_radius (point=False). In the case of point=True, the search_radius parameter is ignored.
-        public : bool, optional
-            (Default value = True)
-            Search for public data (public=True), proprietary data (public=False),
-            or both public and proprietary data (public=None).
-        published : bool, optional
-            (Default value = None)
-            Search for published data only (published=True), unpublished data only (published=False),
-            or both published and unpublished data (published=None).
-        print_query : bool, optional
-            (Default value = True)
-            Print the ADQL TAP query to the terminal.
-        print_targets : bool, optional
-            (Default value = False)
-            Print a list of targets with ALMA data (ALMA source names) to the terminal.
 
         Returns
         -------
-        pandas.DataFrame containing the query results
+        'TAP_df' pandas.DataFrame containing the query results
 
         """
+
+        search_radius = self.query_par['search_radius'] * u.arcmin
+        if self.query_par['point']:
+            query = "SELECT * FROM ivoa.ObsCore WHERE 1 = CONTAINS(POINT('ICRS',{},{}), s_region)".format(self.query_par['ra'], self.query_par['dec'])
+        else:
+            query = "SELECT * FROM ivoa.ObsCore WHERE (1 = INTERSECTS(CIRCLE('ICRS',{},{},{}), s_region) OR " \
+                    "1 = CONTAINS(POINT('ICRS',{},{}), s_region))".format(self.query_par['ra'], self.query_par['dec'], search_radius.to(u.deg).value, self.query_par['ra'], self.query_par['dec'])
+
+        if self.query_par['public']:
+            query = "{} AND data_rights LIKE '%Public%'".format(query)
+        elif not self.query_par['public'] and self.query_par['public'] is not None:
+            query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
+
+        if self.query_par['print_query']:
+            print("Your query is: {}".format(query))
+
+        TAP_df = self.run_query(query)
+
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
+        '''
+        if TAP_df is not None:
+            if self.query_par['published']:  # case of self.query_par['published'] = True
+                TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
+
+            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of self.query_par['published'] = False
+                TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
+
+            filtered_df = self.filter_results(TAP_df)
+            return filtered_df
+        '''
+
+        return TAP_df
+
+
+    def self_conesearch(self, ra, dec, search_radius):
+        """
+        Query the ALMA archive for a given position and radius around it.
+
+        Parameters
+        ----------
+        ra : float
+            Right ascension in degrees (ICRS).
+        dec : float
+            Declination in degrees (ICRS).
+        search_radius : float, optional
+            (Default value = 1. arcmin)
+            Search radius (in arcmin) around the source coordinates.
+
+        Returns
+        -------
+        'TAP_df' pandas.DataFrame containing the query results
+
+        """
+
         search_radius = search_radius * u.arcmin
-        if point:
+        if self.query_par['point']:
             query = "SELECT * FROM ivoa.ObsCore WHERE 1 = CONTAINS(POINT('ICRS',{},{}), s_region)".format(ra, dec)
         else:
             query = "SELECT * FROM ivoa.ObsCore WHERE (1 = INTERSECTS(CIRCLE('ICRS',{},{},{}), s_region) OR " \
                     "1 = CONTAINS(POINT('ICRS',{},{}), s_region))".format(ra, dec, search_radius.to(u.deg).value, ra, dec)
 
-        if public:
+        if self.query_par['public']:
             query = "{} AND data_rights LIKE '%Public%'".format(query)
-        elif not public and public is not None:
+        elif not self.query_par['public'] and self.query_par['public'] is not None:
             query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
 
-        if print_query:
+        if self.query_par['print_query']:
             print("Your query is: {}".format(query))
 
-        TAP_df = run_query(query, tap_service=tap_service)
+        TAP_df = self.run_query(query)
+
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
+        '''
         if TAP_df is not None:
-            if published:  # case pf published = True
+            if self.query_par['published']:  # case of self.query_par['published'] = True
                 TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
-            elif not published and published is not None:  # case of published = False
+
+            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of self.query_par['published'] = False
                 TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
-            filtered_df = filter_results(TAP_df, print_targets=print_targets)
+
+            filtered_df = self.filter_results(TAP_df)
             return filtered_df
+        '''
 
+        return TAP_df
+    
 
-    def target(sources, search_radius=1., tap_service='ESO', point=False, public=True, published=None, print_query=False, print_targets=True):
+    def target(self):
         """
         Query targets by name.
 
@@ -435,43 +529,19 @@ class datap(dict):
         search_radius : float, optional
             (Default value = 1. arcmin)
             Search radius (in arcmin) around the source coordinates.
-        tap_service : str, optional
-            (Default value = 'ESO')
-            The TAP service to use. Options are:
-            'ESO' for Europe (https://almascience.eso.org/tap),
-            'NRAO' for North America (https://almascience.nrao.edu/tap), or
-            'NAOJ' for East Asia (https://almascience.nao.ac.jp/tap)
-        point : bool, optional
-            (Default value = True)
-            Search whether the specified position (ra, dec) is contained within any ALMA observations (point=True)
-            or query all ALMA observations that overlap with a cone centred at the specified position (ra, dec) and
-            extending the search_radius (point=False). In the case of point=True, the search_radius parameter is ignored.
-        public : bool, optional
-            (Default value = True)
-            Search for public data (public=True), proprietary data (public=False),
-            or both public and proprietary data (public=None).
-        published : bool, optional
-            (Default value = None)
-            Search for published data only (published=True), unpublished data only (published=False),
-            or both published and unpublished data (published=None).
-        print_query : bool, optional
-            (Default value = True)
-            Print the ADQL TAP query to the terminal.
-        print_targets : bool, optional
-            (Default value = False)
-            Print a list of targets with ALMA data (ALMA source names) to the terminal.
+
 
         Returns
         -------
-        pandas.DataFrame containing the query results.
+        'obs' pandas.DataFrame containing the query results.
 
         See Also
         --------
         keysearch : Query the ALMA archive for any (string-type) keywords defined in ALMA TAP system.
 
         """
-        if isinstance(sources, str):
-            sources = [sources]
+        if isinstance(self.query_par['sources'], str):
+            sources = [self.query_par['sources']]
         print("================================")
         print("alminer.target results ")
         print("================================")
@@ -482,9 +552,7 @@ class datap(dict):
             try:
                 # Get source coodinates from astropy SESAME resolver querying multiple databases (SIMBAD, NED, Vizier)
                 source_pos = get_icrs_coordinates(s)
-                TAP_df = conesearch(ra=source_pos.ra.deg, dec=source_pos.dec.deg, search_radius=search_radius,
-                                    tap_service=tap_service, point=point, public=public, published=published,
-                                    print_query=print_query, print_targets=print_targets)
+                TAP_df = self.self_conesearch(ra=source_pos.ra.deg, dec=source_pos.dec.deg, search_radius=self.query_par['search_radius'])
                 if TAP_df is not None:
                     complete_results.append(TAP_df)
             except name_resolve.NameResolveError as err:  # source coords not found in SESAME resolver
@@ -503,79 +571,7 @@ class datap(dict):
             print("--------------------------------")   
 
 
-    def catalog(target_df, search_radius=1., tap_service='ESO', point=False, public=True, published=None, print_query=False, print_targets=True):
-        """
-        Query the ALMA archive for a list of coordinates or a catalog of sources based on their coordinates.
-
-        Parameters
-        ----------
-        target_df : pandas.DataFrame
-            Source names and coordinates.
-
-            Index:
-                RangeIndex
-            Columns:
-                Name: Name, dtype: str, description: target name (can be numbers or dummy names)
-                Name: RAJ2000, dtype: float64, description: right ascension in degrees (ICRS)
-                Name: DEJ2000, dtype: float64, description: declination in degrees (ICRS)
-        search_radius : float, optional
-            (Default value = 1. arcmin)
-            Search radius (in arcmin) around the source coordinates.
-        tap_service : str, optional
-            (Default value = 'ESO')
-            The TAP service to use. Options are:
-            'ESO' for Europe (https://almascience.eso.org/tap),
-            'NRAO' for North America (https://almascience.nrao.edu/tap), or
-            'NAOJ' for East Asia (https://almascience.nao.ac.jp/tap)
-        point : bool, optional
-            (Default value = True)
-            Search whether the specified position (ra, dec) is contained within any ALMA observations (point=True)
-            or query all ALMA observations that overlap with a cone centred at the specified position (ra, dec) and
-            extending the search_radius (point=False). In the case of point=True, the search_radius parameter is ignored.
-        public : bool, optional
-            (Default value = True)
-            Search for public data (public=True), proprietary data (public=False),
-            or both public and proprietary data (public=None).
-        published : bool, optional
-            (Default value = None)
-            Search for published data only (published=True), unpublished data only (published=False),
-            or both published and unpublished data (published=None).
-        print_query : bool, optional
-            (Default value = True)
-            Print the ADQL TAP query to the terminal.
-        print_targets : bool, optional
-            (Default value = False)
-            Print a list of targets with ALMA data (ALMA source names) to the terminal.
-
-        Returns
-        -------
-        pandas.DataFrame containing the query results.
-
-        """
-        print("================================")
-        print("alminer.catalog results")
-        print("================================")
-        complete_results = []
-        for p in range(target_df.shape[0]):
-            print("Target = {}".format(target_df.Name[p]))
-            source_pos = SkyCoord(target_df.RAJ2000[p] * u.deg, target_df.DEJ2000[p] * u.deg, frame='icrs')
-            TAP_df = conesearch(ra=source_pos.ra.deg, dec=source_pos.dec.deg, search_radius=search_radius,
-                                tap_service=tap_service, point=point, public=public, published=published,
-                                print_query=print_query, print_targets=print_targets)
-            if TAP_df is not None:
-                complete_results.append(TAP_df)
-        # if the list of query results is not empty, concatenate them together into one DataFrame
-        if complete_results:
-            obs = pd.concat(complete_results)
-            # need to reset the index of DataFrame so the indices in the final DataFrame are consecutive
-            obs = obs.drop_duplicates().reset_index(drop=True)
-            return obs
-        else:
-            print("No observations found for any sources in this catalog.")
-            print("--------------------------------")
-
-
-    def keysearch(search_dict, tap_service='ESO', public=True, published=None, print_query=False, print_targets=True):
+    def keysearch(self):
         """
         Query the ALMA archive for any (string-type) keywords defined in ALMA TAP system.
 
@@ -584,26 +580,7 @@ class datap(dict):
         search_dict : dict[str, list of str]
             Dictionary of keywords in the ALMA archive and their values. Values must be formatted as a list.
             A list of valid keywords are stored in VALID_KEYWORDS_STR variable.
-        tap_service : str, optional
-            (Default value = 'ESO')
-            The TAP service to use. Options are:
-            'ESO' for Europe (https://almascience.eso.org/tap),
-            'NRAO' for North America (https://almascience.nrao.edu/tap), or
-            'NAOJ' for East Asia (https://almascience.nao.ac.jp/tap)
-        public : bool, optional
-            (Default value = True)
-            Search for public data (public=True), proprietary data (public=False),
-            or both public and proprietary data (public=None).
-        published : bool, optional
-            (Default value = None)
-            Search for published data only (published=True), unpublished data only (published=False),
-            or both published and unpublished data (published=None).
-        print_query : bool, optional
-            (Default value = True)
-            Print the ADQL TAP query to the terminal.
-        print_targets : bool, optional
-            (Default value = False)
-            Print a list of targets with ALMA data (ALMA source names) to the terminal.
+
 
         Returns
         -------
@@ -637,20 +614,22 @@ class datap(dict):
             projects that are within the scientific_category of 'Galaxies'.
 
         """
-        print("================================")
-        print("alminer.keysearch results ")
-        print("================================")
-        # Add keyword to the query dictionary for the data rights (Public, Proprietary, or both)
-        if public:
-            search_dict['data_rights'] = ['Public']
-        elif not public and public is not None:
-            search_dict['data_rights'] = ['Proprietary']
-        # Add scan intent keyword to the query dictionary to be the science target by default
-        search_dict['scan_intent'] = ['TARGET']
 
-        # compile a list of queries based on all keywords provided
+        print("================================")
+        print("Keysearch results ")
+        print("================================")
+
+        # Add keyword to the query dictionary for the data rights (Public, Proprietary, or both)
+        if self.query_par['public']:
+            self.query_par['search_dict']['data_rights'] = ['Public']
+        elif not self.query_par['public'] and self.query_par['public'] is not None:
+            self.query_par['search_dict']['data_rights'] = ['Proprietary']
+        # Add scan intent keyword to the query dictionary to be the science target by default
+        self.query_par['search_dict']['scan_intent'] = ['TARGET']
+
+        # Compile a list of queries based on all keywords provided
         full_query_list = []
-        for keyword, values in search_dict.items():
+        for keyword, values in self.query_par['search_dict'].items():
             # Catch if a wrong keyword is used and give appropriate error
             assert keyword in VALID_KEYWORDS_STR, "Invalid keyword, must be one of: {}".format(VALID_KEYWORDS_STR)
             # Convert underscores and spaces in the target name to wildcard
@@ -663,6 +642,7 @@ class datap(dict):
                 current_query = ["LOWER({}) LIKE '%{}%'".format(keyword, v.lower()) for v in values]
                 full_query_list.append("({})".format(" OR ".join(current_query)))
             # Account for AND/OR logic for keywords that are not target_name
+
             else:
                 keyword_query_list = []
                 for v in values:
@@ -677,22 +657,140 @@ class datap(dict):
                     else:
                         keyword_query_list.append("LOWER({}) LIKE '%{}%'".format(keyword, v.lower()))
                 full_query_list.append("({})".format(" OR ".join(keyword_query_list)))
+                
+
         # Put together the entire query with 'AND' logic between different keywords
         full_query = "SELECT * FROM ivoa.obscore WHERE {} ORDER BY proposal_id".format(" AND ".join(full_query_list))
-        if print_query:
+        if self.query_par['print_query']:
             print("Your query is: {}".format(full_query))
-        TAP_df = run_query(full_query, tap_service=tap_service)
+        TAP_df = self.run_query(full_query)
         # Filter whether the user wants published data, unpublished data, or both (default)
-        if published:  # case pf published = True
+        if self.query_par['published']:  # case pf published = True
             TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
-        elif not published and published is not None:  # case pf published = False
+        elif not self.query_par['published'] and self.query_par['published'] is not None:  # case pf published = False
             TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
-        return filter_results(TAP_df, print_targets=print_targets)
+        
+        #CAHNGE. filter_result, esta función esta pero aún no esta implementada. 
+        return TAP_df
 
 
-    def free(query, service=''):
-        return
-    '''
+    def free(self):
+
+        TAP_df = self.run_query(self.query_par['query_str'])
+
+        return TAP_df
+
+
+    def check_query_par(self):
+
+        if not self.query_type:
+            raise ValueError(f"The attribute 'query_type' is not defined in the YAML file.")
+
+        # Expected parameters for each query
+        expected_params = {
+            'proposal':   ['proposal_id'],
+            'conesearch': ['ra', 'dec', 'search_radius'],
+            'target':     ['sources', 'search_radius'],
+            'keysearch':  ['search_dict'],
+            'free':       ['query_str'],
+        }
+
+        # Expected types for specific parameters
+        expected_types = {
+            'proposal_id': str,
+            'ra': (int, float),
+            'dec': (int, float),
+            'search_radius': (int, float),
+            'sources': list,
+            'search_dict': dict,
+            'query_str': str,
+        }
+
+        # Common parameters to ignore during validation
+        common_params = ['point', 'public', 'published', 'print_targets', 'print_query']
+
+        # Get the valid parameters for the current query type
+        valid_params = expected_params.get(self.query_type, None)
+
+        if not valid_params:
+            raise ValueError(f"The query type '{self.query_type}' is not valid. Choose among the available options.")
+
+        # Filter active parameters, excluding common ones
+        active_params = {k: v for k, v in self.query_par.items() if v is not None and k not in common_params}
+
+        # Check missing params
+        missing_params = [param for param in valid_params if param not in active_params]
+        if missing_params:
+            raise ValueError(f"The next required 'query_par' for 'query_type' = {self.query_type} are missing: {missing_params}")
+
+        # Check extra params
+        extra_params = [param for param in active_params if param not in valid_params]
+        if extra_params:
+            raise ValueError(f"Invalid parameters found for 'query_type = {self.query_type}': {extra_params}.")
+
+        # Check that the number of parameters matches exactly
+        if len(active_params) != len(valid_params):
+            raise ValueError(f"The number of active parameters does not match the expected ones for 'query_type = {self.query_type}'. "
+                            f"Expected: {valid_params}, Active: {list(active_params.keys())}.")
+
+        # Validate types for active parameters
+        for param, value in active_params.items():
+            expected_type = expected_types.get(param)
+            if expected_type and not isinstance(value, expected_type):
+                raise ValueError(f"The parameter '{param}' must be of type {expected_type}, but got '{value}'({type(value).__name__}).")
+
+        print(f"Validation successful: all parameters for 'query_type = {self.query_type}' are correct.")
+
+
+    def check_download_par(self):
+        """
+        Validates the types of parameters in the class instance, excluding 'query_par'.
+        
+        Raises:
+            ValueError: If any attribute does not match its expected type.
+        """
+        
+        expected_types = {
+            'server_address': str,
+            'credentials': bool,
+            'stored_credentials': bool,
+            'download_par': dict,  # Se espera que sea un diccionario para validación más profunda
+        }
+
+        for param, expected_type in expected_types.items():
+            if hasattr(self, param):
+                value = getattr(self, param)
+                if not isinstance(value, expected_type):
+                    raise ValueError(
+                        f"Parameter '{param}' must be of type {expected_type.__name__}, "
+                        f"but got {type(value).__name__}, '{value}'."
+                    )
+
+        # Validar subparámetros en download_par si está presente
+        if hasattr(self, 'download_par') and isinstance(self.download_par, dict):
+            download_par_expected_types = {
+                'fitsonly': bool,
+                'include_pb': bool,
+                'remove_uncompress_files': bool,
+                'dryrun': bool,
+                'print_urls': bool,
+                'filename_must_include': list,
+                'data_dir': str,
+                }
+            
+
+            for key, expected_type in download_par_expected_types.items():
+                if key in self.download_par:
+                    value = self.download_par[key]
+                    if not isinstance(value, expected_type):
+                        raise ValueError(
+                            f"Parameter 'download_par.{key}' must be of type {expected_type.__name__}, "
+                            f"but got {type(value).__name__}, '{value}'."
+                        )
+
+        #print("All parameters are valid.")
+
+        
 
     ''' FUNCTIONS TO BE PONTENTIALLY ADDED. Se entrelazan entre ellas'''
     '''

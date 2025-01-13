@@ -1,0 +1,158 @@
+# SoFiA 2 parameter file for the official SoFiA test datacube
+
+
+# Global settings
+
+pipeline.verbose           =  false
+pipeline.pedantic          =  true
+pipeline.threads           =  0
+
+
+# Input
+
+input.data                 =  sofia_test_datacube.test
+input.primaryBeam          =  
+input.region               =  
+input.gain                 =  
+input.noise                =  
+input.weights              =  
+input.mask                 =  
+input.invert               =  falseee
+
+
+# Flagging
+
+flag.region                =  
+flag.catalog               =  
+flag.radius                =  5
+flag.auto                  =  false
+flag.threshold             =  5.0
+flag.log                   =  false
+flag.cube                  =  
+
+
+# Continuum subtraction
+
+contsub.enable             =  false
+contsub.order              =  0
+contsub.threshold          =  2.0
+contsub.shift              =  4
+contsub.padding            =  3
+
+
+# Noise scaling
+
+scaleNoise.enable          =  false
+scaleNoise.mode            =  local
+scaleNoise.statistic       =  mad
+scaleNoise.fluxRange       =  negative
+scaleNoise.windowXY        =  31
+scaleNoise.windowZ         =  31
+scaleNoise.gridXY          =  0
+scaleNoise.gridZ           =  0
+scaleNoise.interpolate     =  false
+scaleNoise.scfind          =  false
+
+
+# Ripple filter
+
+rippleFilter.enable        =  false
+rippleFilter.statistic     =  median
+rippleFilter.windowXY      =  31
+rippleFilter.windowZ       =  15
+rippleFilter.gridXY        =  0
+rippleFilter.gridZ         =  0
+rippleFilter.interpolate   =  false
+
+
+# S+C finder
+
+scfind.enable              =  true
+scfind.kernelsXY           =  0, 3, 6, 9
+scfind.kernelsZ            =  0, 3, 7, 15
+scfind.threshold           =  3.8
+scfind.replacement         =  2.0
+scfind.statistic           =  mad
+scfind.fluxRange           =  negative
+
+
+# Threshold finder
+
+threshold.enable           =  false
+threshold.threshold        =  5.0
+threshold.mode             =  relative
+threshold.statistic        =  mad
+threshold.fluxRange        =  negative
+
+
+# Linker
+
+linker.enable              =  true
+linker.radiusXY            =  2
+linker.radiusZ             =  3
+linker.minSizeXY           =  5
+linker.minSizeZ            =  5
+linker.maxSizeXY           =  0
+linker.maxSizeZ            =  0
+linker.minPixels           =  0
+linker.maxPixels           =  0
+linker.minFill             =  0.05
+linker.maxFill             =  0.0
+linker.positivity          =  false
+linker.keepNegative        =  false
+
+
+# Reliability
+
+reliability.enable         =  true
+reliability.parameters     =  peak, sum, mean
+reliability.threshold      =  0.9
+reliability.scaleKernel    =  0.3
+reliability.minSNR         =  6.0
+reliability.minPixels      =  150
+reliability.autoKernel     =  true
+reliability.iterations     =  50
+reliability.tolerance      =  0.05
+reliability.catalog        =  
+reliability.plot           =  true
+reliability.plotExtra      =  false
+reliability.debug          =  false
+
+
+# Mask dilation
+
+dilation.enable            =  false
+dilation.iterationsXY      =  10
+dilation.iterationsZ       =  5
+dilation.threshold         =  0.001
+
+
+# Parameterisation
+
+parameter.enable           =  true
+parameter.wcs              =  true
+parameter.physical         =  false
+parameter.prefix           =  SoFiA
+parameter.offset           =  false
+
+
+# Output
+
+output.directory           =  
+output.filename            =  output
+output.writeCatASCII       =  true
+output.writeCatXML         =  true
+output.writeCatSQL         =  false
+output.writeKarma          =  false
+output.writeNoise          =  false
+output.writeFiltered       =  false
+output.writeMask           =  true
+output.writeMask2d         =  true
+output.writeRawMask        =  false
+output.writeMoments        =  true
+output.writeCubelets       =  true
+output.writePV             =  true
+output.marginAperSpec      =  10
+output.marginCubelets      =  10
+output.thresholdMom12      =  0.0
+output.overwrite           =  true

@@ -1,17 +1,3 @@
-###############
-### LOGGING ###
-###############
-
-#This is and example of a download file. 
-
-#log_file:  # <str> Path to log file.
-log_date_format: '%Y-%m-%d %H:%M:%S' # <log date format>
-log_format: '%(asctime)s - %(levelname)s - %(message)s - %(process)d (%(proc_memory)s' # <log format> You can also add '%(process)d (%(proc_memory)s)' to the format to show pid and memory usage per process.
-#log_level: 20 # <int>. Possible values are: 10 (DEBUG), 20 (INFO), 30 (WARNING), 40 (ERROR), 50 (CRITICAL).
-
-
-
-
 ################
 #    SERVER    #
 ################
@@ -42,54 +28,52 @@ stored_credentials: False # <bool>
 query_type: 'proposal'
 
 #The query type options available are:
-# 'conesearch' Query the ALMA archive for a given position and radius around it.
+# 'conesearch' 
 # 'target'
-# 'catalog'
 # 'keysearch'
 # 'free'
 
-##Parameters for the query indicated in 'query_type':
-
+##Specific parameters for the query indicated in 'query_type':
 query_par:
-#query type = proposal
-  proposal_id: '2019.1.01408.S' 
-#query_type = conesearch
-  #ra: None
-  #dec: None
+#-----------------query type = proposal---------------------#
+  proposal_id: '2016.1.00778.S' 
+#----------------query type = conesearch--------------------#
+  #ra: 1
+  #dec: 1
   #search_radius: 1.
-#query_type = target
+#------------------query type = target----------------------#
   #sources: None
-  #search_radius: 1.
-#query_type = catalogue
-  #target_df: None 
-  #search_radius: 1.
-#query_type = keysearch
-  #search_dict:None
+  #search_radius: 2.
+#-----------------query type = keysearch--------------------#
+  #search_dict: {"proposal_abstract": ["high-mass star formation outflow disk"]}
+#-------------------query type = free-----------------------#
+  #query_str: "SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"
 
 #Common parameters for the query
   point: False 
   public: True
   published: None
   print_targets: True 
-  print_query: False
+  print_query: True
 
 
 
 ## Parameters for data download
 
 download_par:
-  fitsgzonly : True # <bool> (Default value = True) Download individual fits or gz files only (fitsgzonly=True). This option will not download the raw data
-  dryrun : False # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
-                 # downloading the data (dryrun=True). To download the data, set testrun=False.
-  print_urls : False # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
-  filename_must_include : ['sci.spw29.cube'] #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
-                             # download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
-                             #the science target or calibrators (by including their names). The choice is largely dependent on the
-                             #cycle and type of reduction that was performed and data products that exist on the archive as a result.
-                             #In most recent cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
-  data_dir : './archive_data' #<str> The path of the directory where the downloaded data should be placed.
+  fitsonly : True                                    # <bool> (Default value = True) Download individual fits files only. This option will not download the raw data
+  include_pb: True                                   # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
+  remove_uncompress_files: True                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
+  dryrun : False                                     # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
+                                                      # downloading the data (dryrun=True). To download the data, set testrun=False.
+  print_urls : True                                 # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
+  filename_must_include : ['member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I']  #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
+                                                      # download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
+                                                      #the science target or calibrators (by including their names). The choice is largely dependent on the
+                                                      #cycle and type of reduction that was performed and data products that exist on the archive as a result.
+                                                      #In most recent cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
+  data_dir : '../../../UbuntuShare/downloaded_data/'                         #<str> The path of the directory where the downloaded data should be placed.
 
 
-#query: "SELECT * FROM ivoa.obscore WHERE obs_publisher_did like '%2019.1.01408.S%'" 
 
 
