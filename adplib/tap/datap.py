@@ -186,6 +186,7 @@ class datap(dict):
         print("================================")
         #CHANGE. Definir asi el directorio puede provocar problemas
         default_location = './tap/archive_data'
+    
         
         #Check the input Dataframe
         
@@ -206,24 +207,40 @@ class datap(dict):
         except TypeError:
             logger.error("No data to download. Check the input DataFrame.")
             sys.exit(-1)
-        
-        # change download location if specified by user, else the location will be a folder called 'archive_data' in the tap directory
-        if self.download_par['data_dir'] != default_location:
 
-            if os.path.isdir(self.download_par['data_dir']):
+
+        if self.download_par['data_dir'] is None:
+            #La función alma.cache_location ya crea el directorio con el nombre en cuestión. 
+            self.alma.cache_location = default_location
+        else:
+            if not os.path.exists(Path(self.download_par['data_dir'])):
                 self.alma.cache_location = self.download_par['data_dir']
-
             else:
+                logger.warning(f"The directory '{self.download_par['data_dir']}' already exits. The data from the archive wiil be storaged in this directory.")
+                self.alma.cache_location = self.download_par['data_dir']
+                
+    
+        '''# change download location if specified by user, else the location will be a folder called 'archive_data' in the tap directory
+        if self.download_par['data_dir'] != default_location:
+            print('Bloque 1')
+            if os.path.isdir(Path(self.download_par['data_dir'])):
+                self.alma.cache_location = self.download_par['data_dir']
+                print('Sub Bloque 1')
+            else:
+                print('Sub Bloque 2')
                 logger.warning("{} is not a directory. The download location will be set to {}".format(self.download_par['data_dir'], default_location))
                 self.alma.cache_location = default_location
 
         elif (self.download_par['data_dir'] == default_location) and not os.path.isdir(self.download_par['data_dir']):  # create the 'archive_data' subdirectory
+            print('Bloque 2')
             #CHANGE. If this directory alrealy exists will display an error
             if Path(default_location).exists():
+                print('Sub Bloque 1')
                 os.makedirs(default_location)
                 self.alma.cache_location = default_location
             else:
-                logger.warning('The default directory {default_location} already exits. The data from the archive wiil be storaged in this directory.')
+                print('Sub Bloque 2')
+                logger.warning('The default directory {default_location} already exits. The data from the archive wiil be storaged in this directory.')'''
 
 
         #Fits only and phrase within the file to download
@@ -288,16 +305,57 @@ class datap(dict):
                 "measurement set, and image the observations of interest. It is also possible to request calibrated "
                 "measurement sets through a Helpdesk ticket to the European ARC "
                 "(see https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe).")
-        print("================================")
-
+            sys.exit(-1)
+        
+        
         
         if self.download_par['dryrun']:
             sys.exit(-1)
 
         #Set Attr data locations of the just downloaded data
         self.get_downloaded_file_path(Path(self.alma.cache_location))
+        print("================================")
+        logger.info("Download ended.")
     
 
+    def download_mask(self, observations):
+
+        try:
+            if any(observations['data_rights'] == 'Proprietary'):
+                #logger.warning("Some of the data you are trying to download are still in the proprietary period and are not publicly available yet.")
+                observations = observations[observations['data_rights'] == 'Public']
+
+            uids_list = observations['member_ous_uid'].unique()
+            # when len(uids_list) == 0, it's because the DataFrame included only proprietary data and we removed them in the above if statement, so the DataFrame is now empty
+
+            
+        # this is the case where the query had no results to begin with.
+        except TypeError:
+            logger.critical("Internal error. Something went wrong trying to download mask from the archive.")
+            sys.exit(-1)
+        
+        #self.alma.cache_location
+
+        data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
+        dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (".cube.I.mask." in v and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
+        dl_df = dl_table.to_pandas()
+        # remove empty elements in the access_url column
+        dl_df = dl_df.loc[dl_df.access_url != '']
+        dl_link_list = list(dl_df['access_url'].unique())
+
+        try:
+            logger.info("Starting download masks. Please wait...")
+            print("================================")
+            self.alma.download_files(dl_link_list, cache=True)
+            
+        except ValueError as e:
+            print(e)
+
+        self.get_downloaded_mask_path(Path(self.alma.cache_location))
+        logger.info("Download ended.")
+        print("================================")
+
+    
     def run_query(self, query_str):
         """
         Run the TAP query through PyVO service.
@@ -332,31 +390,122 @@ class datap(dict):
 
     def get_downloaded_file_path(self, base_dir):
         
-        #CHANGE. Por el momento solo trabaja con fits y pb, pero habría que mejorar esta parte porque si se descarga otra cosa que no sean o .fits o pb (también .fits) Va haber problemas
-        fits_files = list(base_dir.glob("*.fits"))  
-        pb_gz_files = list(base_dir.glob("*.pb.*"))  
+        
 
-        pb_files = [] 
+        fits_files = list(base_dir.glob("*.fits"))
+        fits_files = [f for f in fits_files if ".pb." not in f.name]  # Excluye los archivos .pb
+        pb_gz_files = list(base_dir.glob("*.pb.*"))
+
         if not fits_files and not pb_gz_files:
-                raise FileNotFoundError(f"No fits files founds in {base_dir}.")
-        
+            raise FileNotFoundError(f"No fits or primary beam files found in {base_dir}.")
+
+        decompressed_pb_files = []  
+
         for file in pb_gz_files:
-            try:
-                extracted_file_path = file.with_suffix('')  # Eliminar .gz de la extensión
-                with gzip.open(file, 'rb') as gz_in:
-                    with open(extracted_file_path, 'wb') as extracted_out:
-                        shutil.copyfileobj(gz_in, extracted_out)
-                if self.download_par['remove_uncompress_files']:
-                    file.unlink()  # Eliminar el archivo .gz original
-                pb_files.append(extracted_file_path)  # Agregar el archivo descomprimido a la lista
-            except Exception as e:
-                print(f"Error trying to uncompress {file}: Error {e}")
+            if file.suffix == ".gz":
+                extracted_file_path = file.with_suffix('')  
+
+                # Compruebo si el archivo descomprimido ya existe
+                if extracted_file_path.exists():
+                    print(f"The unzipped primary beam file already exists: {extracted_file_path}")
+                    decompressed_pb_files.append(extracted_file_path)
+
+                    if self.download_par['remove_uncompress_file']:
+                        file.unlink()
+                        print(f"Compressed file deleted: {file}")
+                else:
+                    # Intento descomprimir el archivo
+                    try:
+                        with gzip.open(file, 'rb') as gz_in:
+                            with open(extracted_file_path, 'wb') as extracted_out:
+                                shutil.copyfileobj(gz_in, extracted_out)
+                        print(f"Unzipped primary beam file: {extracted_file_path}")
+
+                        if self.download_par['remove_uncompress_file']:
+                            file.unlink()
+                            print(f"Compressed file deleted: {file}")
+
+                        decompressed_pb_files.append(extracted_file_path)
+                    except Exception as e:
+                        logger.error(f"Error trying to unzip {file}: {e}")
+            else:
+                # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                decompressed_pb_files.append(file)
+
+        # Selecciono los archivos más recientes (si hay múltiples)
+        if fits_files:
+            most_recent_fitsfile = max(fits_files, key=lambda f: f.stat().st_mtime)
+            self.data_loc_fits = most_recent_fitsfile
+            print(f"Most recent fits file selected: {most_recent_fitsfile}")
+        else:
+            self.data_loc_fits = None
+            logger.warning("No valid fits files found.")
+
+        if decompressed_pb_files:
+            most_recent_pbfile = max(decompressed_pb_files, key=lambda f: f.stat().st_mtime)
+            self.data_loc_pb = most_recent_pbfile
+            
+            print(f"Most recent primary beam file selected: {most_recent_pbfile}")
+        else:
+            self.data_loc_pb = None
+
+
+    def get_downloaded_mask_path(self, base_dir):
+
+        """
+        Busca y descomprime archivos .gz en el directorio base especificado.
+        Si 'remove_uncompress_files' está activado, elimina los archivos comprimidos después de descomprimirlos.
+        Si ya existe un archivo descomprimido, lo utiliza directamente y elimina el archivo comprimido si está presente.
+        """
+
+        #Cuidado con buscar de esta manera, habría que ser más específico
+        mask_files = list(base_dir.glob("*cube.I.mask*"))
         
-        
-        most_recent_fitsfile = max(fits_files, key=lambda f: f.stat().st_mtime)  
-        most_recent_pbfile = max(pb_files, key=lambda f: f.stat().st_mtime)  
-        self.data_loc_fits = most_recent_fitsfile
-        self.data_loc_pb = most_recent_pbfile 
+        if not mask_files:
+            logger.warning("No mask files found in the download data set selected.")
+            return
+
+        decompressed_files = []  #Almaceno archivos descomprimidos o existentes
+
+        for file in mask_files:
+            # Compruebo si esta comprimido (.gz)
+            if file.suffix == ".gz":
+                extracted_file_path = file.with_suffix('') 
+
+                # Compruebo si el archivo descomprimido ya existe
+                if extracted_file_path.exists():
+                    print(f"The unzipped file already exists: {extracted_file_path}")
+                    decompressed_files.append(extracted_file_path)
+
+                    if self.download_par['remove_uncompress_file']:
+                        file.unlink()
+                        print(f"Compressed file deleted: {file}")
+                else:
+                    try:
+                        with gzip.open(file, 'rb') as gz_in:
+                            with open(extracted_file_path, 'wb') as extracted_out:
+                                shutil.copyfileobj(gz_in, extracted_out)
+                        print(f"Unzipped file: {extracted_file_path}")
+
+                        if self.download_par['remove_uncompress_file']:
+                            file.unlink()
+                            print(f"Compressed file deleted: {file}")
+
+                        decompressed_files.append(extracted_file_path)
+                    except Exception as e:
+                        logger.error(f"Error trying to unzip {file}: {e}")
+            else:
+                decompressed_files.append(file)
+
+        # Selecciona el archivo más reciente basado en su fecha de modificación
+        if decompressed_files:
+            most_recent_maskfile = max(decompressed_files, key=lambda f: f.stat().st_mtime)
+            self.data_loc_mask = most_recent_maskfile
+            print(f"Most recent file selected: {most_recent_maskfile}")
+        else:
+            logger.warning("No valid mask files were found or processed.")
+
+
 
 
     # Type of querys available     
@@ -376,7 +525,6 @@ class datap(dict):
         """
 
         
-
         query = f"SELECT *  FROM ivoa.obscore WHERE obs_publisher_did like '%{self.query_par['proposal_id']}%'"
 
         if self.query_par['public']:
@@ -771,11 +919,11 @@ class datap(dict):
             download_par_expected_types = {
                 'fitsonly': bool,
                 'include_pb': bool,
-                'remove_uncompress_files': bool,
+                'remove_uncompress_file': bool,
                 'dryrun': bool,
                 'print_urls': bool,
                 'filename_must_include': list,
-                'data_dir': str,
+                'data_dir': str | None
                 }
             
 

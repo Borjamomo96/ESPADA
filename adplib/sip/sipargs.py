@@ -185,9 +185,11 @@ class SiPar(dict):
     def run_sip(self, config, sopar=None):
 
         if config.enable_sofia:
-            output_cubelets = Path(f"{sopar.output_directory}/{self.output.filename}_cubelets")
+            output_cubelets = Path(f"{sopar.output_directory}")
+            print(output_cubelets)
             sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))
             sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))
+            print(sofia_catalog_txt, sofia_catalog_xml)
 
             if sofia_catalog_txt and sofia_catalog_xml:
                 sofia_catalog = sofia_catalog_txt
@@ -256,6 +258,7 @@ class SiPar(dict):
                     cmd.append(shortcut)  
                     cmd.append(str(value)) 
         return cmd
+
 
     def make_summary(self, cmd):
         """

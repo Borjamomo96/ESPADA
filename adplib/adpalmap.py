@@ -126,7 +126,6 @@ def main():
         elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
 
         adpalmap_datap.download_data(TAP_df)
-
         
     else:
         adpalmap_datap = None
@@ -134,6 +133,7 @@ def main():
 
     time.sleep(0.5)
 
+    
 
     #--------------------------------------------------------------------------------------------#
 
@@ -151,6 +151,16 @@ def main():
                 adpalmap_sopar_emi.auto_setup()
             adpalmap_sopar_emi.run_sofia(adpalmap_main, mode=adpalmap_main.run_mode)
 
+            if adpalmap_main.quality_assesment == True:
+                logger.info('Starting the quality assesment...')
+                if adpalmap_datap is not None:
+                    adpalmap_datap.download_mask(TAP_df)
+                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                else:
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+
+
         elif adpalmap_main.run_mode == 'absorption':
 
             adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_main.sofia_abs_file)
@@ -158,6 +168,13 @@ def main():
             if adpalmap_main.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
             adpalmap_sopar_abs.run_sofia(adpalmap_main, mode=adpalmap_main.run_mode)
+
+            if adpalmap_main.quality_assesment == True:
+                if adpalmap_datap is not None:
+                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                else:
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
         elif adpalmap_main.run_mode == 'both':
 
@@ -168,8 +185,24 @@ def main():
             if adpalmap_main.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
+
             adpalmap_sopar_abs.run_sofia(adpalmap_main, mode=adpalmap_main.run_mode)
+
+            if adpalmap_main.quality_assesment == True:
+                if adpalmap_datap is not None:
+                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                else:
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+
             adpalmap_sopar_emi.run_sofia(adpalmap_main, mode=adpalmap_main.run_mode, run=0)
+
+            if adpalmap_main.quality_assesment == True:
+                if adpalmap_datap is not None:
+                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                else:
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
 
     else:
         logger.info(f"'enable_sofia' set to {adpalmap_main.enable_tap_service}. Skipping Sofia runs.")

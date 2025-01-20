@@ -5,11 +5,58 @@ import subprocess
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
+import matplotlib.pyplot as plt
 
 # Configuration:
 from config import Config
 config = Config()
 logger = config.get_logger()
+
+
+def image_moment8(sopar, output_fits=None):
+
+    """
+    Reads a FITS file containing a data cube and creates a 2D image by
+    taking the maximum value along the z-axis for each (x, y).
+
+    Parameters:
+        input_fits (str): Path to the input FITS file containing the data cube.
+        output_fits (str, optional): Path to save the output FITS file with the 2D image.
+                                     If None, the output is not saved to a file.
+
+    Returns:
+        np.ndarray: 2D array with the maximum values along the z-axis.
+    """
+    if not hasattr(sopar, "input_data") or not sopar.input_data:
+        logger.critical("Attribute 'input_data' is not defined or is None.")
+        sys.exit(-1)
+    fits_path = Path(sopar.input_data)
+
+    if not fits_path.exists():
+        logger.critical(f"File FITS '{fits_path}' does not exist.")
+        sys.exit(-1)
+
+    with fits.open(fits_path) as hdul:
+        data_cube = hdul[0].data
+
+    if data_cube is None:
+        raise ValueError("The FITS file does not contain data in the primary HDU.")
+
+    
+    max_projection = np.max(data_cube, axis=0)
+
+    if output_fits:
+        hdu = fits.PrimaryHDU(max_projection)
+        hdu.header = hdul[0].header  # Copy the header from the input file
+        hdu.header['HISTORY'] = 'Max projection along z-axis created.'
+        hdu.writeto(output_fits, overwrite=True)
+
+    return max_projection
+
+
+# Example usage:
+# max_image = max_projection_fits('input_cube.fits', 'output_image.fits')
+
 
 class SoPar(dict): 
 
@@ -147,6 +194,25 @@ class SoPar(dict):
         elif mode == 'both' and run ==0:
             logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for the second run. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
+
+        #--------------------input.primaryBeam--------------------#
+        if adpalmap_datap is not None:         
+            if hasattr(adpalmap_datap, "data_loc_pb"):
+                self.input_primaryBeam = adpalmap_datap.data_loc_pb
+                if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
+                    logger.warning(f"Ignoring parameter 'input.data={self.primaryBeam}' provided in {self.sofia_file_path}." 
+                                    "The newly downloaded primary will be used.")
+                if self.input_primaryBeam is not None:
+                    logger.warning(f"Ignoring parameter 'input.primaryBeam={self.input_data}' provided in {self.sofia_file_path}." 
+                                    "The newly downloaded primary will be used.")
+            else:
+                if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
+                    self.input_primaryBeam = sop_par['input.primaryBeam'] 
+        else:
+            if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
+                self.input_primaryBeam = sop_par['input.primaryBeam']
+            
+
         
 
         if sop_par is not None:
@@ -183,9 +249,6 @@ class SoPar(dict):
 
         fits_path = Path(self.input_data)
 
-        if not fits_path.exists():
-            logger.critical(f"El archivo FITS '{fits_path}' no existe.")
-            sys.exit(-1)
 
         if not fits_path.exists():
             logger.critical(f"File FITS '{fits_path}' does not exist.")
@@ -340,3 +403,52 @@ class SoPar(dict):
 
         return str(temp_file_path)
                 
+
+    def quality_assesment(self, adpalmap_datap, output_fits=None):
+
+        mom8_ima = image_moment8(self, output_fits=output_fits)
+
+        output_cubelets = Path(f"{self.output_directory}")
+        file_2d_mask = list(output_cubelets.glob('*mask-2d.fits'))[0]
+
+        if adpalmap_datap is not None:
+            with fits.open(adpalmap_datap.data_loc_mask) as hdul:
+                mask_archive = np.any(hdul[0].data, axis=0).astype(int)
+        
+        
+        with fits.open(file_2d_mask) as hdul:
+            sofia_2d_mask = hdul[0].data
+
+        if adpalmap_datap is not None:
+            fig, axs = plt.subplots(1, 3, figsize=(15, 6))
+        else:
+            fig, axs = plt.subplots(1, 2, figsize=(15, 6))
+        
+        ax = axs[0]
+        ax.set_title("Moment 8 Image")
+        ax.imshow(mom8_ima, cmap='gray', origin='lower')
+        #ax.colorbar(label="Intensity")
+
+        ax = axs[1]
+        ax.set_title("Sofia 2D mask")
+        ax.imshow(sofia_2d_mask, cmap='gray', origin='lower')
+        #ax.colorbar(label="Intensity")
+
+        if adpalmap_datap is not None:
+            ax = axs[2]
+            ax.set_title("Mask ALMA archive")
+            ax.imshow(mask_archive, cmap='gray', origin='lower')
+
+        plt.tight_layout()
+        plt.show()
+
+        # Prompt the user for input
+        while True:
+            user_input = input("Are the results good? (Yes/No): ").strip().lower()
+            if user_input in ('yes', 'no'):
+                user_input == 'yes'
+                break
+            else:
+                print("Invalid input. Please enter 'Yes' or 'No'.")  
+
+    

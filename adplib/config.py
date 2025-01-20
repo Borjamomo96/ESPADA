@@ -118,6 +118,7 @@ class Config(dict):
             ValueError: Si algún parámetro falta o no tiene el tipo esperado.
         """
         #Tipos esperados en los parámetros
+        #CHANGE. Revisar la implementación del uso de UNION o a partir de 3.10 el simbolo |
         expected_types = {
             'quality_assesment': bool,
             'capture_outputs': bool,

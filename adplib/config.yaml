@@ -5,7 +5,7 @@
 ###############
 
 #interactive: False #Future feature
-quality_assesment: False
+quality_assesment: True
 capture_outputs: False
 
 ##################
@@ -30,7 +30,7 @@ make_logger : False
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False
+enable_tap_service: True
 download_par_file: ./tap/download_par.yaml
 
 #################
