@@ -36,7 +36,7 @@ query_type: 'proposal'
 ##Specific parameters for the query indicated in 'query_type':
 query_par:
 #-----------------query type = proposal---------------------#
-  proposal_id: '2016.1.00778.S' 
+  proposal_id: '2018.1.01852.S' 
 #----------------query type = conesearch--------------------#
   #ra: 1
   #dec: 1
@@ -62,18 +62,17 @@ query_par:
 
 download_par:
   fitsonly : True                                    # <bool> (Default value = True) Download individual fits files only. This option will not download the raw data
-  include_pb: True                                   # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
-  remove_uncompress_files: True                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
+  include_pb: True                                  # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
+  remove_uncompress_file: False                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
   dryrun : False                                     # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
                                                       # downloading the data (dryrun=True). To download the data, set testrun=False.
   print_urls : True                                 # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
-  filename_must_include : ['member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I']  #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
+  filename_must_include : ['A001_X133d_X4226.COSMOS-1189669_sci.spw25.cube']  #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
                                                       # download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
                                                       #the science target or calibrators (by including their names). The choice is largely dependent on the
                                                       #cycle and type of reduction that was performed and data products that exist on the archive as a result.
                                                       #In most recent cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
-  data_dir : '../../../UbuntuShare/downloaded_data/'                         #<str> The path of the directory where the downloaded data should be placed.
-
+  data_dir :                          #<str> The path of the directory where the downloaded data should be placed.
 
 
 

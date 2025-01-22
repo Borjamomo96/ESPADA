@@ -15,16 +15,12 @@ capture_outputs: False
 input_data: ./sofia/sofia_test_datacube.fits
 input_data_list: False 
 
-###############
-### LOGGING ###
-###############
+################
+#    LOGGER    #
+################
 
-logger:
-  level: "INFO"  # Change to INFO, WARNING, ERROR as needed
-  format: "| %(levelname)s | %(module)s: - %(message)s"
-  colors: True  # Activa o desactiva los colores en los logs
-
-make_logger : False
+clear_logs: True
+log_file: adpalmap.log
 
 #####################
 #    TAP SERVICE    #
@@ -37,7 +33,7 @@ download_par_file: ./tap/download_par.yaml
 #     SOFIA     #
 #################
 
-enable_sofia : True 
+enable_sofia : False
 run_mode: 'emission' #'emission', 'absorption'
 abs_flag_cube: True
 auto_setup: True 

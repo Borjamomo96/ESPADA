@@ -2,28 +2,10 @@
 import os, yaml, logging
 from pathlib import Path
 
-#Logging
-import logging
-logger = logging.getLogger(__name__)
+# Logger:
+from logger import Initial_Logger
+logger = Initial_Logger.get_initial_logger()
 
-class ColoredFormatter(logging.Formatter):
-    COLORS = {
-        logging.DEBUG: "\033[34m",  # BLUE
-        logging.INFO: "\033[32m",  # GREEN
-        logging.WARNING: "\033[38;5;214m",  # ORANGE
-        logging.ERROR: "\033[31m",  # RED
-        logging.CRITICAL: "\033[1;31m",  # BOLD RED
-    }
-    MODULE_COLOR = "\033[38;5;45m"  # Neon blue
-
-    def format(self, record):
-        RESET = "\033[0m"
-        color = self.COLORS.get(record.levelno, RESET)
-        record.levelname = f"{color}{record.levelname}{RESET}"
-        record.module = f"{self.MODULE_COLOR}{record.module}{RESET}"
-        format_string = "| %(levelname)s | %(module)s: - %(message)s"
-        formatter = logging.Formatter(format_string)
-        return formatter.format(record)
 
 class Config(dict):
     r""" Configuration class for ADP ALMA Pipeline.
@@ -45,7 +27,6 @@ class Config(dict):
         if Config._instance is None:
             Config._instance =  super().__new__(cls)
         return Config._instance
-
 
 
     def __init__(self, reconfigure=False, **kwargs):
@@ -77,21 +58,23 @@ class Config(dict):
         if reconfigure or not Config._configured:
             self.configure(**kwargs)
 
-        #Check the parameter from the config.yaml
-        self.check_config_par()
-        
 
     def configure(self, config_path=None, **kwargs):
 
         if config_path is None:
+            
             config_path = Path("config.yaml")
 
             if not config_path.exists():
-                raise FileNotFoundError(f"Config file {config_path} not found. Checked if the config.yaml example have bee deleted")
+                raise FileNotFoundError(f"Config default file {config_path} not found in the directory the"
+                         " main script directory. Please specify a valid directory via the '-c/--config_file'"
+                         f" <path_to_configuration_file> argument or download the default {config_path} file"
+                         " included at https://gitlab.com/adp-group1/adp-alma-pipeline")
             else:
                 logger.info(f"The file in {config_path} have been loaded successfully")
                    
         elif config_path is not None:
+            
             config_path = Path(config_path)
 
             if not config_path.exists():
@@ -100,6 +83,7 @@ class Config(dict):
                 logger.info(f"The file in {config_path} have been loaded successfully")
 
         else:
+            
             raise FileNotFoundError(f"Something with the config_path or the config file went wrong")
             
         with open(config_path, 'r') as f:
@@ -108,8 +92,11 @@ class Config(dict):
         #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in config_dict.items():
             setattr(self, k, v)
-            
+        
+        #Check the parameter from the config.yaml
+        self.check_config_par()
 
+            
     def check_config_par(self):
         """
         Validate the attributes for the Config class readed from the config.yaml.
@@ -124,13 +111,14 @@ class Config(dict):
             'capture_outputs': bool,
             'input_data': str,
             'input_data_list': bool,
-            'logger': dict,
-            'make_logger': bool,
+            'clear_logs': bool,
+            'log_file': str,
             'enable_tap_service': bool,
             'download_par_file': str,
             'enable_sofia': bool,
             'run_mode': str,
             'abs_flag_cube': bool,
+            'auto_setup': bool,
             'sofia_abs_file': str,
             'sofia_emi_file': str,
             'enable_sip': bool,
@@ -143,13 +131,14 @@ class Config(dict):
             'capture_outputs',
             'input_data',
             'input_data_list',
-            'logger',
-            'make_logger',
+            'clear_logs',
+            'log_file',
             'enable_tap_service',
             'download_par_file',
             'enable_sofia',
             'run_mode',
             'abs_flag_cube',
+            'auto_setup',
             'sofia_abs_file',
             'sofia_emi_file',
             'enable_sip',
@@ -170,22 +159,6 @@ class Config(dict):
                         f"Parameter '{param}' must be of type {expected_type.__name__}, "
                         f"but got {type(value).__name__}, '{value}'."
                     )
-
-        #Parámetros del 'logger'
-        if hasattr(self, 'logger') and isinstance(self.logger, dict):
-            logger_expected_types = {
-                'level': str,
-                'format': str,
-                'colors': bool,
-            }
-            for key, expected_type in logger_expected_types.items():
-                if key in self.logger:
-                    value = self.logger[key]
-                    if not isinstance(value, expected_type):
-                        raise ValueError(
-                            f"Parameter 'logger.{key}' must be of type {expected_type.__name__}, "
-                            f"but got {type(value).__name__}, '{value}'."
-                        )
                     
         #Compruebo especificamente los valores de run_mode
         # Valores permitidos para parámetros específicos
@@ -201,30 +174,19 @@ class Config(dict):
                         f"The parameter '{param}' must have one of the following values: {valid_values_list}. "
                         f"Value provided: '{value}'."
                     )
+                
+        # Detectar y manejar parámetros no esperados
+        internal_attributes = ['config_path'] #Parámetros creados dentro de la clase
+        all_params = set(self.__dict__.keys())  # Todos los atributos actuales de la instancia
+        allowed_params = set(expected_types.keys())  # Parámetros esperados
+        allowed_params.update(internal_attributes)
+        unexpected_params = all_params - allowed_params  # Parámetros inesperados
+
+        for param in unexpected_params:
+            logger.warning(
+                f"Unexpected parameter '{param}' found in config.yaml. It will be ignored."
+            )
+            delattr(self, param) 
 
         #print("All parameters are valid.")
 
-
-    def setup_logger(self):
-        logger_config = self.logger if hasattr(self, "logger") else {}
-        level = getattr(logging, logger_config.get("level", "INFO").upper(), logging.INFO)
-        use_colors = logger_config.get("colors", True)
-
-        logger = logging.getLogger(__name__)
-        logger.setLevel(level)
-
-        if not logger.hasHandlers():  
-            console_handler = logging.StreamHandler()
-            formatter = ColoredFormatter() if use_colors else logging.Formatter(logger_config.get("format"))
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-
-        
-        self.logger_instance = logger
-
-
-    def get_logger(self):
-        
-        if not hasattr(self, "logger_instance"):
-            self.setup_logger()
-        return self.logger_instance

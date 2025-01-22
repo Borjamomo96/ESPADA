@@ -4,10 +4,9 @@ import subprocess
 import sys
 
 
-# Configuration:
-from config import Config
-config = Config()
-logger = config.get_logger()
+# Logger:
+from logger import Logger
+logger = Logger.get_logger()
 
 class SiPar(dict): 
 
@@ -151,9 +150,9 @@ class SiPar(dict):
         #logger.info("All parameters are valid.")
 
 
-    def update_input_parameters(self, sip_args, config):
+    def update_input_parameters(self, sip_args, adpalmap_config):
         """
-        Updates the parameters of the SiPar class with the values ​​provided in the terminal arguments.
+        Updates the parameters of the SiPar class with the values provided in the terminal arguments.
 
         Args:
         sip_args (dict): Dictionary with arguments provided from the terminal (-sarg or --sip-arguments).
@@ -161,70 +160,69 @@ class SiPar(dict):
         Returns:
         None: Directly updates the class attributes.
         """
+        print(sip_args.items())
+
         if sip_args is not None:
-            
             for key, value in sip_args.items():
-                normalized_key = key.lstrip('-').replace('-', '_')  # Normaliza el nombre del argumento
-                if hasattr(self, normalized_key):
-                    setattr(self, normalized_key, value)
+                #Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
+                matched_attr = None
+                for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
+                    if key == shortcut:  
+                        matched_attr = attr_name
+                        break
+
+                if matched_attr is not None:
+                    # Special case for 'catalog_file' or '-c'
+                    if matched_attr == "catalog_file" and adpalmap_config.enable_sofia:
+                        logger.warning(f"Ignoring argument '{key}' provided because enable_sofia=True in the file {adpalmap_config.config_path}.")
+                        continue  
+
+                    # Update the attribute with the new value
+                    setattr(self, matched_attr, value)
                 else:
-                    # Agrega un nuevo atributo si no existe
-                    setattr(self, normalized_key, value)
-                    logger.warning(f"Added new parameter '{key}' with value '{value}'.")
+                    logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
+
+
+    def run_sip(self, adpalmap_config, sopar=None):
+
+        if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             
-            if config.enable_sofia:
-                if hasattr(self, 'catalog_file'):
-                    logger.warning(f"Ignoring parameter 'catalog_file' because enable_sofia=True in the file {config.config_path}.")
-                    delattr(self, 'catalog_file')  # Elimina 'catalog_file' si está definido
-            else:
-                # Validar que 'catalog_file' esté definido
-                if not hasattr(self, 'catalog_file') or getattr(self, 'catalog_file') is None:
-                    raise ValueError(f"The 'catalog_file' parameter is required when enable_sofia=False in the file {config.config_path}.")
-
-
-    def run_sip(self, config, sopar=None):
-
-        if config.enable_sofia:
             output_cubelets = Path(f"{sopar.output_directory}")
-            print(output_cubelets)
-            sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))
-            sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))
-            print(sofia_catalog_txt, sofia_catalog_xml)
-
-            if sofia_catalog_txt and sofia_catalog_xml:
-                sofia_catalog = sofia_catalog_txt
-            elif sofia_catalog_txt:
-                sofia_catalog = sofia_catalog_txt
-            elif sofia_catalog_xml: 
-                sofia_catalog = sofia_catalog_xml
-            else:
-                sofia_catalog = None
-        else:
-            sofia_catalog=True #Para que en la condición siguiente entre, teniendo deshabilitado sofia. 
-
-
-        #Comprueba si hay un archivo .cat en el  directorio _cubulets 
-        if sofia_catalog:
-            self.cataloge_file = sofia_catalog
-            cmd = self.generate_command()
-
-            try:
-                subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)  
-            except subprocess.CalledProcessError as e:
-                # In case of error this show the message and exit code of SIP
-                logger.error(f"Error running SIP: {e}")
-                sys.exit(-1)
+                   
+            sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))[0]
+            sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))[0]
             
-            #DESCOMENTAR Cuando hable con Kelley
-            '''try: 
-                cmd = self.make_summary(cmd)
-                subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)  
-            except subprocess.CalledProcessError as e:
-                logger.critical(f"Error running SIP making summary images: {e}")
-                sys.exit(-1)'''
-        else:
-            logger.warning(f"Could not find a catalog '*.txt' or '*.xml' catalog within the directory {sopar.output_directory}")
+    
+            if sofia_catalog_txt and sofia_catalog_xml:
+                self.catalog_file = sofia_catalog_txt
+            elif sofia_catalog_txt:
+                self.catalog_file = sofia_catalog_txt
+            elif sofia_catalog_xml: 
+                self.catalog_file = sofia_catalog_xml
+            else:
+                logger.critical(f"No valid .txt or .xml catalog for SIP found within the {sopar.output_directory} directory.")
+                sys.exit(-1)
 
+        print(self.__dict__)
+        cmd = self.generate_command()
+        print('Comando SIP:', cmd)
+
+        try:
+            subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)  
+        except subprocess.CalledProcessError as e:
+            # In case of error this show the message and exit code of SIP
+            logger.error(f"Error running SIP: {e}")
+            sys.exit(-1)
+        
+        #DESCOMENTAR Cuando hable con Kelley
+        '''try: 
+            cmd = self.make_summary(cmd)
+            subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)  
+        except subprocess.CalledProcessError as e:
+            logger.critical(f"Error running SIP making summary images: {e}")
+            sys.exit(-1)'''
+        
+    
 
     def generate_command(self, exclude=None):
         """

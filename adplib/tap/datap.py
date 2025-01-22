@@ -25,10 +25,9 @@ from astroquery.alma import Alma
 import pyvo
 from pyvo.dal import tap
 
-# Configuration:
-from config import Config
-config = Config()
-logger = config.get_logger()
+# Logger:
+from logger import Logger
+logger = Logger.get_logger()
 
 
 VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'instrument_name', 'obs_id',
@@ -392,12 +391,21 @@ class datap(dict):
         
         
 
-        fits_files = list(base_dir.glob("*.fits"))
-        fits_files = [f for f in fits_files if ".pb." not in f.name]  # Excluye los archivos .pb
+        data_files = list(base_dir.glob("*cube.I.pbcor*"))
+        data_files = [f for f in data_files if ".pb." not in f.name]  # Excluye los archivos .pb
         pb_gz_files = list(base_dir.glob("*.pb.*"))
-
-        if not fits_files and not pb_gz_files:
-            raise FileNotFoundError(f"No fits or primary beam files found in {base_dir}.")
+        
+        if not data_files:
+            logger.error(f"It appears that no files containing a data cube have been downloaded." 
+                         "Files with data from ALMA cycle 2 must contain the string 'cube.I.pbcor'" 
+                         "in their names. If the file you want to download is older please open an "
+                         "issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with the "
+                         "specific case. You can still use the Alma Pipeline ADP if you download "
+                         "the file yourself and run it locally.")
+            sys.exit(-1)
+            
+        if not data_files and not pb_gz_files:
+            logger.critical(f"No datacubes and primary beam files found in {base_dir}.")
 
         decompressed_pb_files = []  
 
@@ -433,8 +441,8 @@ class datap(dict):
                 decompressed_pb_files.append(file)
 
         # Selecciono los archivos más recientes (si hay múltiples)
-        if fits_files:
-            most_recent_fitsfile = max(fits_files, key=lambda f: f.stat().st_mtime)
+        if data_files:
+            most_recent_fitsfile = max(data_files, key=lambda f: f.stat().st_mtime)
             self.data_loc_fits = most_recent_fitsfile
             print(f"Most recent fits file selected: {most_recent_fitsfile}")
         else:

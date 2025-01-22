@@ -7,13 +7,12 @@ from pathlib import Path
 from astropy.io import fits
 import matplotlib.pyplot as plt
 
-# Configuration:
-from config import Config
-config = Config()
-logger = config.get_logger()
+# Logger:
+from logger import Logger
+logger = Logger.get_logger()
 
 
-def image_moment8(sopar, output_fits=None):
+def moment8_ima(sopar, output_fits=None):
 
     """
     Reads a FITS file containing a data cube and creates a 2D image by
@@ -42,7 +41,14 @@ def image_moment8(sopar, output_fits=None):
     if data_cube is None:
         raise ValueError("The FITS file does not contain data in the primary HDU.")
 
+    if data_cube.ndim == 4:
+        data_cube = np.squeeze(data_cube, axis=0)
+    elif data_cube.ndim > 4:
+        logger.critical("ADP Alma pipeline is not designed to handle data files with "
+                        "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
+                        "with your specific case.")
     
+
     max_projection = np.max(data_cube, axis=0)
 
     if output_fits:
@@ -296,7 +302,7 @@ class SoPar(dict):
         logger.info("Auto-setup DONE.")
 
 
-    def run_sofia(self, config, mode=None, run=-1, abs_flag_cube=None):        
+    def run_sofia(self, adpalmap_config, mode=None, run=-1):        
         
         if (mode is not None and mode=='absorption'):
 
@@ -310,7 +316,7 @@ class SoPar(dict):
             temp_file_path = self.create_tempfile()
             try:
                 cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs) 
+                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
                 sys.exit(-1)
@@ -330,7 +336,7 @@ class SoPar(dict):
             temp_file_path = self.create_tempfile()
             try:
                 cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)
+                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
                 sys.exit(-1)
@@ -350,7 +356,7 @@ class SoPar(dict):
                 temp_file_path = self.create_tempfile()
                 try:
                     cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs) 
+                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
                 except subprocess.CalledProcessError as e:
                     logger.warning(f"SoFia has returned non-zero exit status: {e.returncode}, trying you finding absorption. " 
                             "SoFia will run again in the 'emission' mode without considering the absorption mask as a flag.cube.")
@@ -362,7 +368,7 @@ class SoPar(dict):
                 
                 #Por defecto, el directorio de absorción será el self.output_directory_absorption. Uso el base_output_directory para buscarlo 
                 # Lo búsco, si no lo encuentra por fallo o porque no encontró absorciones, se mantiene igual. 
-                if config.abs_flag_cube is not None and config.abs_flag_cube==True:
+                if adpalmap_config.abs_flag_cube is not None and adpalmap_config.abs_flag_cube==True:
                     absorption_dir = Path(f'{self.base_output_directory}_absorption')
                     #Caso en el que no encuentra absorciones
                     if list(absorption_dir.glob('*_mask.fits')):
@@ -381,7 +387,7 @@ class SoPar(dict):
                 temp_file_path = self.create_tempfile()
                 try:
                     cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)                   
+                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)                   
                 except subprocess.CalledProcessError as e:
                     logger.error(f"Error running SoFia: {e}")
                     sys.exit(-1)
@@ -406,7 +412,8 @@ class SoPar(dict):
 
     def quality_assesment(self, adpalmap_datap, output_fits=None):
 
-        mom8_ima = image_moment8(self, output_fits=output_fits)
+        mom8_ima = moment8_ima(self, output_fits=output_fits)
+
 
         output_cubelets = Path(f"{self.output_directory}")
         file_2d_mask = list(output_cubelets.glob('*mask-2d.fits'))[0]
@@ -414,6 +421,14 @@ class SoPar(dict):
         if adpalmap_datap is not None:
             with fits.open(adpalmap_datap.data_loc_mask) as hdul:
                 mask_archive = np.any(hdul[0].data, axis=0).astype(int)
+        
+        if mask_archive.ndim == 4:
+            mask_archive = np.squeeze(mask_archive, axis=0)
+        elif mask_archive.ndim > 4:
+            logger.critical("ADP Alma pipeline is not designed to handle data files with "
+                            "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
+                            "with your specific case.")
+        mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
         
         
         with fits.open(file_2d_mask) as hdul:
@@ -437,7 +452,7 @@ class SoPar(dict):
         if adpalmap_datap is not None:
             ax = axs[2]
             ax.set_title("Mask ALMA archive")
-            ax.imshow(mask_archive, cmap='gray', origin='lower')
+            ax.imshow(mask_archive_proj, cmap='gray', origin='lower')
 
         plt.tight_layout()
         plt.show()

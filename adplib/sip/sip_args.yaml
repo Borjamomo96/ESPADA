@@ -1,4 +1,4 @@
-catalog_file: ./sofia/sofia_outputs_emission/output_cat.txt                 #'-c'    Catalog file. Can be the ascii file ending in .txt or the XML file from SoFiA-2.
+catalog_file:                #'-c'    Catalog file. Can be the ascii file ending in .txt or the XML file from SoFiA-2.
 
 source_id:                    #'-id'   Select certain sources, or range of sources from catalog based on the source id number. Default is all sources. Include `0` to make summary image of all sources.
 output_image_file_type: 'png' #'-x'    Output image file type. Any file type accepted by plt.savefig() is in theory valid.  Default is 'png'.
