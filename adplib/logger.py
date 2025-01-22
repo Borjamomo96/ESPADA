@@ -82,7 +82,7 @@ class Logger:
             
             file_handler = logging.FileHandler(log_path, encoding='utf-8')
             file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(logging.Formatter("| %(levelname)s | %(module)s: - %(message)s"))
+            file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(module)s: - %(message)s"))
             #file_handler.setFormatter(ColoredFormatter()) #Para añadir al archivo .log este formato no lo entiende bien. 
             
             console_handler = logging.StreamHandler()
@@ -105,6 +105,15 @@ class Logger:
         if cls._logger_instance is None:
             cls.setup_logger(log_path=log_path, clear_logs=clear_logs)
         return cls._logger_instance
+    
+    @classmethod
+    def raw(cls, message):
+        """Añade un mensaje sin formato al archivo .log."""
+        if cls._logger_instance is not None:
+            for handler in cls._logger_instance.handlers:
+                if isinstance(handler, logging.StreamHandler) or isinstance(handler, logging.FileHandler):  
+                    handler.stream.write(message + "\n")
+                    handler.flush()
     
 
 

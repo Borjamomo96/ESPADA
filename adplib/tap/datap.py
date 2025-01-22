@@ -181,8 +181,7 @@ class datap(dict):
 
         """
 
-
-        print("================================")
+        Logger.raw("================================")
         #CHANGE. Definir asi el directorio puede provocar problemas
         default_location = './tap/archive_data'
     
@@ -272,33 +271,36 @@ class datap(dict):
 
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
-            print("================================")
+            Logger.raw("================================")
+            
 
         else:
             logger.info("Starting download. Please wait...")
-            print("================================")
+            Logger.raw("================================")
+
 
             try:
                 self.alma.download_files(dl_link_list, cache=True)
 
             except ValueError as e:
-                print(e)
+                logger.error(e)
 
 
         if dl_files > 0:
-            print("Download location = {}".format(self.alma.cache_location))
-            print("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
-            print("Selected Member OUSs: {}".format(dl_uid_list))
-            print("Number of files to download = {}".format(dl_files))
+            Logger.raw("Download location = {}".format(self.alma.cache_location))
+            Logger.raw("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
+            Logger.raw("Selected Member OUSs: {}".format(dl_uid_list))
+            Logger.raw("Number of files to download = {}".format(dl_files))
             dl_size_fmt, dl_format = self._format_bytes(dl_size)
-            print("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
+            Logger.raw("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
 
             
             if self.download_par['print_urls']:
-                print("File URLs to download = {}".format("\n".join(dl_link_list)))
+                Logger.raw("File URLs to download: \n" 
+                           "{}".format("\n".join(dl_link_list)))
                 
         else:
-            print("Nothing to download.")
+            logger.warning("Nothing to download.")
             print("Note: often only a subset of the observations (e.g. the representative window) is ingested into "
                 "the archive. In such cases, you may need to download the raw dataset, reproduce the calibrated "
                 "measurement set, and image the observations of interest. It is also possible to request calibrated "
@@ -313,9 +315,9 @@ class datap(dict):
 
         #Set Attr data locations of the just downloaded data
         self.get_downloaded_file_path(Path(self.alma.cache_location))
-        print("================================")
+        Logger.raw("================================")
         logger.info("Download ended.")
-    
+        Logger.raw("================================")
 
     def download_mask(self, observations):
 
@@ -344,15 +346,15 @@ class datap(dict):
 
         try:
             logger.info("Starting download masks. Please wait...")
-            print("================================")
+            Logger.raw("================================")
             self.alma.download_files(dl_link_list, cache=True)
             
         except ValueError as e:
-            print(e)
+            logger.error(e)
 
         self.get_downloaded_mask_path(Path(self.alma.cache_location))
         logger.info("Download ended.")
-        print("================================")
+        Logger.raw("================================")
 
     
     def run_query(self, query_str):
@@ -542,7 +544,7 @@ class datap(dict):
             query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
 
         if self.query_par['print_query']:
-            print("Your query is: {}".format(query))
+            logger.info("Your query is: {}".format(query))
 
         
         TAP_df = self.run_query(query)
@@ -594,11 +596,12 @@ class datap(dict):
             query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
 
         if self.query_par['print_query']:
-            print("Your query is: {}".format(query))
+            logger.info("Your query is: {}".format(query))
 
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras 
+        # muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
         '''
         if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
@@ -647,7 +650,7 @@ class datap(dict):
             query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
 
         if self.query_par['print_query']:
-            print("Your query is: {}".format(query))
+            logger.info("Your query is: {}".format(query))
 
         TAP_df = self.run_query(query)
 
@@ -699,7 +702,7 @@ class datap(dict):
         if isinstance(self.query_par['sources'], str):
             sources = [self.query_par['sources']]
         print("================================")
-        print("alminer.target results ")
+        print("adpalmap.target results ")
         print("================================")
         complete_results = []
         # go through list of sources provided by user and add query results to a list
@@ -712,7 +715,7 @@ class datap(dict):
                 if TAP_df is not None:
                     complete_results.append(TAP_df)
             except name_resolve.NameResolveError as err:  # source coords not found in SESAME resolver
-                print(err)
+                logger.error(err)
                 print("Try keysearch function instead: keysearch({{'target_name':['{}']}}).".format(s))
                 print("--------------------------------")
                 pass
@@ -723,7 +726,7 @@ class datap(dict):
             obs = obs.reset_index(drop=True)
             return obs
         else:
-            print("No observations found for any sources in this list.")
+            logger.warning("No observations found for any sources in this list.")
             print("--------------------------------")   
 
 
@@ -818,7 +821,7 @@ class datap(dict):
         # Put together the entire query with 'AND' logic between different keywords
         full_query = "SELECT * FROM ivoa.obscore WHERE {} ORDER BY proposal_id".format(" AND ".join(full_query_list))
         if self.query_par['print_query']:
-            print("Your query is: {}".format(full_query))
+            logger.info("Your query is: {}".format(full_query))
         TAP_df = self.run_query(full_query)
         # Filter whether the user wants published data, unpublished data, or both (default)
         if self.query_par['published']:  # case pf published = True
@@ -826,7 +829,7 @@ class datap(dict):
         elif not self.query_par['published'] and self.query_par['published'] is not None:  # case pf published = False
             TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
         
-        #CAHNGE. filter_result, esta función esta pero aún no esta implementada. 
+        #CHANGE. filter_result, esta función esta pero aún no esta implementada. 
         return TAP_df
 
 
@@ -895,7 +898,7 @@ class datap(dict):
             if expected_type and not isinstance(value, expected_type):
                 raise ValueError(f"The parameter '{param}' must be of type {expected_type}, but got '{value}'({type(value).__name__}).")
 
-        print(f"Validation successful: all parameters for 'query_type = {self.query_type}' are correct.")
+        logger.info(f"Validation successful: all parameters for 'query_type = {self.query_type}' are correct.")
 
 
     def check_download_par(self):
