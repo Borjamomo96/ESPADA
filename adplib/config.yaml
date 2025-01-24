@@ -4,7 +4,6 @@
 #   GENERAL   #
 ###############
 
-#interactive: False #Future feature
 quality_assesment: True
 capture_outputs: False
 
@@ -19,14 +18,14 @@ input_data_list: False
 #    LOGGER    #
 ################
 
-clear_logs: True
+clear_logs: False
 log_file: adpalmap.log
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: True
+enable_tap_service: False
 download_par_file: ./tap/download_par.yaml
 
 #################
@@ -44,7 +43,7 @@ sofia_emi_file : ./sofia/sofia_emi_default.par
 #      SIP      #
 #################
 
-enable_sip : False
+enable_sip : True
 sip_par_file : ./sip/sip_args.yaml 
 
 

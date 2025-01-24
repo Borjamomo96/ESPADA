@@ -60,8 +60,17 @@ def moment8_ima(sopar, output_fits=None):
     return max_projection
 
 
-# Example usage:
-# max_image = max_projection_fits('input_cube.fits', 'output_image.fits')
+def run_and_log(command):
+    output = []  
+
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
+        for line in process.stdout: 
+            print(line, end="")  
+            output.append(line)  
+
+        process.wait()  
+
+    Logger.raw_file("".join(output))
 
 
 class SoPar(dict): 
@@ -191,14 +200,21 @@ class SoPar(dict):
         if mode == 'emission' and (invert_value_sopar=='true' or self.input_invert=='true'):
             logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
-        elif mode == 'absorption' and (invert_value_sopar=='false' or self.input_invert=='false'):
-            logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. Changing 'input.invert' to 'true'.")
-            self.input_invert = 'true'
+        elif mode == 'absorption':
+            if (invert_value_sopar=='false' or self.input_invert=='false'):
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. Changing 'input.invert' to 'true'.")
+                self.input_invert = 'true'
+            elif (self.input_invert !='false' or self.input_invert is None):
+                self.input_invert = 'true'
+            else: 
+                self.input_invert = 'true'
         elif mode == 'both' and run !=0:
-            logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for the first run. Changing 'input.invert' to 'true'.")
+            if (invert_value_sopar=='false' or self.input_invert=='false'):
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for the first run. Changing 'input.invert' to 'true'.")
             self.input_invert = 'true'
         elif mode == 'both' and run ==0:
-            logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for the second run. Changing 'input.invert' to 'false'.")
+            if (invert_value_sopar=='true' or self.input_invert=='true'):
+                logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for the second run. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
@@ -315,8 +331,17 @@ class SoPar(dict):
             
             temp_file_path = self.create_tempfile()
             try:
+                Logger.raw("================================")
+                logger.info("Starting to run SoFia...")
+                Logger.raw("================================")
+                self.log_parameters()
+
                 cmd = ["sofia", f"{temp_file_path}"]
                 subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+
+                Logger.raw("================================")
+                logger.info("SoFia ended...")
+                Logger.raw("================================")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
                 sys.exit(-1)
@@ -335,14 +360,23 @@ class SoPar(dict):
 
             temp_file_path = self.create_tempfile()
             try:
+                Logger.raw("================================")
+                logger.info("Starting to run SoFia...")
+                Logger.raw("================================")
+                self.log_parameters()
+                
                 cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)
+                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+
+                Logger.raw("================================")
+                logger.info("SoFia ended...")
+                Logger.raw("================================")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
                 sys.exit(-1)
             finally:
-                '''if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)'''
+                if os.path.exists(temp_file_path):
+                    os.remove(temp_file_path)
         
         elif mode == 'both':
             if run!=0:
@@ -355,8 +389,17 @@ class SoPar(dict):
 
                 temp_file_path = self.create_tempfile()
                 try:
+                    Logger.raw("================================")
+                    logger.info("Starting to run SoFia...")
+                    Logger.raw("================================")
+                    self.log_parameters()
+
                     cmd = ["sofia", f"{temp_file_path}"]
                     subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+
+                    Logger.raw("================================")
+                    logger.info("SoFia ended...")
+                    Logger.raw("================================")
                 except subprocess.CalledProcessError as e:
                     logger.warning(f"SoFia has returned non-zero exit status: {e.returncode}, trying you finding absorption. " 
                             "SoFia will run again in the 'emission' mode without considering the absorption mask as a flag.cube.")
@@ -386,8 +429,17 @@ class SoPar(dict):
 
                 temp_file_path = self.create_tempfile()
                 try:
+                    Logger.raw("================================")
+                    logger.info("Starting to run SoFia...")
+                    Logger.raw("================================")
+                    self.log_parameters()
+
                     cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)                   
+                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+
+                    Logger.raw("================================")
+                    logger.info("SoFia ended...")
+                    Logger.raw("================================")            
                 except subprocess.CalledProcessError as e:
                     logger.error(f"Error running SoFia: {e}")
                     sys.exit(-1)
@@ -410,26 +462,40 @@ class SoPar(dict):
         return str(temp_file_path)
                 
 
+    def log_parameters(self):
+        
+        logger.info("Parameters set for the run: \n")
+        for key, value in self.__dict__.items():
+            if key not in {"sofia_file_path", "path", "base_output_directory"}:  # Excluye estos atributos
+                key_transformed = key.replace("_", ".")
+                Logger.raw_file(f"{key_transformed}={value}")
+
+
     def quality_assesment(self, adpalmap_datap, output_fits=None):
 
         mom8_ima = moment8_ima(self, output_fits=output_fits)
 
 
         output_cubelets = Path(f"{self.output_directory}")
-        file_2d_mask = list(output_cubelets.glob('*mask-2d.fits'))[0]
+        file_2d_mask_list = list(output_cubelets.glob('*mask-2d.fits'))
+        if file_2d_mask_list:
+            file_2d_mask = file_2d_mask_list[0]
 
         if adpalmap_datap is not None:
             with fits.open(adpalmap_datap.data_loc_mask) as hdul:
                 mask_archive = np.any(hdul[0].data, axis=0).astype(int)
         
-        if mask_archive.ndim == 4:
-            mask_archive = np.squeeze(mask_archive, axis=0)
-        elif mask_archive.ndim > 4:
-            logger.critical("ADP Alma pipeline is not designed to handle data files with "
-                            "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
-                            "with your specific case.")
-        mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
+            if mask_archive.ndim == 4:
+                mask_archive = np.squeeze(mask_archive, axis=0)
+            elif mask_archive.ndim > 4:
+                logger.critical("ADP Alma pipeline is not designed to handle data files with "
+                                "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
+                                "with your specific case.")
+            mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
         
+
+        if adpalmap_datap is None and not file_2d_mask_list:
+            return logger.warning("2D-Mask file not found in {self.ouput.directory}. Skipping the quality assesment")
         
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data
@@ -457,13 +523,7 @@ class SoPar(dict):
         plt.tight_layout()
         plt.show()
 
-        # Prompt the user for input
-        while True:
-            user_input = input("Are the results good? (Yes/No): ").strip().lower()
-            if user_input in ('yes', 'no'):
-                user_input == 'yes'
-                break
-            else:
-                print("Invalid input. Please enter 'Yes' or 'No'.")  
+        input("Press any key to continue...")
+        
 
     

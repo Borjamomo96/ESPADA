@@ -115,7 +115,14 @@ class Logger:
                     handler.stream.write(message + "\n")
                     handler.flush()
     
-
+    @classmethod
+    def raw_file(cls, message):
+        """Añade un mensaje sin formato al archivo .log."""
+        if cls._logger_instance is not None:
+            for handler in cls._logger_instance.handlers:
+                if isinstance(handler, logging.FileHandler):  
+                    handler.stream.write(message + "\n")
+                    handler.flush()
 
     
 

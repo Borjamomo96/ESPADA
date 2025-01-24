@@ -94,7 +94,6 @@ def main():
     logger = Logger.get_logger(log_path=adpalmap_config.log_file, clear_logs=adpalmap_config.clear_logs)
 
 
-
     logger.info("ADPALMAP start point")
     #--------------------------------------------------------------------------------------------#
     #Optionally download data from ALMA archive
@@ -160,7 +159,7 @@ def main():
                 if adpalmap_datap is not None:
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    logger.warning(f"'enable_tap_service' is set to False. All checks in the QA will not be performed.")
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
         elif adpalmap_config.run_mode == 'both':
@@ -202,19 +201,22 @@ def main():
     if adpalmap_config.enable_sip == True:
 
         adpalmap_sipar = SiPar(sip_file_path=adpalmap_config.sip_par_file)
-        
+        print(adpalmap_sipar.__dict__)
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
-        
+        print(adpalmap_sipar.__dict__)       
 
         if adpalmap_config.enable_sofia == True:
-
+            
             if adpalmap_config.run_mode == 'emission':
+                
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
 
             elif adpalmap_config.run_mode == 'absorption':
+                
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
             elif adpalmap_config == 'both':
+                
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
         

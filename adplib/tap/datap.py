@@ -16,7 +16,8 @@ from astropy.coordinates import name_resolve
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy import constants as const
-
+import io
+from contextlib import redirect_stdout
 
 # Astroquery is required
 from astroquery.alma import Alma
@@ -38,6 +39,16 @@ VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'i
                       'obs_creator_name', 'pub_title', 'first_author', 'qa2_passed', 'bib_reference',
                       'science_keyword', 'scientific_category', 'lastModified', 'access_url', 'access_format',
                       'proposal_id', 'data_rights')
+
+
+def capture_output(input):
+    
+    f = io.StringIO()  
+    with redirect_stdout(f):  
+        input
+    output = f.getvalue()
+    Logger.raw(output)
+
 
 class datap(dict): 
 
@@ -319,6 +330,7 @@ class datap(dict):
         logger.info("Download ended.")
         Logger.raw("================================")
 
+
     def download_mask(self, observations):
 
         try:
@@ -345,6 +357,7 @@ class datap(dict):
         dl_link_list = list(dl_df['access_url'].unique())
 
         try:
+            Logger.raw("================================")
             logger.info("Starting download masks. Please wait...")
             Logger.raw("================================")
             self.alma.download_files(dl_link_list, cache=True)
@@ -353,6 +366,7 @@ class datap(dict):
             logger.error(e)
 
         self.get_downloaded_mask_path(Path(self.alma.cache_location))
+        Logger.raw("================================")
         logger.info("Download ended.")
         Logger.raw("================================")
 
@@ -417,23 +431,23 @@ class datap(dict):
 
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
-                    print(f"The unzipped primary beam file already exists: {extracted_file_path}")
+                    Logger.raw(f"The unzipped primary beam file already exists: {extracted_file_path}")
                     decompressed_pb_files.append(extracted_file_path)
 
                     if self.download_par['remove_uncompress_file']:
                         file.unlink()
-                        print(f"Compressed file deleted: {file}")
+                        Logger.raw(f"Compressed file deleted: {file}")
                 else:
                     # Intento descomprimir el archivo
                     try:
                         with gzip.open(file, 'rb') as gz_in:
                             with open(extracted_file_path, 'wb') as extracted_out:
                                 shutil.copyfileobj(gz_in, extracted_out)
-                        print(f"Unzipped primary beam file: {extracted_file_path}")
+                        Logger.raw(f"Unzipped primary beam file: {extracted_file_path}")
 
                         if self.download_par['remove_uncompress_file']:
                             file.unlink()
-                            print(f"Compressed file deleted: {file}")
+                            Logger.raw(f"Compressed file deleted: {file}")
 
                         decompressed_pb_files.append(extracted_file_path)
                     except Exception as e:
@@ -446,7 +460,7 @@ class datap(dict):
         if data_files:
             most_recent_fitsfile = max(data_files, key=lambda f: f.stat().st_mtime)
             self.data_loc_fits = most_recent_fitsfile
-            print(f"Most recent fits file selected: {most_recent_fitsfile}")
+            logger.info(f"Most recent fits file selected: {most_recent_fitsfile}")
         else:
             self.data_loc_fits = None
             logger.warning("No valid fits files found.")
@@ -455,7 +469,7 @@ class datap(dict):
             most_recent_pbfile = max(decompressed_pb_files, key=lambda f: f.stat().st_mtime)
             self.data_loc_pb = most_recent_pbfile
             
-            print(f"Most recent primary beam file selected: {most_recent_pbfile}")
+            logger.info(f"Most recent primary beam file selected: {most_recent_pbfile}")
         else:
             self.data_loc_pb = None
 
@@ -484,22 +498,22 @@ class datap(dict):
 
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
-                    print(f"The unzipped file already exists: {extracted_file_path}")
+                    Logger.raw(f"The unzipped file already exists: {extracted_file_path}")
                     decompressed_files.append(extracted_file_path)
 
                     if self.download_par['remove_uncompress_file']:
                         file.unlink()
-                        print(f"Compressed file deleted: {file}")
+                        Logger.raw(f"Compressed file deleted: {file}")
                 else:
                     try:
                         with gzip.open(file, 'rb') as gz_in:
                             with open(extracted_file_path, 'wb') as extracted_out:
                                 shutil.copyfileobj(gz_in, extracted_out)
-                        print(f"Unzipped file: {extracted_file_path}")
+                        Logger.raw(f"Unzipped file: {extracted_file_path}")
 
                         if self.download_par['remove_uncompress_file']:
                             file.unlink()
-                            print(f"Compressed file deleted: {file}")
+                            Logger.raw(f"Compressed file deleted: {file}")
 
                         decompressed_files.append(extracted_file_path)
                     except Exception as e:
@@ -511,7 +525,7 @@ class datap(dict):
         if decompressed_files:
             most_recent_maskfile = max(decompressed_files, key=lambda f: f.stat().st_mtime)
             self.data_loc_mask = most_recent_maskfile
-            print(f"Most recent file selected: {most_recent_maskfile}")
+            logger.info(f"Most recent file selected: {most_recent_maskfile}")
         else:
             logger.warning("No valid mask files were found or processed.")
 

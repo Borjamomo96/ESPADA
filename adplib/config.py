@@ -64,6 +64,7 @@ class Config(dict):
         if config_path is None:
             
             config_path = Path("config.yaml")
+            self.config_path = config_path
 
             if not config_path.exists():
                 raise FileNotFoundError(f"Config default file {config_path} not found in the directory the"

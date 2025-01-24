@@ -12,19 +12,19 @@ class SiPar(dict):
 
     # Diccionario estático que mapea nombres de atributos a shortcuts
     ATTRIBUTE_SHORTCUTS = {
-        "catalog_file": "-c",
-        "source_id": "-id",
-        "output_image_file_type": "-x",
-        "spec_full_range": "-o",
-        "syn_beam_dimensions": "-b",
-        "channel_width": "-cw",
-        "min_size": "-i",
-        "snr_range": "-snr",
-        "surveys_list": "-s",
-        "combo": "-m",
-        "user_image": "-ui",
-        "percentile_range": "-ur",
-        "spec_line": "-l",
+         "catalog_file": ["-c", "--catalog"],
+         "source_id": ["-id", "--source-id"],
+         "output_image_file_type": ["-x", "--suffix"],
+         "spec_full_range": ["-o", "--original"],
+         "syn_beam_dimensions": ["-b", "--beam"],
+         "channel_width": ["-cw",  "--chan_width"],
+         "min_size": ["-i", "--image-size"],
+         "snr_range": ["-snr", "--snr-range"],
+         "surveys_list": ["-s", "--surveys"],
+         "combo": ["-m", "--imagemagick"],
+         "user_image": ["-ui", "--user-image"],
+         "percentile_range": ["-ur", "--user-range"],
+         "spec_line": ["-l", "--spectral-line"]
     }
 
     def __init__(self, **kwargs):
@@ -121,7 +121,7 @@ class SiPar(dict):
                         f"but is of type {type(value)}."
                     )
             else:
-                raise ValueError(f"El parámetro requerido '{param}' no está definido en el archivo sip_args.yaml.")
+                raise ValueError(f"The required parameter '{param}' is not defined in the sip_args.yaml file.")
 
         # Valido valores permitidos
         for param, valid_values_list in valid_values.items():
@@ -160,14 +160,14 @@ class SiPar(dict):
         Returns:
         None: Directly updates the class attributes.
         """
-        print(sip_args.items())
+    
 
         if sip_args is not None:
             for key, value in sip_args.items():
                 #Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
                 matched_attr = None
                 for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
-                    if key == shortcut:  
+                    if key in shortcut:  
                         matched_attr = attr_name
                         break
 
@@ -203,12 +203,21 @@ class SiPar(dict):
                 logger.critical(f"No valid .txt or .xml catalog for SIP found within the {sopar.output_directory} directory.")
                 sys.exit(-1)
 
-        print(self.__dict__)
+        
         cmd = self.generate_command()
-        print('Comando SIP:', cmd)
+        
 
         try:
+            Logger.raw("================================")
+            logger.info("Starting to run SIP...")
+            Logger.raw("================================")
+            logger.info(f"Command used to run SIP: {' '.join(cmd)}")
+
             subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)  
+
+            Logger.raw("================================")
+            logger.info("SIP ended...")
+            Logger.raw("================================")
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
             logger.error(f"Error running SIP: {e}")
@@ -229,7 +238,7 @@ class SiPar(dict):
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and the non-None attributes of the instance.
 
         Returns:
-        list: List with the shortcuts and values ​​in the format ["-c", "value", ...].
+        list: List with the shortcuts and values in the format ["-c", "value", ...].
         """
 
         if exclude is None:
@@ -244,17 +253,18 @@ class SiPar(dict):
             if attr_name == "combo":  # Special case for the 'combo' attribute
                 value = getattr(self, attr_name, None)
                 if value is True:  # If True, add only '-m'
-                    cmd.append(shortcut)
+                    cmd.append(shortcut[0])
                 elif isinstance(value, str):  # If a string (path), add '-m' followed by the value
-                    cmd.append(shortcut)
+                    cmd.append(shortcut[0])
                     cmd.append(value)
                 continue  #Skip further processing for 'combo'
 
             if hasattr(self, attr_name):  
                 value = getattr(self, attr_name)
                 if value is not None:  
-                    cmd.append(shortcut)  
+                    cmd.append(shortcut[0])  
                     cmd.append(str(value)) 
+
         return cmd
 
 
