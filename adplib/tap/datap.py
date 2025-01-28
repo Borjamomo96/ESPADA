@@ -31,13 +31,14 @@ from logger import Logger
 logger = Logger.get_logger()
 
 
-VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'instrument_name', 'obs_id',
-                      'dataproduct_type', 'target_name', 's_region', 'pol_states', 'o_ucd', 'band_list',
-                      'authors', 'pub_abstract', 'proposal_abstract', 'schedblock_name', 'proposal_authors',
-                      'group_ous_uid', 'member_ous_uid', 'asdm_uid', 'obs_title', 'type', 'scan_intent',
-                      'science_observation', 'antenna_arrays', 'is_mosaic', 'obs_release_date', 'frequency_support',
-                      'obs_creator_name', 'pub_title', 'first_author', 'qa2_passed', 'bib_reference',
-                      'science_keyword', 'scientific_category', 'lastModified', 'access_url', 'access_format',
+VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'instrument_name', 
+                      'obs_id', 'dataproduct_type', 'target_name', 's_region', 'pol_states', 'o_ucd',
+                      'band_list', 'authors', 'pub_abstract', 'proposal_abstract', 'schedblock_name',
+                      'proposal_authors', 'group_ous_uid', 'member_ous_uid', 'asdm_uid', 'obs_title',
+                      'type', 'scan_intent', 'science_observation', 'antenna_arrays', 'is_mosaic',  
+                      'obs_release_date', 'frequency_support', 'obs_creator_name', 'pub_title',
+                      'first_author', 'qa2_passed', 'bib_reference', 'science_keyword', 
+                      'scientific_category', 'lastModified', 'access_url', 'access_format',
                       'proposal_id', 'data_rights')
 
 
@@ -71,10 +72,12 @@ class datap(dict):
         for data download from remote sources, etc.
         """
 
-        #CHANGE. This is not needs in this class. This would be if additional par=val beyond the path is required, e.g datap('path', condition=True, const=1). These extra par
+        #CHANGE. This is not needs in this class. This would be if additional par=val 
+        # beyond the path is required, e.g datap('path', condition=True, const=1). These extra par
         #will be storage as a attr as well. 
         super(datap, self).__init__(**kwargs)
-        #This line set the keys of the previous key=val pair introduce through **kwargs as attributes of the class as well.
+        #This line set the keys of the previous key=val pair introduce through **kwargs as 
+        # attributes of the class as well.
         self.__dict__ = self 
         self.configure(**kwargs)
 
@@ -137,22 +140,32 @@ class datap(dict):
 
 
     def _get_metadata(self):
+
+        """
+        Retrieve metadata from the TAP service and return it as a pandas DataFrame.
+        """
     
-        metadata_query = "SELECT column_name, datatype, unit, ucd, utype, description from TAP_SCHEMA.columns"
+        metadata_query = (
+            "SELECT column_name, datatype, unit, ucd, utype, description "
+            "FROM TAP_SCHEMA.columns"
+        )       
         TAP_metadata = self._service.search(metadata_query)
 
         return pd.DataFrame(TAP_metadata).set_index('column_name')
 
 
     def _format_bytes(self, size):
-            """Convert the size of the dota to be downloaded in human-readable format."""
-            power = 1000
-            n = 0
-            power_labels = {0 : 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB'}
-            while size > power:
-                size /= power
-                n += 1
-            return size, power_labels[n]
+        """
+        Convert the size of the dota to be downloaded in human-readable format.
+        """
+
+        power = 1000
+        n = 0
+        power_labels = {0 : 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB', 5: 'PB', 6: 'EB'}
+        while size > power:
+            size /= power
+            n += 1
+        return size, power_labels[n]
 
 
     def download_data(self, observations):
@@ -162,17 +175,18 @@ class datap(dict):
         Parameters
         ----------
         observations : pandas.DataFrame
-            This is likely the output of e.g. 'conesearch', 'target', 'catalog', & 'keysearch' functions.
+                This is likely the output of e.g. 'conesearch', 'target', 'catalog', & 'keysearch' 
+                functions.
 
         fitsonly : bool, optional
             (Default value = False)
-            Download individual fits files only (fitsonly=True). This option will not download the raw data
-            (e.g. 'asdm' files), weblogs, or README files.
+            Download individual fits files only (fitsonly=True). This option will not download the 
+            raw data (e.g. 'asdm' files), weblogs, or README files.
 
         dryrun : bool, optional
             (Default value = False)
-            Allow the user to do a test run to check the size and number of files to download without actually
-            downloading the data (dryrun=True). To download the data, set testrun=False.
+            Allow the user to do a test run to check the size and number of files to download without
+            actually downloading the data (dryrun=True). To download the data, set testrun=False.
 
         print_urls : bool, optional
             (Default value = False)
@@ -180,16 +194,16 @@ class datap(dict):
 
         filename_must_include : list of str, optional
             (Default value = '')
-            A list of strings the user wants to be contained in the url filename. This is useful to restrict the
-            download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
-            the science target or calibrators (by including their names). The choice is largely dependent on the
-            cycle and type of reduction that was performed and data products that exist on the archive as a result.
-            In most recent cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
+            A list of strings the user wants to be contained in the url filename. This is useful 
+            to restrict the download further, for example, to data that have been primary beam 
+            corrected ('.pbcor') or that have the science target or calibrators (by including 
+            their names). The choice is largely dependent on the cycle and type of reduction that
+            was performed and data products that exist on the archive as a result. In most recent 
+            cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
 
         data_path : str, optional
             (Default value = ./archive_data)
             The directory where the downloaded data should be placed.
-
         """
 
         Logger.raw("================================")
@@ -202,14 +216,18 @@ class datap(dict):
         #case where the DataFrame is empty.
         try:
             if any(observations['data_rights'] == 'Proprietary'):
-                logger.warning("Some of the data you are trying to download are still in the proprietary period and are not publicly available yet.")
+                logger.warning("Some of the data you are trying to download are still in the "
+                               "proprietary period and are not publicly available yet.")
                 observations = observations[observations['data_rights'] == 'Public']
 
             uids_list = observations['member_ous_uid'].unique()
-            # when len(uids_list) == 0, it's because the DataFrame included only proprietary data and we removed them in the above if statement, so the DataFrame is now empty
+            # when len(uids_list) == 0, it's because the DataFrame included only proprietary 
+            # data and we removed them in the above if statement, so the DataFrame is now empty
 
             if len(uids_list) == 0:
-                logger.error("No data to download. Check the input DataFrame. It is likely that your query results include only proprietary data which cannot be freely downloaded.")
+                logger.error("No data to download. Check the input DataFrame. It is likely that "
+                             "your query results include only proprietary data which cannot be "
+                             "freely downloaded.")
                 sys.exit(-1)
             
         # this is the case where the query had no results to begin with.
@@ -225,50 +243,43 @@ class datap(dict):
             if not os.path.exists(Path(self.download_par['data_dir'])):
                 self.alma.cache_location = self.download_par['data_dir']
             else:
-                logger.warning(f"The directory '{self.download_par['data_dir']}' already exits. The data from the archive wiil be storaged in this directory.")
+                logger.warning(f"The directory '{self.download_par['data_dir']}' already exits."
+                               " The data from the archive wiil be storaged in this directory.")
                 self.alma.cache_location = self.download_par['data_dir']
-                
-    
-        '''# change download location if specified by user, else the location will be a folder called 'archive_data' in the tap directory
-        if self.download_par['data_dir'] != default_location:
-            print('Bloque 1')
-            if os.path.isdir(Path(self.download_par['data_dir'])):
-                self.alma.cache_location = self.download_par['data_dir']
-                print('Sub Bloque 1')
-            else:
-                print('Sub Bloque 2')
-                logger.warning("{} is not a directory. The download location will be set to {}".format(self.download_par['data_dir'], default_location))
-                self.alma.cache_location = default_location
-
-        elif (self.download_par['data_dir'] == default_location) and not os.path.isdir(self.download_par['data_dir']):  # create the 'archive_data' subdirectory
-            print('Bloque 2')
-            #CHANGE. If this directory alrealy exists will display an error
-            if Path(default_location).exists():
-                print('Sub Bloque 1')
-                os.makedirs(default_location)
-                self.alma.cache_location = default_location
-            else:
-                print('Sub Bloque 2')
-                logger.warning('The default directory {default_location} already exits. The data from the archive wiil be storaged in this directory.')'''
-
 
         #Fits only and phrase within the file to download
         if self.download_par['fitsonly']:
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
-            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings provided by user in 'filename_must_include' parameter
+            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings 
+            # provided by user in 'filename_must_include' parameter
             if self.download_par['include_pb']:
-                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if ((v.endswith(".fits") or ".pb." in v) and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
+                dl_table = data_table[
+                    [i for i, v in enumerate(data_table['access_url'])
+                    if ((v.endswith(".fits") or ".pb." in v) and
+                        all(fmi in v for fmi in self.download_par['filename_must_include']))]
+                ]
             else:
-                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (v.endswith(".fits")  and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
+                dl_table = data_table[
+                    [i for i, v in enumerate(data_table['access_url'])
+                    if (v.endswith(".fits") and
+                        all(fmi in v for fmi in self.download_par['filename_must_include']))]
+                ]
 
         else:
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=False)
-            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings provided by user in 'filename_must_include' parameter
+            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings 
+            # provided by user in 'filename_must_include' parameter
             if self.download_par['include_pb']:
-                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (".pb." in v) and all(fmi in v for fmi in self.download_par['filename_must_include'])]]
+                dl_table = data_table[
+                    [i for i, v in enumerate(data_table['access_url'])
+                    if (".pb." in v) and
+                    all(fmi in v for fmi in self.download_par['filename_must_include'])]
+                ]
             else:
-                dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if all(fmi in v for fmi in self.download_par['filename_must_include'])]]
-
+                dl_table = data_table[
+                    [i for i, v in enumerate(data_table['access_url'])
+                    if all(fmi in v for fmi in self.download_par['filename_must_include'])]
+                ]
 
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
@@ -312,11 +323,12 @@ class datap(dict):
                 
         else:
             logger.warning("Nothing to download.")
-            print("Note: often only a subset of the observations (e.g. the representative window) is ingested into "
-                "the archive. In such cases, you may need to download the raw dataset, reproduce the calibrated "
-                "measurement set, and image the observations of interest. It is also possible to request calibrated "
-                "measurement sets through a Helpdesk ticket to the European ARC "
-                "(see https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe).")
+            print("Note: often only a subset of the observations (e.g. the representative window)" 
+                  "is ingested into the archive. In such cases, you may need to download the raw "
+                  "dataset, reproduce the calibrated measurement set, and image the observations "
+                  "of interest. It is also possible to request calibrated  measurement sets through"
+                  " a Helpdesk ticket to the European ARC (see "
+                  "https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe).")
             sys.exit(-1)
         
         
@@ -332,25 +344,56 @@ class datap(dict):
 
 
     def download_mask(self, observations):
+        """
+        Download mask files for the given observations from the ALMA archive.
+
+        This method filters the provided observations to include only public data (if any 
+        proprietary data is present, it is excluded). It retrieves the unique `member_ous_uid` 
+        identifiers, queries the ALMA archive for available mask files, and downloads them. 
+        The downloaded files are stored in the cache location specified by the ALMA service.
+
+        Parameters:
+        ----------
+        observations (pandas.DataFrame): A DataFrame containing observation metadata, including 
+                                        a `data_rights` column to filter public data and a 
+                                        `member_ous_uid` column to identify unique datasets.
+
+        Returns:
+        ----------
+        None
+
+        Raises:
+        ----------
+        SystemExit: If an internal error occurs while processing the observations or querying 
+                    the archive.
+        ValueError: If an error occurs during the file download process.
+        """
 
         try:
             if any(observations['data_rights'] == 'Proprietary'):
-                #logger.warning("Some of the data you are trying to download are still in the proprietary period and are not publicly available yet.")
+                #logger.warning("Some of the data you are trying to download are still in the 
+                # proprietary period and are not publicly available yet.")
                 observations = observations[observations['data_rights'] == 'Public']
 
             uids_list = observations['member_ous_uid'].unique()
-            # when len(uids_list) == 0, it's because the DataFrame included only proprietary data and we removed them in the above if statement, so the DataFrame is now empty
+            # when len(uids_list) == 0, it's because the DataFrame included only proprietary 
+            # data and we removed them in the above if statement, so the DataFrame is now empty
 
             
         # this is the case where the query had no results to begin with.
         except TypeError:
-            logger.critical("Internal error. Something went wrong trying to download mask from the archive.")
+            logger.critical("Internal error. Something went wrong trying to download mask from "
+                            "the archive.")
             sys.exit(-1)
         
         #self.alma.cache_location
 
         data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
-        dl_table = data_table[[i for i, v in enumerate(data_table['access_url']) if (".cube.I.mask." in v and all(fmi in v for fmi in self.download_par['filename_must_include']))]]
+        dl_table = data_table[
+                        [i for i, v in enumerate(data_table['access_url']) 
+                         if (".cube.I.mask." in v and 
+                             all(fmi in v for fmi in self.download_par['filename_must_include']))]
+                             ]
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
         dl_df = dl_df.loc[dl_df.access_url != '']
@@ -404,8 +447,22 @@ class datap(dict):
 
 
     def get_downloaded_file_path(self, base_dir):
-        
-        
+        """
+        Process and retrieve paths to the most recent data cube and primary beam files in a given 
+        directory.
+
+        Parameters:
+        ----------
+            base_dir (Path): The base directory where the downloaded files are located.
+
+        Returns:
+        ----------
+            None
+
+        Raises:
+        ----------
+            SystemExit: If no valid data cube files are found in the specified directory.
+        """
 
         data_files = list(base_dir.glob("*cube.I.pbcor*"))
         data_files = [f for f in data_files if ".pb." not in f.name]  # Excluye los archivos .pb
@@ -477,9 +534,19 @@ class datap(dict):
     def get_downloaded_mask_path(self, base_dir):
 
         """
-        Busca y descomprime archivos .gz en el directorio base especificado.
-        Si 'remove_uncompress_files' está activado, elimina los archivos comprimidos después de descomprimirlos.
-        Si ya existe un archivo descomprimido, lo utiliza directamente y elimina el archivo comprimido si está presente.
+        Process and retrieve the most recent mask file from a given directory.
+
+        This method searches for mask files in the specified directory (`base_dir`) that match 
+        the pattern `*cube.I.mask*`. It handles compressed `.gz` files by decompressing them 
+        if necessary and optionally deleting the original compressed files based on the 
+        `self.download_par['remove_uncompress_file']` setting. The most recently modified mask 
+        file is selected and stored as an attribute (`self.data_loc_mask`).
+
+        Args:
+            base_dir (Path): The directory where the downloaded mask files are located.
+
+        Returns:
+            None
         """
 
         #Cuidado con buscar de esta manera, habría que ser más específico
@@ -540,7 +607,8 @@ class datap(dict):
 
         Parameters
         ----------
-        Self: All the required parameters are part of the attributes of the class itself. The attiributes are defined in the download_par.yaml, see README for further details
+        Self: All the required parameters are part of the attributes of the class itself. 
+        The attiributes are defined in the download_par.yaml, see README for further details
 
         Returns
         -------
@@ -549,7 +617,10 @@ class datap(dict):
         """
 
         
-        query = f"SELECT *  FROM ivoa.obscore WHERE obs_publisher_did like '%{self.query_par['proposal_id']}%'"
+        query = (
+            "SELECT *  FROM ivoa.obscore WHERE obs_publisher_did like "
+            f"'%{self.query_par['proposal_id']}%'"
+        )
 
         if self.query_par['public']:
             query = "{} AND data_rights LIKE '%Public%'".format(query)
@@ -563,12 +634,16 @@ class datap(dict):
         
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte    
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas 
+        #a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro 
+        #esta parte    
         '''if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
                 TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
 
-            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of self.query_par['published'] = False
+            # case of self.query_par['published'] = False
+            elif not self.query_par['published'] and self.query_par['published'] is not None:  
+                
                 TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
 
             filtered_df = self.filter_results(TAP_df)
@@ -599,15 +674,24 @@ class datap(dict):
 
         search_radius = self.query_par['search_radius'] * u.arcmin
         if self.query_par['point']:
-            query = "SELECT * FROM ivoa.ObsCore WHERE 1 = CONTAINS(POINT('ICRS',{},{}), s_region)".format(self.query_par['ra'], self.query_par['dec'])
+            query = (
+                "SELECT * FROM ivoa.ObsCore WHERE 1 = CONTAINS(POINT('ICRS',"
+                f"{self.query_par['ra']},{self.query_par['dec']}), s_region)"
+            )
+
         else:
-            query = "SELECT * FROM ivoa.ObsCore WHERE (1 = INTERSECTS(CIRCLE('ICRS',{},{},{}), s_region) OR " \
-                    "1 = CONTAINS(POINT('ICRS',{},{}), s_region))".format(self.query_par['ra'], self.query_par['dec'], search_radius.to(u.deg).value, self.query_par['ra'], self.query_par['dec'])
+            query = (
+                "SELECT * FROM ivoa.ObsCore "
+                f"WHERE (1 = INTERSECTS(CIRCLE('ICRS', {self.query_par['ra']}, "
+                f"{self.query_par['dec']}, {search_radius.to(u.deg).value}), s_region) "
+                f"OR 1 = CONTAINS(POINT('ICRS', {self.query_par['ra']}, "
+                f"{self.query_par['dec']}), s_region))"
+            )
 
         if self.query_par['public']:
-            query = "{} AND data_rights LIKE '%Public%'".format(query)
+            query = f"{query} AND data_rights LIKE '%Public%'"
         elif not self.query_par['public'] and self.query_par['public'] is not None:
-            query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
+            query = f"{query} AND data_rights LIKE '%Proprietary%'"
 
         if self.query_par['print_query']:
             logger.info("Your query is: {}".format(query))
@@ -621,7 +705,8 @@ class datap(dict):
             if self.query_par['published']:  # case of self.query_par['published'] = True
                 TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
 
-            elif not self.query_par['published'] and self.query_par['published'] is not None:  # case of self.query_par['published'] = False
+            # case of self.query_par['published'] = False
+            elif not self.query_par['published'] and self.query_par['published'] is not None:  
                 TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
 
             filtered_df = self.filter_results(TAP_df)
@@ -653,10 +738,15 @@ class datap(dict):
 
         search_radius = search_radius * u.arcmin
         if self.query_par['point']:
-            query = "SELECT * FROM ivoa.ObsCore WHERE 1 = CONTAINS(POINT('ICRS',{},{}), s_region)".format(ra, dec)
+            query = (
+                "SELECT * FROM ivoa.ObsCore "
+                f"WHERE 1 = CONTAINS(POINT('ICRS',{ra},{dec}), s_region)"
+            )
         else:
-            query = "SELECT * FROM ivoa.ObsCore WHERE (1 = INTERSECTS(CIRCLE('ICRS',{},{},{}), s_region) OR " \
-                    "1 = CONTAINS(POINT('ICRS',{},{}), s_region))".format(ra, dec, search_radius.to(u.deg).value, ra, dec)
+            query = ("SELECT * FROM ivoa.ObsCore "
+                     f"WHERE (1 = INTERSECTS(CIRCLE('ICRS',{ra},{dec},{search_radius.to(u.deg).value})"
+                     f", s_region) OR 1 = CONTAINS(POINT('ICRS',{ra},{dec}), s_region))"
+            )
 
         if self.query_par['public']:
             query = "{} AND data_rights LIKE '%Public%'".format(query)
@@ -668,7 +758,9 @@ class datap(dict):
 
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
+        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas 
+        # a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro 
+        # esta parte 
         '''
         if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
@@ -688,11 +780,12 @@ class datap(dict):
         """
         Query targets by name.
 
-        This is done by using the astropy SESAME resolver to get the target's coordinates and then the ALMA archive
-        is queried for those coordinates and a search_radius around them. The SESAME resolver searches multiple databases
-        (Simbad, NED, VizieR) to parse names commonly found throughout literature and returns their coordinates. If the
-        target is not resolved in any of these databases, consider using the 'keysearch' function and query the archive
-        using the 'target_name' keyword (e.g. keysearch({'target_name': sources})).
+        This is done by using the astropy SESAME resolver to get the target's coordinates and 
+        then the ALMA archive is queried for those coordinates and a search_radius around them. 
+        The SESAME resolver searches multiple databases (Simbad, NED, VizieR) to parse names 
+        commonly found throughout literature and returns their coordinates. If the target is 
+        not resolved in any of these databases, consider using the 'keysearch' function and query 
+        the archive using the 'target_name' keyword (e.g. keysearch({'target_name': sources})).
 
         Parameters
         ----------
@@ -723,20 +816,26 @@ class datap(dict):
         for s in sources:
             print("Target = {}".format(s))
             try:
-                # Get source coodinates from astropy SESAME resolver querying multiple databases (SIMBAD, NED, Vizier)
+                # Get source coodinates from astropy SESAME resolver querying multiple databases 
+                # (SIMBAD, NED, Vizier)
                 source_pos = get_icrs_coordinates(s)
-                TAP_df = self.self_conesearch(ra=source_pos.ra.deg, dec=source_pos.dec.deg, search_radius=self.query_par['search_radius'])
+                TAP_df = self.self_conesearch(
+                    ra=source_pos.ra.deg, dec=source_pos.dec.deg, 
+                    search_radius=self.query_par['search_radius']
+                    )
                 if TAP_df is not None:
                     complete_results.append(TAP_df)
-            except name_resolve.NameResolveError as err:  # source coords not found in SESAME resolver
+            # source coords not found in SESAME resolver
+            except name_resolve.NameResolveError as err:  
                 logger.error(err)
-                print("Try keysearch function instead: keysearch({{'target_name':['{}']}}).".format(s))
+                print(f"Try keysearch function instead: keysearch({{'target_name':['{s}']}}).")
                 print("--------------------------------")
                 pass
         # if the list of query results is not empty, concatenate them together into one DataFrame
         if complete_results:
             obs = pd.concat(complete_results)
-            # need to reset the index of DataFrame so the indices in the final DataFrame are consecutive
+            # need to reset the index of DataFrame so the indices in the final DataFrame are 
+            # consecutive
             obs = obs.reset_index(drop=True)
             return obs
         else:
@@ -751,8 +850,8 @@ class datap(dict):
         Parameters
         ----------
         search_dict : dict[str, list of str]
-            Dictionary of keywords in the ALMA archive and their values. Values must be formatted as a list.
-            A list of valid keywords are stored in VALID_KEYWORDS_STR variable.
+            Dictionary of keywords in the ALMA archive and their values. Values must be formatted 
+            as a list. A list of valid keywords are stored in VALID_KEYWORDS_STR variable.
 
 
         Returns
@@ -761,17 +860,19 @@ class datap(dict):
 
         Notes
         -----
-        The power of this function is in combining keywords. When multiple keywords are provided, they are
-        queried using 'AND' logic, but when multiple values are provided for a given keyword, they are queried using
-        'OR' logic. If a given value contains spaces, its constituents are queried using 'AND' logic. Words encapsulated
-        in quotation marks (either ' or ") are queried as phrases. Values for the 'target_name' keyword
-        are queried with 'OR' logic.
+        The power of this function is in combining keywords. When multiple keywords are provided, 
+        they are queried using 'AND' logic, but when multiple values are provided for a given 
+        keyword, they are queried using 'OR' logic. If a given value contains spaces, its 
+        constituents are queried using 'AND' logic. Words encapsulated in quotation marks (either '
+        or ") are queried as phrases. Values for the 'target_name' keyword are queried with 'OR'
+        logic.
 
         Examples
         --------
         keysearch({"proposal_abstract": ["high-mass star formation outflow disk"]})
             will query the archive for projects with the words
-            "high-mass" AND "star" AND "formation" AND "outflow" AND "disk" in their proposal abstracts.
+            "high-mass" AND "star" AND "formation" AND "outflow" AND "disk" in their proposal
+            abstracts.
 
         keysearch({"proposal_abstract": ["high-mass", "star", "formation", "outflow", "disk"]})
             will query the archive for projects with the words
@@ -804,13 +905,16 @@ class datap(dict):
         full_query_list = []
         for keyword, values in self.query_par['search_dict'].items():
             # Catch if a wrong keyword is used and give appropriate error
-            assert keyword in VALID_KEYWORDS_STR, "Invalid keyword, must be one of: {}".format(VALID_KEYWORDS_STR)
+            assert keyword in VALID_KEYWORDS_STR, (
+                f"Invalid keyword, must be one of: {VALID_KEYWORDS_STR}"
+            )
             # Convert underscores and spaces in the target name to wildcard
             # target_name is always queried with OR logic
             if keyword == 'target_name':
                 values = [v.replace('_', '%') for v in values]
                 values = [v.replace(' ', '%') for v in values]
-                # Create queries for a given keyword using 'OR' logic between different values and accounting for
+                # Create queries for a given keyword using 'OR' logic between different values 
+                # and accounting for
                 # the case-sensitivity
                 current_query = ["LOWER({}) LIKE '%{}%'".format(keyword, v.lower()) for v in values]
                 full_query_list.append("({})".format(" OR ".join(current_query)))
@@ -819,12 +923,16 @@ class datap(dict):
             else:
                 keyword_query_list = []
                 for v in values:
-                    # If there are quotations in the values of a given keyword, split them out and query them as phrases
-                    # If there are remaining keywords separated by spaces, split them out and query them with AND logic
+                    # If there are quotations in the values of a given keyword, split them out and 
+                    # query them as phrases If there are remaining keywords separated by spaces, 
+                    # split them out and query them with AND logic
                     if re.search(r"\s", v):
                         split_values = re.findall(r"['\"].*['\"]|\d+\.\d+|[\w-]+", v)
-                        current_query = ["LOWER({}) LIKE '%{}%'".format(keyword, re.sub("['\"]", '', s.lower())) for s in
-                                        split_values]
+                        current_query = [
+                            "LOWER({}) LIKE '%{}%'".format(keyword, re.sub("['\"]", '', s.lower())) 
+                            for s in split_values
+                        ]
+
                         keyword_query_list.append("({})".format(" AND ".join(current_query)))
                     # If separate words are provided as values, query them with OR logic
                     else:
@@ -833,14 +941,18 @@ class datap(dict):
                 
 
         # Put together the entire query with 'AND' logic between different keywords
-        full_query = "SELECT * FROM ivoa.obscore WHERE {} ORDER BY proposal_id".format(" AND ".join(full_query_list))
+        full_query = (
+            f"SELECT * FROM ivoa.obscore WHERE {" AND ".join(full_query_list)}" 
+            "ORDER BY proposal_id"
+        )
         if self.query_par['print_query']:
             logger.info("Your query is: {}".format(full_query))
         TAP_df = self.run_query(full_query)
         # Filter whether the user wants published data, unpublished data, or both (default)
         if self.query_par['published']:  # case pf published = True
             TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
-        elif not self.query_par['published'] and self.query_par['published'] is not None:  # case pf published = False
+        # case pf published = False
+        elif not self.query_par['published'] and self.query_par['published'] is not None:  
             TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
         
         #CHANGE. filter_result, esta función esta pero aún no esta implementada. 
@@ -855,6 +967,15 @@ class datap(dict):
 
 
     def check_query_par(self):
+        """
+        Validate the query parameters (`query_par`) for the specified query type (`query_type`).
+
+
+        Raises:
+        ----------
+        ValueError: If `query_type` is undefined or invalid, required parameters are missing, 
+                    extra parameters are found, or parameter types are incorrect.
+        """
 
         if not self.query_type:
             raise ValueError(f"The attribute 'query_type' is not defined in the YAML file.")
@@ -886,33 +1007,47 @@ class datap(dict):
         valid_params = expected_params.get(self.query_type, None)
 
         if not valid_params:
-            raise ValueError(f"The query type '{self.query_type}' is not valid. Choose among the available options.")
+            raise ValueError(f"The query type '{self.query_type}' is not valid. "
+                             "Choose among the available options.")
 
         # Filter active parameters, excluding common ones
-        active_params = {k: v for k, v in self.query_par.items() if v is not None and k not in common_params}
+        active_params = {
+            k: v for k, v in self.query_par.items() 
+            if v is not None 
+            and k not in common_params
+        }
 
         # Check missing params
         missing_params = [param for param in valid_params if param not in active_params]
         if missing_params:
-            raise ValueError(f"The next required 'query_par' for 'query_type' = {self.query_type} are missing: {missing_params}")
+            raise ValueError("The next required 'query_par' for 'query_type' ="
+                             f" {self.query_type} are missing: {missing_params}")
 
         # Check extra params
         extra_params = [param for param in active_params if param not in valid_params]
         if extra_params:
-            raise ValueError(f"Invalid parameters found for 'query_type = {self.query_type}': {extra_params}.")
+            raise ValueError("Invalid parameters found for 'query_type = "
+                             f"{self.query_type}': {extra_params}.")
 
         # Check that the number of parameters matches exactly
         if len(active_params) != len(valid_params):
-            raise ValueError(f"The number of active parameters does not match the expected ones for 'query_type = {self.query_type}'. "
-                            f"Expected: {valid_params}, Active: {list(active_params.keys())}.")
+            raise ValueError(
+                "The number of active parameters does not match the expected ones for 'query_type"
+                f" = {self.query_type}'. Expected: {valid_params}, Active: "
+                f"{list(active_params.keys())}."
+            )
 
         # Validate types for active parameters
         for param, value in active_params.items():
             expected_type = expected_types.get(param)
             if expected_type and not isinstance(value, expected_type):
-                raise ValueError(f"The parameter '{param}' must be of type {expected_type}, but got '{value}'({type(value).__name__}).")
+                raise ValueError(
+                    f"The parameter '{param}' must be of type {expected_type}, but got '{value}'"
+                    f"({type(value).__name__})."
+                )
 
-        logger.info(f"Validation successful: all parameters for 'query_type = {self.query_type}' are correct.")
+        logger.info(f"Validation successful: all parameters for 'query_type = {self.query_type}'"
+                    " are correct.")
 
 
     def check_download_par(self):
@@ -957,8 +1092,8 @@ class datap(dict):
                     value = self.download_par[key]
                     if not isinstance(value, expected_type):
                         raise ValueError(
-                            f"Parameter 'download_par.{key}' must be of type {expected_type.__name__}, "
-                            f"but got {type(value).__name__}, '{value}'."
+                            f"Parameter 'download_par.{key}' must be of type {expected_type.__name__}"
+                            f",  but got {type(value).__name__}, '{value}'."
                         )
 
         #print("All parameters are valid.")

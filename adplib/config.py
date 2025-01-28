@@ -100,10 +100,8 @@ class Config(dict):
             
     def check_config_par(self):
         """
-        Validate the attributes for the Config class readed from the config.yaml.
+        Validate the attributes for the Config class readed from the configuration file.
 
-        Raises:
-            ValueError: Si algún parámetro falta o no tiene el tipo esperado.
         """
         #Tipos esperados en los parámetros
         #CHANGE. Revisar la implementación del uso de UNION o a partir de 3.10 el simbolo |

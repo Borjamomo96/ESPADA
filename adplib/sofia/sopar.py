@@ -117,6 +117,22 @@ class SoPar(dict):
 
 
     def read_sofia_par_file(self, sofia_file_path):
+        """
+        Reads a Sofia parameter file and dynamically sets attributes on the class instance.
+
+        The file is expected to contain lines in the format `key=value`. Blank lines and lines
+        starting with `#` are ignored. The keys are sanitized by replacing dots (`.`) with
+        underscores (`_`). Values are automatically converted to integers or floats if possible;
+        otherwise, they remain as strings.
+
+        Parameters:
+        ----------
+        sofia_file_path (str): Path to the Sofia parameter file.
+        
+        Returns:
+        ----------
+        """
+
 
         with open(sofia_file_path, 'r') as file:
                 for line in file:
@@ -145,40 +161,51 @@ class SoPar(dict):
                         setattr(self, k, v)
                         
                     except ValueError: #CHANGE. Check is ValueError cover all the posibilities.
-                        logger.error(f"The line '{line}' has not a valid format (module.parameter = value).")
+                        logger.error(f"The line '{line}' has not a valid format "
+                                     "(module.parameter = value).")
                         sys.exit(-1)
 
 
     def update_input_parameters(self, sop_par, adpalmap_main=None, adpalmap_datap=None, mode=None, run=-1):
         """
-        Updates the attributes of the SoPar object with the values ​​provided in sop_params.
-        Manages input.data priority based on adpalmap_main/adpalmap_datap.
+        Updates the attributes of the SoPar object with the values provided in sop_params.
+        Manages input.data, output.directory, input.invert and input.primaryBeam priority 
+        based on adpalmap_main, adpalmap_datap, sop_par and the attributes on self.
 
-        Args:
+        Parameters:
+        ----------
         sop_params (dict): Dictionary with parameters provided via -sop.
-        adpalmap_main: Object with configuration for adpalmap_main mode.
-        adpalmap_datap: Object with configuration for adpalmap_datap mode.
+        adpalmap_main: Config() class object with configuration from the configuration file.
+        adpalmap_datap: Datap() class object with parameters from the download parameters file.
 
         Returns:
+        ----------
         None: Updates the attributes of the SoPar object directly.
         """
         
         #-------------------input.data logic--------------------#
         #REMOVE. Si Pongo una condición en el main para este caso, aquí no hace falta definirlo. 
         if adpalmap_main and adpalmap_datap: #Ambos definidos
-            #raise ValueError("Both adpalmap_main and adpalmap_datap are defined. Only one is allowed.")
-            logger.warning(f"Ignoring 'input_data={adpalmap_main.input_data}' specified in the config.yaml file. The parameter 'enable_tap_service' has set 'True' so ADPALMAP will use the downloaded data as 'input_data'")
+            #raise ValueError("Both adpalmap_main and adpalmap_datap are defined. Only one is 
+            # allowed.")
+            logger.warning(f"Ignoring 'input_data={adpalmap_main.input_data}' specified in the "
+                           "config.yaml file. The parameter 'enable_tap_service' has set 'True' "
+                           "so ADPALMAP will use the downloaded data as 'input_data'")
             self.input_data = adpalmap_datap.data_loc_fits
         elif adpalmap_main:
             if self.input_data is not None:
-                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in {self.sofia_file_path}. If you want to change this, specify it in the input_data parameter in the config.yaml file.")
+                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in"
+                               " {self.sofia_file_path}. If you want to change this, specify it "
+                               "in the input_data parameter in the config.yaml file.")
             self.input_data = adpalmap_main.input_data
         elif adpalmap_datap:
             if self.input_data is not None:
-                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in {self.sofia_file_path}.")
+                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in"
+                               " {self.sofia_file_path}.")
             self.input_data = adpalmap_datap.data_loc_fits
         else: #Ambos None
-            raise ValueError("No valid source for input.data. Define it in either adpalmap_main or adpalmap_datap.")
+            raise ValueError("No valid source for input.data. Define it in either adpalmap_main"
+                             " or adpalmap_datap.")
         
         #---------------output.directory logic-------------------#
         if sop_par and "output.directory" in sop_par: 
@@ -198,11 +225,13 @@ class SoPar(dict):
             invert_value_sopar = None
         
         if mode == 'emission' and (invert_value_sopar=='true' or self.input_invert=='true'):
-            logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. Changing 'input.invert' to 'false'.")
+            logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
+                           "Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
         elif mode == 'absorption':
             if (invert_value_sopar=='false' or self.input_invert=='false'):
-                logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. Changing 'input.invert' to 'true'.")
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. "
+                               "Changing 'input.invert' to 'true'.")
                 self.input_invert = 'true'
             elif (self.input_invert !='false' or self.input_invert is None):
                 self.input_invert = 'true'
@@ -210,28 +239,39 @@ class SoPar(dict):
                 self.input_invert = 'true'
         elif mode == 'both' and run !=0:
             if (invert_value_sopar=='false' or self.input_invert=='false'):
-                logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for the first run. Changing 'input.invert' to 'true'.")
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for "
+                               "the first run. Changing 'input.invert' to 'true'.")
             self.input_invert = 'true'
         elif mode == 'both' and run ==0:
             if (invert_value_sopar=='true' or self.input_invert=='true'):
-                logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for the second run. Changing 'input.invert' to 'false'.")
+                logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
+                               "the second run. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
         if adpalmap_datap is not None:         
             if hasattr(adpalmap_datap, "data_loc_pb"):
                 self.input_primaryBeam = adpalmap_datap.data_loc_pb
-                if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
-                    logger.warning(f"Ignoring parameter 'input.data={self.primaryBeam}' provided in {self.sofia_file_path}." 
-                                    "The newly downloaded primary will be used.")
+                if (sop_par is not None 
+                        and 'input.primaryBeam' in sop_par 
+                        and sop_par['input.primaryBeam'] is not None):
+                    logger.warning(
+                        f"Ignoring parameter 'input.data={self.primaryBeam}' provided in "
+                        f"{self.sofia_file_path}. The newly downloaded primary will be used."
+                    )
                 if self.input_primaryBeam is not None:
-                    logger.warning(f"Ignoring parameter 'input.primaryBeam={self.input_data}' provided in {self.sofia_file_path}." 
-                                    "The newly downloaded primary will be used.")
+                    logger.warning(f"Ignoring parameter 'input.primaryBeam={self.input_data}' "
+                                   "provided in {self.sofia_file_path}. The newly downloaded "
+                                   "primary will be used.")
             else:
-                if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
+                if (sop_par is not None 
+                        and 'input.primaryBeam' in sop_par 
+                        and sop_par['input.primaryBeam'] is not None):
                     self.input_primaryBeam = sop_par['input.primaryBeam'] 
         else:
-            if sop_par is not None and ('input.primaryBeam' in sop_par and sop_par['input.primaryBeam'] is not None):
+            if (sop_par is not None 
+                    and 'input.primaryBeam' in sop_par 
+                    and sop_par['input.primaryBeam'] is not None):
                 self.input_primaryBeam = sop_par['input.primaryBeam']
             
 
@@ -242,7 +282,9 @@ class SoPar(dict):
                 normalized_key = key.replace('.', '_')
 
                 if key in {"input.data"}:
-                    logger.warning(f"Ignoring parameter '{key}={value}' provided via -sop. If you want to change this, specify it in the input_data parameter in the config.yaml file.")
+                    logger.warning(f"Ignoring parameter '{key}={value}' provided via -sop. If you "
+                                   "want to change this, specify it in the input_data parameter in"
+                                   " the config.yaml file.")
                     continue
                 if key in {"output.directory", "input.invert"}: continue
 
@@ -257,13 +299,69 @@ class SoPar(dict):
     
     def auto_setup(self):
         """
-        Lee el archivo FITS asociado al atributo `input_data` y actualiza los
-        atributos de SoPar según los valores del header y las operaciones especificadas.
+        Automatically configures attributes based on the FITS file header information.
 
+        This method reads the FITS file specified in `self.input_data` and updates class attributes
+        based on the header values. It calculates and sets parameters such as `scfind_kernelsXY`,
+        `linker_minSizeXY`, and `reliability_minSNR` using specific rules derived from the header.
+
+        
         Raises:
-            FileNotFoundError: Si el archivo FITS no existe.
-            KeyError: Si algún keyword necesario no está presente en el header.
+        ----------
+        SystemExit: If `self.input_data` is not defined, is empty, or the FITS file does not exist.
         """
+
+        if not hasattr(self, "input_data") or not self.input_data:
+            logger.critical("El atributo 'input_data' no está definido o está vacío.")
+            sys.exit(-1)
+
+        fits_path = Path(self.input_data)
+
+
+        if not fits_path.exists():
+            logger.critical(f"File FITS '{fits_path}' does not exist.")
+            sys.exit(-1)
+
+        with fits.open(fits_path) as hdul:
+            header = hdul[0].header
+
+        
+        # Update attributes based on header and defined operations
+        if "BMAJ" in header and "BMIN" in header and "CDELT1" in header:
+            bmaj = header["BMAJ"]
+            bmin = header["BMIN"]
+            cdelt1 = abs(header["CDELT1"])
+
+            # Calculate values ​​for scfind.kernelsXY and linker.minSizeXY
+            x = (bmaj + bmin) / (2 * cdelt1)
+            self.scfind_kernelsXY = f"0, {x:.2f}, {2*x:.2f}"  # Format "0, x, 2x"
+            self.linker_minSizeXY = x  
+        
+
+        # reliability.minSNR
+        if "BMAJ" in header and "BMIN" in header:
+            self.reliability_minSNR = 3.0  
+
+        else:
+            naxis1 = header.get("NAXIS1", None)
+            naxis2 = header.get("NAXIS2", None)
+            naxis3 = header.get("NAXIS3", None)
+
+            if naxis1 is not None and naxis2 is not None and naxis3 is not None:
+                a = naxis1 / 2
+                b = naxis2 / 2
+                x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
+                self.reliability_minSNR = x
+            else:
+                # Manejo del caso en que falte alguno de los valores
+                logger.warning(
+                    "NAXIS1, NAXIS2, or NAXIS3 is not defined in the FITS file header."
+                    "Cannot calculate 'reliability.minSNR'."
+                )
+                
+
+        # Otros parámetros pueden ser añadidos según las reglas específicas...
+        logger.info("Auto-setup DONE.")
 
         if not hasattr(self, "input_data") or not self.input_data:
             logger.critical("El atributo 'input_data' no está definido o está vacío.")
@@ -319,6 +417,27 @@ class SoPar(dict):
 
 
     def run_sofia(self, adpalmap_config, mode=None, run=-1):        
+        """
+        Runs the SoFia tool in different modes (absorption, emission, or both) based on 
+        the provided configuration.
+
+        This method executes SoFia with the specified mode and handles the creation of 
+        output directories, logging, and error handling. It also manages temporary files and 
+        ensures proper cleanup.
+
+        Parameters:
+        ----------
+        adpalmap_config: Config() class object with configuration from the configuration file..
+        mode (str, optional): Mode to run SoFia in. Can be 'absorption', 'emission', or 'both'.
+                              Defaults to None.
+        run (int, optional): Indicates the run iteration when mode is 'both'. Used to handle 
+                             sequential runs. -1 for single runs, 0 for the second run in 'both' 
+                             mode. Defaults to -1.
+
+        Raises:
+        ----------
+        SystemExit: If SoFia encounters an error during execution.
+        """
         
         if (mode is not None and mode=='absorption'):
 
@@ -327,7 +446,8 @@ class SoPar(dict):
             if not os.path.exists(self.output_directory):
                 os.makedirs(Path(self.output_directory))
             else:
-                logger.warning(f"The {Path(self.output_directory)} directory already exists. The SoFia outputs will be stored in this directory") 
+                logger.warning(f"The {Path(self.output_directory)} directory already exists."
+                               " The SoFia outputs will be stored in this directory") 
             
             temp_file_path = self.create_tempfile()
             try:
@@ -337,8 +457,12 @@ class SoPar(dict):
                 self.log_parameters()
 
                 cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
-
+                subprocess.run(
+                    cmd,
+                    text=True,
+                    check=True,
+                    capture_output=adpalmap_config.capture_outputs
+                )
                 Logger.raw("================================")
                 logger.info("SoFia ended...")
                 Logger.raw("================================")
@@ -356,7 +480,8 @@ class SoPar(dict):
             if not os.path.exists(Path(self.output_directory)):
                 os.makedirs(Path(self.output_directory))
             else:
-                logger.warning(f"The {Path(self.output_directory)} directory already exists. The SoFia outputs will be stored in this directory") 
+                logger.warning(f"The {Path(self.output_directory)} directory already exists."
+                               " The SoFia outputs will be stored in this directory") 
 
             temp_file_path = self.create_tempfile()
             try:
@@ -366,7 +491,12 @@ class SoPar(dict):
                 self.log_parameters()
                 
                 cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+                subprocess.run(
+                    cmd, 
+                    text=True, 
+                    check=True, 
+                    capture_output=adpalmap_config.capture_outputs
+                ) 
 
                 Logger.raw("================================")
                 logger.info("SoFia ended...")
@@ -395,22 +525,30 @@ class SoPar(dict):
                     self.log_parameters()
 
                     cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+                    subprocess.run(
+                        cmd, 
+                        text=True, 
+                        check=True, 
+                        capture_output=adpalmap_config.capture_outputs
+                        ) 
 
                     Logger.raw("================================")
                     logger.info("SoFia ended...")
                     Logger.raw("================================")
                 except subprocess.CalledProcessError as e:
-                    logger.warning(f"SoFia has returned non-zero exit status: {e.returncode}, trying you finding absorption. " 
-                            "SoFia will run again in the 'emission' mode without considering the absorption mask as a flag.cube.")
+                    logger.warning(f"SoFia has returned non-zero exit status: {e.returncode}, "
+                                   "trying you finding absorption. SoFia will run again in the"
+                                   " 'emission' mode without considering the absorption mask as"
+                                   " a flag.cube.")
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
                     
             elif run==0:
                 
-                #Por defecto, el directorio de absorción será el self.output_directory_absorption. Uso el base_output_directory para buscarlo 
-                # Lo búsco, si no lo encuentra por fallo o porque no encontró absorciones, se mantiene igual. 
+                #Por defecto, el directorio de absorción será el self.output_directory_absorption. 
+                # Uso el base_output_directory para buscarlo. Lo búsco, si no lo encuentra por 
+                # fallo o porque no encontró absorciones, se mantiene igual. 
                 if adpalmap_config.abs_flag_cube is not None and adpalmap_config.abs_flag_cube==True:
                     absorption_dir = Path(f'{self.base_output_directory}_absorption')
                     #Caso en el que no encuentra absorciones
@@ -418,13 +556,15 @@ class SoPar(dict):
                         flag_cube = list(absorption_dir.glob('*_mask.fits'))[0]
                         self.flag_cube = flag_cube
                 else:
-                    logger.info('Ignoring absorption sources as input for flag.cube in the run trying to find emissions sources.')
+                    logger.info("Ignoring absorption sources as input for flag.cube in the run"
+                                " trying to find emissions sources.")
 
                 self.output_directory = Path(f'{self.output_directory}_emission')
                 if not os.path.exists(Path(self.output_directory)):
                     os.makedirs(Path(self.output_directory))
                 else:
-                    logger.warning(f"The {Path(self.output_directory)} directory already exists. The SoFia outputs will be stored in this directory") 
+                    logger.warning(f"The {Path(self.output_directory)} directory already exists."
+                                   " The SoFia outputs will be stored in this directory") 
 
 
                 temp_file_path = self.create_tempfile()
@@ -435,7 +575,12 @@ class SoPar(dict):
                     self.log_parameters()
 
                     cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs) 
+                    subprocess.run(
+                        cmd, 
+                        text=True, 
+                        check=True, 
+                        capture_output=adpalmap_config.capture_outputs
+                        ) 
 
                     Logger.raw("================================")
                     logger.info("SoFia ended...")
@@ -449,13 +594,27 @@ class SoPar(dict):
 
 
     def create_tempfile(self):
+        """
+        Create a temporary file containing key-value pairs of the object's attributes.
+
+        This method generates a temporary file in the same directory as the object's 
+        `path` attribute (or the current directory if `path` is not defined). The file 
+        will include all attributes of the object, except for those explicitly excluded 
+        (`sofia_file_path`, `path`, and `base_output_directory`). Attribute names are 
+        transformed by replacing underscores with dots.
+
+        Returns:
+        ----------
+        str: The path to the created temporary file as a string.
+        """
 
         original_path = self.path if hasattr(self, "path") else Path(".")
         temp_file_path = original_path.with_name(original_path.stem + "_tmp" + original_path.suffix)
         
         with open(temp_file_path, 'w') as tf:
             for key, value in self.__dict__.items():
-                if key not in {"sofia_file_path", "path", "base_output_directory"}:  # Excluye estos atributos
+                # Excluye estos atributos
+                if key not in {"sofia_file_path", "path", "base_output_directory"}:
                     key_transformed = key.replace("_", ".")
                     tf.write(f"{key_transformed}={value}\n")
 
@@ -463,15 +622,52 @@ class SoPar(dict):
                 
 
     def log_parameters(self):
-        
+        """
+        Log the object's parameters, excluding specific attributes.
+
+        This method logs all key-value pairs of the object's attributes, except for 
+        those explicitly excluded (`sofia_file_path`, `path`, and `base_output_directory`). 
+        Attribute names are transformed by replacing underscores with dots before logging. 
+        The parameters are logged using the `Logger.raw_file` method.
+
+        Returns:
+        ----------
+            None
+        """
+
         logger.info("Parameters set for the run: \n")
         for key, value in self.__dict__.items():
-            if key not in {"sofia_file_path", "path", "base_output_directory"}:  # Excluye estos atributos
+            # Excluye estos atributos
+            if key not in {"sofia_file_path", "path", "base_output_directory"}:  
                 key_transformed = key.replace("_", ".")
                 Logger.raw_file(f"{key_transformed}={value}")
 
 
     def quality_assesment(self, adpalmap_datap, output_fits=None):
+        """
+        Perform a quality assessment by visualizing and comparing masks and moment images.
+
+        This method evaluates the quality of the data by generating visualizations of:
+        - The moment 8 image.
+        - The Sofia 2D mask (if available).
+        - The ALMA archive mask (if provided via `adpalmap_datap`).
+
+        Parameters:
+        ----------
+        adpalmap_datap: Datap() class object with configuration from the download parameter file.. 
+                        If None, the ALMA archive mask will not be included in the assessment.
+        output_fits (str, optional): Path to the output FITS file used to generate the 
+                                    moment 8 image. Defaults to None.
+
+        Returns:
+        ----------
+            None
+
+        Raises:
+        ----------
+            ValueError: If the ALMA archive mask data has more than 4 dimensions, as this is not 
+                        supported.
+        """
 
         mom8_ima = moment8_ima(self, output_fits=output_fits)
 
@@ -489,13 +685,15 @@ class SoPar(dict):
                 mask_archive = np.squeeze(mask_archive, axis=0)
             elif mask_archive.ndim > 4:
                 logger.critical("ADP Alma pipeline is not designed to handle data files with "
-                                "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
-                                "with your specific case.")
+                                "more than 4 dimensions. Please open an issue on GitLab "
+                                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+                                "case.")
             mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
         
 
         if adpalmap_datap is None and not file_2d_mask_list:
-            return logger.warning("2D-Mask file not found in {self.ouput.directory}. Skipping the quality assesment")
+            return logger.warning("2D-Mask file not found in {self.ouput.directory}. "
+                                  "Skipping the quality assesment")
         
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data

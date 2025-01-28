@@ -22,8 +22,22 @@ from logger import Logger
 def parse_sofia_par(arg):
 
     """
-    .
+    Parses a string in key=value format. Splits the string at the first = and returns a tuple 
+    (key, value). Raises argparse.ArgumentTypeError if the format is invalid.
+
+    Parameters:
+    ----------
+    arg (str): Input string in key=value format.
+
+    Returns:
+    ----------
+    Tuple (key, value).
+
+    Raises:
+    ----------
+    argparse.ArgumentTypeError: If arg is not in key=value format.
     """
+
     try:
 
         key, value = arg.split("=", 1)
@@ -35,7 +49,18 @@ def parse_sofia_par(arg):
 def sipargs_to_dict(args_list):
 
     """
-    .
+    Converts a list of SIP-related arguments into a structured dictionary. Arguments starting 
+    with '-' are treated as keys, and subsequent items are treated as their values. Supports single 
+    values, lists, or boolean flags.
+
+    Parameters:
+    ----------
+    args_list (list): A list of strings representing SIP arguments.
+
+    Returns:
+    ----------
+    dict: A dictionary where keys are argument names (starting with '-') and values are either 
+          single values, lists, or `True` for flags.
     """
 
     args_dict = {}
@@ -71,11 +96,17 @@ def main():
                     epilog= __doc__) 
 
     parser.add_argument('-c', '--config-file', dest='config_file', default=None,
-                        help='<Optional> Path to the master config file to use. By default, APDALMAP will try to use the file config.yaml')
-    parser.add_argument('-sop', '--sofia-parameters', dest='sofia_par', nargs='+', type=parse_sofia_par, default=None,
-                        help='<Optional> List of the parameters following the instruction of SoFia2 cookbook. Note, the parameter introduce here will overwirte the corresponding parameter in all the sofia files used in ADPALMAP')
-    parser.add_argument('-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, type=str, default=None,
-                        help="<Optional> Optional arguments for the SoFia Imaging Pipeline (SIP). If any other ADPAlmap argument is wanted to be introduced after this argument, the separtor '--' must be enter.")
+                        help="<Optional> Path to the master config file to use. By default, "
+                        "APDALMAP will try to use the file config.yaml")
+    parser.add_argument('-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
+                        type=parse_sofia_par, default=None,
+                        help="<Optional> List of the parameters following the instruction of SoFia2 "
+                        "cookbook. Note, the parameter introduce here will overwirte the "
+                        "corresponding parameter in all the sofia files used in ADPALMAP")
+    parser.add_argument('-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 
+                        type=str, default=None, help="<Optional> Optional arguments for the SoFia "
+                        "Imaging Pipeline (SIP). If any other ADPAlmap argument is wanted to be "
+                        "introduced after this argument, the separtor '--' must be enter.")
     
     args = parser.parse_args()
     
@@ -91,19 +122,21 @@ def main():
         adpalmap_config = Config(config_path=args.config_file)    
 
 
-    logger = Logger.get_logger(log_path=adpalmap_config.log_file, clear_logs=adpalmap_config.clear_logs)
+    logger = Logger.get_logger(log_path=adpalmap_config.log_file, 
+                               clear_logs=adpalmap_config.clear_logs)
 
 
     logger.info("ADPALMAP start point")
-    #--------------------------------------------------------------------------------------------#
+    #------------------------------------------------------------------------------------------------#
     #Optionally download data from ALMA archive
     from tap.datap import datap
 
     if adpalmap_config.enable_tap_service == True:
 
         if adpalmap_config.input_data is not None or adpalmap_config.input_data_list is not None:
-            logger.warning(f"The paremeter input_data or input_data_list specified in the {args.config_file}"
-                           " will be ignore. This run will use the requested download data.")
+            logger.warning(f"The paremeter input_data or input_data_list specified in the "
+                           "{args.config_file} will be ignore. This run will use the requested "
+                           "download data.")
 
         adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
         if adpalmap_datap.query_type=='proposal': TAP_df = adpalmap_datap.proposal_id()
@@ -116,11 +149,10 @@ def main():
         
     else:
         adpalmap_datap = None
-        logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. Skipping data download")
-
-    
-
+        logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
+                    "Skipping data download")
     #--------------------------------------------------------------------------------------------#
+
 
 
     #--------------------------------------------------------------------------------------------#
@@ -132,7 +164,10 @@ def main():
         if adpalmap_config.run_mode == 'emission':
 
             adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
-            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, adpalmap_datap=adpalmap_datap, mode=adpalmap_config.run_mode)  #Update sofia abs file with the -sop parameters
+            #Update sofia abs file with the -sop parameters
+            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
+                                                       adpalmap_datap=adpalmap_datap, 
+                                                       mode=adpalmap_config.run_mode)  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
@@ -143,14 +178,18 @@ def main():
                     adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
+                                   "performed.")
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
 
 
         elif adpalmap_config.run_mode == 'absorption':
 
             adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
-            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, adpalmap_datap=adpalmap_datap, mode=adpalmap_config.run_mode)   #Update sofia abs file with the -sop parameters
+            #Update sofia abs file with the -sop parameters
+            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
+                                                       adpalmap_datap=adpalmap_datap, 
+                                                       mode=adpalmap_config.run_mode)   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
@@ -159,15 +198,22 @@ def main():
                 if adpalmap_datap is not None:
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks in the QA will not be performed.")
+                    logger.warning(f"'enable_tap_service' is set to False. All checks in the QA will"
+                                   " not be performed.")
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
         elif adpalmap_config.run_mode == 'both':
 
             adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
             adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
-            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, adpalmap_datap=adpalmap_datap, mode=adpalmap_config.run_mode)   #Update sofia abs file with the -sop parameters
-            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, adpalmap_datap=adpalmap_datap, mode=adpalmap_config.run_mode, run=0)   #Update sofia emi file with the -sop parameters
+            #Update sofia abs file with the -sop parameters
+            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
+                                                       adpalmap_datap=adpalmap_datap, 
+                                                       mode=adpalmap_config.run_mode)  
+            #Update sofia emi file with the -sop parameters
+            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
+                                                       adpalmap_datap=adpalmap_datap, 
+                                                       mode=adpalmap_config.run_mode, run=0)   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
@@ -178,7 +224,8 @@ def main():
                 if adpalmap_datap is not None:
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
+                                   "performed.")
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
@@ -187,11 +234,13 @@ def main():
                 if adpalmap_datap is not None:
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be performed.")
+                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
+                                   "performed.")
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
 
     else:
-        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_tap_service}. Skipping Sofia runs.")
+        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_tap_service}. "
+                    "Skipping Sofia runs.")
 
 
     #--------------------------------------------------------------------------------------------#

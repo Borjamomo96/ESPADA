@@ -84,7 +84,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
     - **ra**. Type `<float>`.
     - **dec**. Type `<float>`.
     - **search_radius'`. Type `<float>`.
-  - `'target**:
+  - `'target'`:
     - **sources**. Type `<str>`.
     - **search_radius**. Type `<float>`.
   - `'keysearch'`:

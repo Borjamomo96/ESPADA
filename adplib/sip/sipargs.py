@@ -83,10 +83,11 @@ class SiPar(dict):
 
     def check_sip_args(self):
         """
-        Validate the attributes for the SiPar class readed from the sip_args.yaml.
+        Validate the attributes for the SiPar class readed from the SIP arguments file.
 
         Raises:
-            ValueError: Si algún parámetro falta o no tiene el tipo esperado.
+        ----------
+            ValueError: If any parameter is missing or does not have the expected type.
         """
         #Tipos esperados en los parámetros
         expected_types = {
@@ -121,7 +122,8 @@ class SiPar(dict):
                         f"but is of type {type(value)}."
                     )
             else:
-                raise ValueError(f"The required parameter '{param}' is not defined in the sip_args.yaml file.")
+                raise ValueError(f"The required parameter '{param}' is not defined in the"
+                                 " sip_args.yaml file.")
 
         # Valido valores permitidos
         for param, valid_values_list in valid_values.items():
@@ -129,8 +131,8 @@ class SiPar(dict):
                 value = getattr(self, param)
                 if value not in valid_values_list:
                     raise ValueError(
-                        f"The parameter '{param}' must have one of the following values: {valid_values_list}. "
-                        f"Value provided: '{value}'."
+                        f"The parameter '{param}' must have one of the following values:"
+                        f" {valid_values_list}. Value provided: '{value}'."
                     )
 
         # Valido listas específicas
@@ -138,13 +140,15 @@ class SiPar(dict):
             snr_range = getattr(self, 'snr_range')
             if not (isinstance(snr_range, list) and len(snr_range) == 2):
                 raise ValueError(
-                    f"The 'snr_range' parameter must be a list of two values. Provided value: {snr_range}."
+                    f"The 'snr_range' parameter must be a list of two values."
+                    " Provided value: {snr_range}."
                 )
         if hasattr(self, 'percentile_range'):
             percentile_range = getattr(self, 'percentile_range')
             if not (isinstance(percentile_range, list) and len(percentile_range) == 2):
                 raise ValueError(
-                    f"The 'percentile_range' parameter must be a list of two values. Provided value: {percentile_range}."
+                    f"The 'percentile_range' parameter must be a list of two values."
+                     " Provided value: {percentile_range}."
                 )
 
         #logger.info("All parameters are valid.")
@@ -154,10 +158,14 @@ class SiPar(dict):
         """
         Updates the parameters of the SiPar class with the values provided in the terminal arguments.
 
-        Args:
-        sip_args (dict): Dictionary with arguments provided from the terminal (-sarg or --sip-arguments).
+        Parameters:
+        ----------
+        sip_args (dict): Dictionary with arguments provided from the terminal 
+                         (-sarg or --sip-arguments).
+        adpalmap_config: Config() class object with configuration from the configuration file.
 
         Returns:
+        ----------
         None: Directly updates the class attributes.
         """
     
@@ -174,7 +182,8 @@ class SiPar(dict):
                 if matched_attr is not None:
                     # Special case for 'catalog_file' or '-c'
                     if matched_attr == "catalog_file" and adpalmap_config.enable_sofia:
-                        logger.warning(f"Ignoring argument '{key}' provided because enable_sofia=True in the file {adpalmap_config.config_path}.")
+                        logger.warning(f"Ignoring argument '{key}' provided because "
+                                       f"enable_sofia=True in the file {adpalmap_config.config_path}.")
                         continue  
 
                     # Update the attribute with the new value
@@ -184,7 +193,33 @@ class SiPar(dict):
 
 
     def run_sip(self, adpalmap_config, sopar=None):
+        """
+        Run the SIP (Source Identification Pipeline) process with the specified configuration.
 
+        This method executes the SIP process by generating the appropriate command and running it 
+        via a subprocess. It also determines which catalog file (TXT or XML) to use for the SIP 
+        process, based on the output directory of the `sopar` object. If no valid catalog file is 
+        found, the method logs a critical error and terminates execution.
+
+        Parameters:
+        ----------
+        adpalmap_config: Config() class object with configuration from the configuration file.
+        sopar (optional): SoPar() class object with parameters from the SoFiA parameters file.
+                          Default=None
+                        
+
+        Returns:
+        ----------
+            None
+
+        Raises:
+        ----------
+            SystemExit: If no valid catalog file is found in the `sopar.output_directory` or if 
+                        there is an error while executing the SIP subprocess.
+
+        
+        """
+        
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             
             output_cubelets = Path(f"{sopar.output_directory}")
@@ -200,7 +235,8 @@ class SiPar(dict):
             elif sofia_catalog_xml: 
                 self.catalog_file = sofia_catalog_xml
             else:
-                logger.critical(f"No valid .txt or .xml catalog for SIP found within the {sopar.output_directory} directory.")
+                logger.critical(f"No valid .txt or .xml catalog for SIP found within the"
+                                f" {sopar.output_directory} directory.")
                 sys.exit(-1)
 
         
@@ -213,11 +249,16 @@ class SiPar(dict):
             Logger.raw("================================")
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
 
-            subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)  
-
+            subprocess.run(
+                cmd, 
+                text=True, 
+                check=True, 
+                capture_output=adpalmap_config.capture_outputs
+                )              
             Logger.raw("================================")
             logger.info("SIP ended...")
             Logger.raw("================================")
+
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
             logger.error(f"Error running SIP: {e}")
@@ -235,9 +276,15 @@ class SiPar(dict):
 
     def generate_command(self, exclude=None):
         """
-        Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and the non-None attributes of the instance.
+        Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 
+        the non-None attributes of the instance.
+
+        Parameters:
+        ----------
+        exclude: List with the attribute to exclude in the command generation
 
         Returns:
+        ----------
         list: List with the shortcuts and values in the format ["-c", "value", ...].
         """
 
@@ -270,11 +317,12 @@ class SiPar(dict):
 
     def make_summary(self, cmd):
         """
-        Genera un comando basado en los atributos de la instancia, asegurando que el argumento `-id` tenga el valor `0`,
-        incluso si no estaba en el comando original.
+        Generates a command based on the instance attributes, ensuring that the `-id` argument 
+        has the value `0`, even if it was not in the original command.
 
         Returns:
-            list: Lista con el comando ajustado, donde `-id` tiene el valor `0`.
+        ----------
+        list: List with the command set, where `-id` has the value `0`.
         """
 
         # Asegurar que `-id` esté presente con el valor `0`
