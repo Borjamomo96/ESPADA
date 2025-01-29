@@ -58,7 +58,11 @@ class SiPar(dict):
             sip_file_path = Path("sip/sip_args.yaml")
 
             if not sip_file_path.exists():
-                raise FileNotFoundError(f"Sip arguments file {sip_file_path} not found. Checked if the 'tap/download_par.yaml' have been deleted or the structure have changed. See README for furhter details")
+                raise FileNotFoundError(
+                    f"Sip arguments file {sip_file_path} not found. Checked if the "
+                    "'tap/download_par.yaml' have been deleted or the structure have changed. "
+                    "See README for furhter details"
+                )
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
@@ -71,7 +75,9 @@ class SiPar(dict):
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
         else:
-            raise FileNotFoundError(f"Critial error. Something with the Sip file path or the Sip file went wrong")
+            raise FileNotFoundError(
+                f"Critial error. Something with the Sip file path or the Sip file went wrong"
+            )
             
         with open(sip_file_path, 'r') as f:
             sip_args_dict = yaml.safe_load(f)
@@ -182,8 +188,9 @@ class SiPar(dict):
                 if matched_attr is not None:
                     # Special case for 'catalog_file' or '-c'
                     if matched_attr == "catalog_file" and adpalmap_config.enable_sofia:
-                        logger.warning(f"Ignoring argument '{key}' provided because "
-                                       f"enable_sofia=True in the file {adpalmap_config.config_path}.")
+                        logger.warning(
+                            f"Ignoring argument '{key}' provided because  enable_sofia=True in"
+                            f"the file {adpalmap_config.config_path}.")
                         continue  
 
                     # Update the attribute with the new value
@@ -273,7 +280,6 @@ class SiPar(dict):
             sys.exit(-1)'''
         
     
-
     def generate_command(self, exclude=None):
         """
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 
