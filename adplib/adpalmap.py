@@ -196,6 +196,7 @@ def main():
 
             if adpalmap_config.quality_assesment == True:
                 if adpalmap_datap is not None:
+                    adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks in the QA will"
@@ -222,6 +223,7 @@ def main():
 
             if adpalmap_config.quality_assesment == True:
                 if adpalmap_datap is not None:
+                    adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
@@ -232,6 +234,7 @@ def main():
 
             if adpalmap_config.quality_assesment == True:
                 if adpalmap_datap is not None:
+                    adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
