@@ -239,7 +239,7 @@ def main():
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
 
     else:
-        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_tap_service}. "
+        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
 
@@ -273,7 +273,7 @@ def main():
             adpalmap_sipar.run_sip(adpalmap_config)
             
     else:
-        logger.info(f"'enable_sip' set to {adpalmap_config.enable_tap_service}. Skipping SIP runs.")
+        logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
         
     logger.info("ADPALMAP end point")

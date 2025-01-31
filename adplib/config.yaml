@@ -18,21 +18,21 @@ input_data_list: False
 #    LOGGER    #
 ################
 
-clear_logs: False
+clear_logs: True
 log_file: adpalmap.log
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False
+enable_tap_service: True
 download_par_file: ./tap/download_par.yaml
 
 #################
 #     SOFIA     #
 #################
 
-enable_sofia : False
+enable_sofia : True
 run_mode: 'emission' #'emission', 'absorption'
 abs_flag_cube: True
 auto_setup: True 

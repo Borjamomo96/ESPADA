@@ -942,7 +942,7 @@ class datap(dict):
 
         # Put together the entire query with 'AND' logic between different keywords
         full_query = (
-            f"SELECT * FROM ivoa.obscore WHERE {" AND ".join(full_query_list)}" 
+            f"SELECT * FROM ivoa.obscore WHERE {' AND '.join(full_query_list)}" 
             "ORDER BY proposal_id"
         )
         if self.query_par['print_query']:
