@@ -17,14 +17,14 @@ input.gain                 =
 input.noise                =  
 input.weights              =  
 input.mask                 =  
-input.invert               =   
+input.invert               =  false
 
 
 # Flagging
 
 flag.region                =  
 flag.catalog               =  
-flag.radius                =  5
+flag.radius                =  0
 flag.auto                  =  false
 flag.threshold             =  5.0
 flag.log                   =  false
@@ -68,7 +68,7 @@ rippleFilter.interpolate   =  false
 # S+C finder
 
 scfind.enable              =  true
-scfind.kernelsXY           =  0, 3, 6, 9
+scfind.kernelsXY           =  0, 3, 5, 10
 scfind.kernelsZ            =  0, 3, 7, 15
 scfind.threshold           =  3.8
 scfind.replacement         =  2.0
@@ -108,11 +108,11 @@ reliability.enable         =  true
 reliability.parameters     =  peak, sum, mean
 reliability.threshold      =  0.9
 reliability.scaleKernel    =  0.3
-reliability.minSNR         =  6.0
+reliability.minSNR         =  12
 reliability.minPixels      =  150
 reliability.autoKernel     =  true
-reliability.iterations     =  50
-reliability.tolerance      =  0.05
+reliability.iterations     =  100
+reliability.tolerance      =  0.1
 reliability.catalog        =  
 reliability.plot           =  true
 reliability.plotExtra      =  false
@@ -148,7 +148,7 @@ output.writeNoise          =  false
 output.writeFiltered       =  false
 output.writeMask           =  true
 output.writeMask2d         =  true
-output.writeRawMask        =  false
+output.writeRawMask        =  true
 output.writeMoments        =  true
 output.writeCubelets       =  true
 output.writePV             =  true

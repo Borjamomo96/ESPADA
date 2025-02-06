@@ -3,7 +3,7 @@ import os, yaml, logging
 from pathlib import Path
 
 # Logger:
-from logger import Initial_Logger
+from adplib.logger import Initial_Logger
 logger = Initial_Logger.get_initial_logger()
 
 
@@ -12,9 +12,6 @@ class Config(dict):
     
     This class is a singleton, that is, it always returns the same instance of the class.
     """
-
-    # PATH CONFIG
-    basedir = Path(__file__).parents[1].absolute()
 
     #Configure as a singleton 
 
@@ -52,9 +49,10 @@ class Config(dict):
 
         #The dict constructor is used and every key phrase in the .yaml file become an attribute of this class
         super(Config, self).__init__(**kwargs)
-        #Garantiza que cualquier acceso futuro al diccionario o la adición de nuevas claves también se refleje en la estructura de atributos de la instancia.
+        #Garantiza que cualquier acceso futuro al diccionario o la adición de nuevas claves también se refleje
+        #en la estructura de atributos de la instancia.
         self.__dict__ = self # Load config file and set attributes
-
+        
         if reconfigure or not Config._configured:
             self.configure(**kwargs)
 
@@ -63,7 +61,8 @@ class Config(dict):
 
         if config_path is None:
             
-            config_path = Path("config.yaml")
+            script_dir = Path(__file__).parent
+            config_path = script_dir/ "config.yaml"
             self.config_path = config_path
 
             if not config_path.exists():
@@ -90,7 +89,8 @@ class Config(dict):
         with open(config_path, 'r') as f:
             config_dict = yaml.safe_load(f)
         
-        #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
+        #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras 
+        # modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in config_dict.items():
             setattr(self, k, v)
         
@@ -104,7 +104,6 @@ class Config(dict):
 
         """
         #Tipos esperados en los parámetros
-        #CHANGE. Revisar la implementación del uso de UNION o a partir de 3.10 el simbolo |
         expected_types = {
             'quality_assesment': bool,
             'capture_outputs': bool,
@@ -113,15 +112,15 @@ class Config(dict):
             'clear_logs': bool,
             'log_file': str,
             'enable_tap_service': bool,
-            'download_par_file': str,
+            'download_par_file': str | None,
             'enable_sofia': bool,
             'run_mode': str,
             'abs_flag_cube': bool,
             'auto_setup': bool,
-            'sofia_abs_file': str,
-            'sofia_emi_file': str,
+            'sofia_abs_file': str | None,
+            'sofia_emi_file': str | None,
             'enable_sip': bool,
-            'sip_par_file': str,
+            'sip_par_file': str | None,
         }
 
         #Los parámetros obligatorios, hasta la fecha
@@ -186,6 +185,17 @@ class Config(dict):
                 f"Unexpected parameter '{param}' found in config.yaml. It will be ignored."
             )
             delattr(self, param) 
+
+        if self.enable_tap_service == False:
+            
+            #En el caso de TAP service False, compruebo aquí que input_data existe, de lo contrario se 
+            # comprobaría en otro módulo posteriormente y perdería lógica. 
+
+            if not Path(self.input_data).exists():
+                raise FileNotFoundError(
+                    f"Input file '{Path(self.input_data)}' not found."
+                    )
+
 
         #print("All parameters are valid.")
 

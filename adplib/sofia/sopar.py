@@ -8,11 +8,11 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 
 # Logger:
-from logger import Logger
+from adplib.logger import Logger
 logger = Logger.get_logger()
 
 
-def moment8_ima(sopar, output_fits=None):
+def moment8_ima(sopar, output_fits=None, adpalmap_datap=None):
 
     """
     Reads a FITS file containing a data cube and creates a 2D image by
@@ -27,12 +27,19 @@ def moment8_ima(sopar, output_fits=None):
         np.ndarray: 2D array with the maximum values along the z-axis.
     """
     if not hasattr(sopar, "input_data") or not sopar.input_data:
-        logger.critical("Attribute 'input_data' is not defined or is None.")
+        logger.critical(
+            "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
+            " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+            "case."
+        )
         sys.exit(-1)
     fits_path = Path(sopar.input_data)
 
     if not fits_path.exists():
-        logger.critical(f"File FITS '{fits_path}' does not exist.")
+        logger.critical(
+            f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
+            " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+            "case.")
         sys.exit(-1)
 
     with fits.open(fits_path) as hdul:
@@ -44,12 +51,58 @@ def moment8_ima(sopar, output_fits=None):
     if data_cube.ndim == 4:
         data_cube = np.squeeze(data_cube, axis=0)
     elif data_cube.ndim > 4:
-        logger.critical("ADP Alma pipeline is not designed to handle data files with "
-                        "more than 4 dimensions. Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
-                        "with your specific case.")
-    
+        logger.critical(
+            "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
+            "Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
+            "with your specific case.")
 
-    max_projection = np.max(data_cube, axis=0)
+    #Ahora el PrimaryBeam
+    if hasattr(sopar, "input_primaryBeam") and sopar.input_primaryBeam:
+
+            pb_path = Path(sopar.input_primaryBeam)
+
+            if not pb_path.exists():
+                logger.critical(
+                    f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
+                    " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your" 
+                    "specific case.")
+                sys.exit(-1)
+
+            with fits.open(pb_path) as hdul:
+                pb_cube = hdul[0].data
+
+            if pb_cube is None:
+                raise ValueError("The FITS file does not contain data in the primary HDU.")
+            
+            if pb_cube.ndim == 4:
+                pb_cube = np.squeeze(pb_cube, axis=0)
+            elif pb_cube.ndim > 4:
+                logger.critical(
+                    "ADP Alma pipeline is not designed to handle data files with more than 4 "
+                    "dimensions. Please open an issue on GitLab "
+                    "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                )
+
+            final_data_cube = data_cube * pb_cube
+                
+    else:
+        if adpalmap_datap is not None:
+            logger.warning(
+                "The 'include_pb' parameter inside the download_par.yaml file has been set to "
+                "'False'. Image at moment 8 cannot have the correction subtracted by the Primary "
+                "Beam."
+            )
+        else:
+            logger.warning(
+                "No data cube has been specified with Primary Beam information. "
+                "'False'. Image at moment 8 cannot have the correction subtracted by the Primary "
+                "Beam."
+            )
+        
+        final_data_cube = data_cube
+
+
+    max_projection = np.max(final_data_cube, axis=0)
 
     if output_fits:
         hdu = fits.PrimaryHDU(max_projection)
@@ -103,18 +156,22 @@ class SoPar(dict):
 
 
         if sofia_file_path is None:
-            sofia_file_path='sofia/sofia_default.par'
+            
+            script_dir = Path(__file__).parent
+            sofia_file_path = script_dir/'sofia_default.par'
+
             if Path(sofia_file_path).exists():
                 self.read_sofia_par_file(sofia_file_path)
-                self.path = Path('sofia/sofia_default.par')
+                self.sofia_file_path = sofia_file_path
 
             else:
                 raise FileNotFoundError(f"Download file {Path(sofia_file_path)} not found.")
             
         else:
             self.read_sofia_par_file(sofia_file_path)
-            self.path = Path(sofia_file_path)
+            self.sofia_file_path = sofia_file_path
 
+        
 
     def read_sofia_par_file(self, sofia_file_path):
         """
@@ -206,6 +263,7 @@ class SoPar(dict):
         else: #Ambos None
             raise ValueError("No valid source for input.data. Define it in either adpalmap_main"
                              " or adpalmap_datap.")
+        
         
         #---------------output.directory logic-------------------#
         if sop_par and "output.directory" in sop_par: 
@@ -334,60 +392,8 @@ class SoPar(dict):
 
             # Calculate values ​​for scfind.kernelsXY and linker.minSizeXY
             x = (bmaj + bmin) / (2 * cdelt1)
-            self.scfind_kernelsXY = f"0, {x:.2f}, {2*x:.2f}"  # Format "0, x, 2x"
-            self.linker_minSizeXY = x  
-        
-
-        # reliability.minSNR
-        if "BMAJ" in header and "BMIN" in header:
-            self.reliability_minSNR = 3.0  
-
-        else:
-            naxis1 = header.get("NAXIS1", None)
-            naxis2 = header.get("NAXIS2", None)
-            naxis3 = header.get("NAXIS3", None)
-
-            if naxis1 is not None and naxis2 is not None and naxis3 is not None:
-                a = naxis1 / 2
-                b = naxis2 / 2
-                x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
-                self.reliability_minSNR = x
-            else:
-                # Manejo del caso en que falte alguno de los valores
-                logger.warning(
-                    "NAXIS1, NAXIS2, or NAXIS3 is not defined in the FITS file header."
-                    "Cannot calculate 'reliability.minSNR'."
-                )
-                
-
-        # Otros parámetros pueden ser añadidos según las reglas específicas...
-        logger.info("Auto-setup DONE.")
-
-        if not hasattr(self, "input_data") or not self.input_data:
-            logger.critical("El atributo 'input_data' no está definido o está vacío.")
-            sys.exit(-1)
-
-        fits_path = Path(self.input_data)
-
-
-        if not fits_path.exists():
-            logger.critical(f"File FITS '{fits_path}' does not exist.")
-            sys.exit(-1)
-
-        with fits.open(fits_path) as hdul:
-            header = hdul[0].header
-
-        
-        # Update attributes based on header and defined operations
-        if "BMAJ" in header and "BMIN" in header and "CDELT1" in header:
-            bmaj = header["BMAJ"]
-            bmin = header["BMIN"]
-            cdelt1 = abs(header["CDELT1"])
-
-            # Calculate values ​​for scfind.kernelsXY and linker.minSizeXY
-            x = (bmaj + bmin) / (2 * cdelt1)
-            self.scfind_kernelsXY = f"0, {x:.2f}, {2*x:.2f}"  # Format "0, x, 2x"
-            self.linker_minSizeXY = x  
+            self.scfind_kernelsXY = f"0, {x:.0f}, {2*x:.0f}"  # Format "0, x, 2x"
+            self.linker_minSizeXY = round(x)  
         
 
         # reliability.minSNR
@@ -551,6 +557,7 @@ class SoPar(dict):
                 # fallo o porque no encontró absorciones, se mantiene igual. 
                 if adpalmap_config.abs_flag_cube is not None and adpalmap_config.abs_flag_cube==True:
                     absorption_dir = Path(f'{self.base_output_directory}_absorption')
+                    
                     #Caso en el que no encuentra absorciones
                     if list(absorption_dir.glob('*_mask.fits')):
                         flag_cube = list(absorption_dir.glob('*_mask.fits'))[0]
@@ -608,7 +615,7 @@ class SoPar(dict):
         str: The path to the created temporary file as a string.
         """
 
-        original_path = self.path if hasattr(self, "path") else Path(".")
+        original_path = Path(self.sofia_file_path) if hasattr(self, "sofia_file_path") else Path(".")
         temp_file_path = original_path.with_name(original_path.stem + "_tmp" + original_path.suffix)
         
         with open(temp_file_path, 'w') as tf:
@@ -668,10 +675,10 @@ class SoPar(dict):
             ValueError: If the ALMA archive mask data has more than 4 dimensions, as this is not 
                         supported.
         """
+        #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
+        mom8_ima = moment8_ima(self, output_fits=output_fits, adpalmap_datap=adpalmap_datap)
 
-        mom8_ima = moment8_ima(self, output_fits=output_fits)
-
-
+        #Máscara de lo obtenido por SoFiA
         output_cubelets = Path(f"{self.output_directory}")
         file_2d_mask_list = list(output_cubelets.glob('*mask-2d.fits'))
         if file_2d_mask_list:
@@ -684,11 +691,14 @@ class SoPar(dict):
             if mask_archive.ndim == 4:
                 mask_archive = np.squeeze(mask_archive, axis=0)
             elif mask_archive.ndim > 4:
-                logger.critical("ADP Alma pipeline is not designed to handle data files with "
-                                "more than 4 dimensions. Please open an issue on GitLab "
-                                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
-                                "case.")
+                logger.critical(
+                    "ADP Alma pipeline is not designed to handle data files with "
+                    "more than 4 dimensions. Please open an issue on GitLab "
+                    "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+                    "case."
+                )
             mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
+
         
 
         if adpalmap_datap is None and not file_2d_mask_list:
