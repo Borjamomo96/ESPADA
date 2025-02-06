@@ -11,14 +11,14 @@ capture_outputs: False
 #   INPUT DATA   #
 ##################
 
-input_data: ./sofia/sofia_test_datacube.fits
+input_data: ./adplib/sofia/sofia_test_datacube.fits
 input_data_list: False 
 
 ################
 #    LOGGER    #
 ################
 
-clear_logs: False
+clear_logs: True
 log_file: adpalmap.log
 
 #####################
@@ -26,25 +26,25 @@ log_file: adpalmap.log
 #####################
 
 enable_tap_service: False
-download_par_file: ./tap/download_par.yaml
+download_par_file: 
 
 #################
 #     SOFIA     #
 #################
 
-enable_sofia : False
-run_mode: 'emission' #'emission', 'absorption'
+enable_sofia : True
+run_mode: 'both' #'both', 'absorption'
 abs_flag_cube: True
-auto_setup: True 
-sofia_abs_file : ./sofia/sofia_abs_default.par
-sofia_emi_file : ./sofia/sofia_emi_default.par
+auto_setup: True
+sofia_abs_file :
+sofia_emi_file : 
 
 #################
 #      SIP      #
 #################
 
-enable_sip : True
-sip_par_file : ./sip/sip_args.yaml 
+enable_sip : False
+sip_par_file : 
 
 
 

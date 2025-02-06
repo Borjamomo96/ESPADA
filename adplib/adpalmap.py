@@ -2,7 +2,7 @@
 Contact: Borja Montoro Molina (borjamomo96@gmail.com)
 """
 #Configuration
-from config import Config
+from adplib.config import Config
 
 import os
 import sys
@@ -13,9 +13,8 @@ import argparse
 import numpy as np
 
 
-from logger import Initial_Logger
-from logger import Logger
-
+from adplib.logger import Initial_Logger
+from adplib.logger import Logger
 
 
 # Functions 
@@ -95,6 +94,7 @@ def main():
                     description='The ALMA advance data product pipeline',
                     epilog= __doc__) 
 
+
     parser.add_argument('-c', '--config-file', dest='config_file', default=None,
                         help="<Optional> Path to the master config file to use. By default, "
                         "APDALMAP will try to use the file config.yaml")
@@ -129,7 +129,7 @@ def main():
     logger.info("ADPALMAP start point")
     #------------------------------------------------------------------------------------------------#
     #Optionally download data from ALMA archive
-    from tap.datap import datap
+    from adplib.tap.datap import datap
 
     if adpalmap_config.enable_tap_service == True:
 
@@ -157,12 +157,12 @@ def main():
 
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
-    from sofia.sopar import SoPar
+    from adplib.sofia.sopar import SoPar
 
     if adpalmap_config.enable_sofia == True:
 
         if adpalmap_config.run_mode == 'emission':
-
+            
             adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
@@ -227,39 +227,42 @@ def main():
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
-                                   "performed.")
+                                   "performed in the QA.")
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
 
             if adpalmap_config.quality_assesment == True:
                 if adpalmap_datap is not None:
-                    adpalmap_datap.download_mask(TAP_df)
+                    #No sería necesario descargarse las máscara 2 veces. Aunque realmente no la des
+                    #cargaría, la leería de la memoria caché. 
+                    #adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
-                                   "performed.")
+                                   "performed in the QA.")
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
 
     else:
-        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia_service}. "
+        logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
 
     #--------------------------------------------------------------------------------------------#
     #Run SIP
-    from sip.sipargs import SiPar
+    from adplib.sip.sipargs import SiPar
 
     if adpalmap_config.enable_sip == True:
 
         adpalmap_sipar = SiPar(sip_file_path=adpalmap_config.sip_par_file)
-        print(adpalmap_sipar.__dict__)
+        
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
-        print(adpalmap_sipar.__dict__)       
-
+              
+        
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':
+                
                 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
 
@@ -267,7 +270,7 @@ def main():
                 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
-            elif adpalmap_config == 'both':
+            elif adpalmap_config.run_mode == 'both':
                 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)

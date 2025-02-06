@@ -115,5 +115,10 @@ In addition to specific parameters for each query type, certain common parameter
   - **data_dir**: Path of the directory where downloaded data should be placed. Type `<str>`.
 
 
+## Typical errors
+
+- `Versión antigua de python`: Es común usar Python 3.8, sin emabrgo, durante la pipeline se usan características solo disponibles como el uso de "|" en lugar de ".union()" para definir por ejemplo, varios tipos posible de una variable.
+
+
 
 

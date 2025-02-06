@@ -139,7 +139,7 @@ parameter.offset           =  false
 # Output
 
 output.directory           =  
-output.filename            =  output
+output.filename            =  
 output.writeCatASCII       =  true
 output.writeCatXML         =  true
 output.writeCatSQL         =  false

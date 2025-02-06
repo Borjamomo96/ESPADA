@@ -5,7 +5,7 @@ import sys
 
 
 # Logger:
-from logger import Logger
+from adplib.logger import Logger
 logger = Logger.get_logger()
 
 class SiPar(dict): 
@@ -55,7 +55,8 @@ class SiPar(dict):
         
         
         if sip_file_path is None:
-            sip_file_path = Path("sip/sip_args.yaml")
+            script_dir = Path(__file__).parent
+            sip_file_path = script_dir / "sip_args.yaml"
 
             if not sip_file_path.exists():
                 raise FileNotFoundError(

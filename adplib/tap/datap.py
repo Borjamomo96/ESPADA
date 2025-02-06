@@ -27,7 +27,7 @@ import pyvo
 from pyvo.dal import tap
 
 # Logger:
-from logger import Logger
+from adplib.logger import Logger
 logger = Logger.get_logger()
 
 
@@ -110,27 +110,36 @@ class datap(dict):
 
     def configure(self, download_path=None, **kwargs):
 
-        #Esta condición nunca se considera. La clase no se inicializa si el parámetro -d no se usa (None por defecto). Si es not None pasa a las siguiente, por lo que es código que no 
+        #Esta condición nunca se considera. La clase no se inicializa si el parámetro -d no se usa 
+        # (None por defecto). Si es not None pasa a las siguiente, por lo que es código que no 
         # se usa. REMOVE
 
         if download_path is None:
-            download_path = Path("tap/download_par.yaml")
+            script_dir = Path(__file__).parent
+            download_path = script_dir / "download_par.yaml"
+
 
             if not download_path.exists():
-                raise FileNotFoundError(f"Download file {download_path} not found. Checked if the 'tap/download_par.yaml' have been deleted or the structure have changed. See README for furhter details")
+                raise FileNotFoundError(
+                    f"Download file '{download_path}' not found. Checked if the "
+                    "'tap/download_par.yaml' has been deleted or the structure has changed. "
+                    "See README for further details."
+                )
             else:
-                logger.info(f"The file in {download_path} have been loaded successfully")
+                logger.info(f"The file in '{download_path}' have been loaded successfully")
 
         elif download_path is not None:
             download_path = Path(download_path)
 
             if not download_path.exists():
-                raise FileNotFoundError(f"Download file {download_path} not found.")
+                raise FileNotFoundError(f"Download file '{download_path}' not found.")
             else:
-                logger.info(f"The file in {download_path} have been loaded successfully")
+                logger.info(f"The file in '{download_path}' have been loaded successfully")
 
         else:
-            raise FileNotFoundError(f"Something with the Download file path or the download file went wrong")
+            raise FileNotFoundError(
+                f"Something with the Download file path or the download file went wrong"
+            )
             
         with open(download_path, 'r') as f:
             download_dict = yaml.safe_load(f)
@@ -199,7 +208,8 @@ class datap(dict):
             corrected ('.pbcor') or that have the science target or calibrators (by including 
             their names). The choice is largely dependent on the cycle and type of reduction that
             was performed and data products that exist on the archive as a result. In most recent 
-            cycles, the science target can be filtered out with the flag '_sci' or its ALMA target name.
+            cycles, the science target can be filtered out with the flag '_sci' or its ALMA target 
+            name.
 
         data_path : str, optional
             (Default value = ./archive_data)
@@ -208,7 +218,7 @@ class datap(dict):
 
         Logger.raw("================================")
         #CHANGE. Definir asi el directorio puede provocar problemas
-        default_location = './tap/archive_data'
+        default_location = './archive_data'
     
         
         #Check the input Dataframe
@@ -434,7 +444,8 @@ class datap(dict):
 
         """
         # Run query
-        pyvo_TAP_results = self._service.search(query_str, maxrec=1000000)  # for large queries add maxrec=1000000
+        # for large queries add maxrec=1000000
+        pyvo_TAP_results = self._service.search(query_str, maxrec=1000000)  
 
         # transform output into astropy table first, then to a pandas DataFrame
         TAP_df = pyvo_TAP_results.to_table().to_pandas()

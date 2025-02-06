@@ -4,7 +4,7 @@
 # Global settings
 
 pipeline.verbose           =  false
-pipeline.pedantic          =  false
+pipeline.pedantic          =  true
 pipeline.threads           =  0
 
 
@@ -24,7 +24,7 @@ input.invert               =  false
 
 flag.region                =  
 flag.catalog               =  
-flag.radius                =  5
+flag.radius                =  0
 flag.auto                  =  false
 flag.threshold             =  5.0
 flag.log                   =  false
@@ -68,9 +68,9 @@ rippleFilter.interpolate   =  false
 # S+C finder
 
 scfind.enable              =  true
-scfind.kernelsXY           =  0, 5, 10
+scfind.kernelsXY           =  0, 3, 5, 10
 scfind.kernelsZ            =  0, 3, 7, 15
-scfind.threshold           =  3.5
+scfind.threshold           =  3.8
 scfind.replacement         =  2.0
 scfind.statistic           =  mad
 scfind.fluxRange           =  negative
@@ -88,15 +88,15 @@ threshold.fluxRange        =  negative
 # Linker
 
 linker.enable              =  true
-linker.radiusXY            =  1
-linker.radiusZ             =  1
+linker.radiusXY            =  2
+linker.radiusZ             =  3
 linker.minSizeXY           =  5
 linker.minSizeZ            =  5
 linker.maxSizeXY           =  0
 linker.maxSizeZ            =  0
 linker.minPixels           =  0
 linker.maxPixels           =  0
-linker.minFill             =  0.0
+linker.minFill             =  0.05
 linker.maxFill             =  0.0
 linker.positivity          =  false
 linker.keepNegative        =  false
@@ -108,11 +108,11 @@ reliability.enable         =  true
 reliability.parameters     =  peak, sum, mean
 reliability.threshold      =  0.9
 reliability.scaleKernel    =  0.3
-reliability.minSNR         =  6.0
-reliability.minPixels      =  0
-reliability.autoKernel     =  flase
-reliability.iterations     =  10000
-reliability.tolerance      =  0.05
+reliability.minSNR         =  12
+reliability.minPixels      =  150
+reliability.autoKernel     =  true
+reliability.iterations     =  100
+reliability.tolerance      =  0.1
 reliability.catalog        =  
 reliability.plot           =  true
 reliability.plotExtra      =  false
@@ -139,7 +139,7 @@ parameter.offset           =  false
 # Output
 
 output.directory           =  
-output.filename            =  sofia_test_output
+output.filename            =  
 output.writeCatASCII       =  true
 output.writeCatXML         =  true
 output.writeCatSQL         =  false
@@ -148,7 +148,7 @@ output.writeNoise          =  false
 output.writeFiltered       =  false
 output.writeMask           =  true
 output.writeMask2d         =  true
-output.writeRawMask        =  false
+output.writeRawMask        =  true
 output.writeMoments        =  true
 output.writeCubelets       =  true
 output.writePV             =  true
