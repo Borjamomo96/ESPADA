@@ -117,7 +117,7 @@ In addition to specific parameters for each query type, certain common parameter
 
 ## Typical errors
 
-- `Versión antigua de python`: Es común usar Python 3.8, sin emabrgo, durante la pipeline se usan características solo disponibles como el uso de "|" en lugar de ".union()" para definir por ejemplo, varios tipos posible de una variable.
+- `Old version of python`: It is common to use Python 3.8, however, during the pipeline features that are only available are used, such as using "|" instead of ".union()" to define, for example, several possible types of a variable.
 
 
 
