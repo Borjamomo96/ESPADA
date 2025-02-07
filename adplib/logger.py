@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from datetime import datetime
 
 
 class ColoredFormatter(logging.Formatter):
@@ -64,15 +65,27 @@ class Logger:
         if cls._logger_instance is None:
             logger = logging.getLogger("adpalmap_logger")
             logger.setLevel(logging.INFO)
+
+            timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
             
-            log_path = Path(log_path)
+            original_path = Path(log_path)
+            new_stem = f"{original_path.stem}_{timestamp}"
+            log_path = original_path.with_name(new_stem).with_suffix(original_path.suffix)
 
             # Limpiar el archivo de logs si es necesario
             
-            if clear_logs and log_path.exists():
+            if clear_logs:
+                # Elimino todos los logs antiguos del mismo tipo
+                log_dir = log_path.parent
+                base_name = original_path.stem.split('_')[0]  
+                pattern = f"{base_name}_*{original_path.suffix}"
                 
-                with open(log_path, 'w') as file:
-                    file.write("")
+                for old_log in log_dir.glob(pattern):
+                    if old_log != log_path:  # No borro el nuevo
+                        try:
+                            old_log.unlink()
+                        except Exception as e:
+                            cls._logger_instance.error(f"Error deleting {old_log}: {e}")
 
             if not log_path.exists():
                 log_path.parent.mkdir(parents=True, exist_ok=True)
