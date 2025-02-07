@@ -18,8 +18,8 @@ input_data_list: False
 #    LOGGER    #
 ################
 
-clear_logs: True
-log_file: adpalmap.log
+clear_logs: False
+log_file: log_dir/adpalmap.log
 
 #####################
 #    TAP SERVICE    #
