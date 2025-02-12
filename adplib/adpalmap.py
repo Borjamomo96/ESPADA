@@ -309,7 +309,21 @@ def main():
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
             elif adpalmap_config.run_mode == 'both':
+<<<<<<< HEAD
 
+=======
+                
+                try:
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                except Exception as e:
+                    logger.critical(
+                        f"Unexpected error trying to run SIP: {e}. Please open an"
+                        " issue on GitLab "
+                        "https://gitlab.com/adp-group1/adp-alma-pipeline with your"
+                        " specific case."  
+                        )
+                    
+>>>>>>> 66c5551 (Minor changes)
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
