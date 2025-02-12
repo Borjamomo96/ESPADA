@@ -134,8 +134,8 @@ def main():
     if adpalmap_config.enable_tap_service == True:
 
         if adpalmap_config.input_data is not None or adpalmap_config.input_data_list is not None:
-            logger.warning(f"The paremeter input_data or input_data_list specified in the "
-                           "{args.config_file} will be ignore. This run will use the requested "
+            logger.warning("The paremeter input_data or input_data_list specified in the "
+                           f"{args.config_file} will be ignore. This run will use the requested "
                            "download data.")
 
         adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
@@ -195,6 +195,7 @@ def main():
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
+                logger.info('Starting the quality assesment...')
                 if adpalmap_datap is not None:
                     adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
@@ -222,6 +223,7 @@ def main():
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
+                logger.info('Starting the quality assesment for the absorption run...')
                 if adpalmap_datap is not None:
                     adpalmap_datap.download_mask(TAP_df)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
@@ -233,6 +235,7 @@ def main():
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
 
             if adpalmap_config.quality_assesment == True:
+                logger.info('Starting the quality assesment for the emission run...')
                 if adpalmap_datap is not None:
                     #No sería necesario descargarse las máscara 2 veces. Aunque realmente no la des
                     #cargaría, la leería de la memoria caché. 
@@ -271,9 +274,13 @@ def main():
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
             elif adpalmap_config.run_mode == 'both':
-                
+
+                try:
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                except Exception as e:
+                    logger.error(f"Error running SIP: {e}")
+
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
         
         else:
             adpalmap_sipar.run_sip(adpalmap_config)

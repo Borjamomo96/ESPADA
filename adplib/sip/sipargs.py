@@ -231,10 +231,12 @@ class SiPar(dict):
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             
             output_cubelets = Path(f"{sopar.output_directory}")
-                   
-            sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))[0]
-            sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))[0]
-            
+            try:
+                sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))[0]
+                sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))[0]
+            except:
+                sofia_catalog_txt = None
+                sofia_catalog_xml = None
     
             if sofia_catalog_txt and sofia_catalog_xml:
                 self.catalog_file = sofia_catalog_txt
@@ -243,9 +245,9 @@ class SiPar(dict):
             elif sofia_catalog_xml: 
                 self.catalog_file = sofia_catalog_xml
             else:
-                logger.critical(f"No valid .txt or .xml catalog for SIP found within the"
+                logger.error(f"No valid .txt or .xml catalog for SIP found within the"
                                 f" {sopar.output_directory} directory.")
-                sys.exit(-1)
+                return
 
         
         cmd = self.generate_command()

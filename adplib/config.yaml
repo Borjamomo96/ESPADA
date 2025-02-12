@@ -25,7 +25,7 @@ log_file: log_dir/adpalmap.log
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False
+enable_tap_service: True
 download_par_file: 
 
 #################
@@ -43,7 +43,7 @@ sofia_emi_file :
 #      SIP      #
 #################
 
-enable_sip : False
+enable_sip : True
 sip_par_file : 
 
 

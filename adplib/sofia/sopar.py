@@ -307,9 +307,14 @@ class SoPar(dict):
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
-        if adpalmap_datap is not None:         
-            if hasattr(adpalmap_datap, "data_loc_pb"):
-                self.input_primaryBeam = adpalmap_datap.data_loc_pb
+        if (adpalmap_datap is not None         
+            and hasattr(adpalmap_datap, "data_loc_pb")
+            ):
+
+                if self.input_primaryBeam is not None:
+                    logger.warning("Ignoring parameter 'input.primaryBeam={self.input_data}' "
+                                   f"provided in {self.sofia_file_path}. The newly downloaded "
+                                   "primary will be used.")    
                 if (sop_par is not None 
                         and 'input.primaryBeam' in sop_par 
                         and sop_par['input.primaryBeam'] is not None):
@@ -317,15 +322,9 @@ class SoPar(dict):
                         f"Ignoring parameter 'input.data={self.primaryBeam}' provided in "
                         f"{self.sofia_file_path}. The newly downloaded primary will be used."
                     )
-                if self.input_primaryBeam is not None:
-                    logger.warning(f"Ignoring parameter 'input.primaryBeam={self.input_data}' "
-                                   "provided in {self.sofia_file_path}. The newly downloaded "
-                                   "primary will be used.")
-            else:
-                if (sop_par is not None 
-                        and 'input.primaryBeam' in sop_par 
-                        and sop_par['input.primaryBeam'] is not None):
-                    self.input_primaryBeam = sop_par['input.primaryBeam'] 
+
+                self.input_primaryBeam = adpalmap_datap.data_loc_pb
+
         else:
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
@@ -681,10 +680,14 @@ class SoPar(dict):
         #Máscara de lo obtenido por SoFiA
         output_cubelets = Path(f"{self.output_directory}")
         file_2d_mask_list = list(output_cubelets.glob('*mask-2d.fits'))
+        
         if file_2d_mask_list:
             file_2d_mask = file_2d_mask_list[0]
+        else:
+            logger.warning("SoFia has not produced any masks for this run, aborting the QA")
+            return
 
-        if adpalmap_datap is not None:
+        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
             with fits.open(adpalmap_datap.data_loc_mask) as hdul:
                 mask_archive = np.any(hdul[0].data, axis=0).astype(int)
         
@@ -708,7 +711,7 @@ class SoPar(dict):
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data
 
-        if adpalmap_datap is not None:
+        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
             fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         else:
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
@@ -723,7 +726,7 @@ class SoPar(dict):
         ax.imshow(sofia_2d_mask, cmap='gray', origin='lower')
         #ax.colorbar(label="Intensity")
 
-        if adpalmap_datap is not None:
+        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
             ax = axs[2]
             ax.set_title("Mask ALMA archive")
             ax.imshow(mask_archive_proj, cmap='gray', origin='lower')
