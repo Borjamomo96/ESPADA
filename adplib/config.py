@@ -66,10 +66,12 @@ class Config(dict):
             self.config_path = config_path
 
             if not config_path.exists():
-                raise FileNotFoundError(f"Config default file {config_path} not found in the directory the"
-                         " main script directory. Please specify a valid directory via the '-c/--config_file'"
-                         f" <path_to_configuration_file> argument or download the default {config_path} file"
-                         " included at https://gitlab.com/adp-group1/adp-alma-pipeline")
+                raise FileNotFoundError(
+                    f"Config default file {config_path} not found in the directory the"
+                    " main script directory. Please specify a valid directory via the '-c/--config_file'"
+                    f" <path_to_configuration_file> argument or download the default {config_path} file"
+                    " included at https://gitlab.com/adp-group1/adp-alma-pipeline"
+                )
             else:
                 logger.info(f"The file in {config_path} have been loaded successfully")
                    
@@ -97,6 +99,9 @@ class Config(dict):
         #Check the parameter from the config.yaml
         self.check_config_par()
 
+        #Check the logic for the input parameters
+        self.check_logic_input()
+
             
     def check_config_par(self):
         """
@@ -107,8 +112,9 @@ class Config(dict):
         expected_types = {
             'quality_assesment': bool,
             'capture_outputs': bool,
-            'input_data': str,
-            'input_data_list': bool,
+            'input_data': str | None,
+            'input_primaryBeam': str | None,
+            'input_data_list': bool | None,
             'clear_logs': bool,
             'log_file': str,
             'enable_tap_service': bool,
@@ -128,6 +134,7 @@ class Config(dict):
             'quality_assesment',
             'capture_outputs',
             'input_data',
+            'input_primaryBeam',
             'input_data_list',
             'clear_logs',
             'log_file',
@@ -146,7 +153,9 @@ class Config(dict):
         #Comprobamos los parámetros obligatorios
         missing_params = [param for param in required_params if not hasattr(self, param)]
         if missing_params:
-            raise ValueError(f"The following required parameters are missing in config.yaml: {missing_params}")
+            raise ValueError(
+                f"The following required parameters are missing in config.yaml: {missing_params}"
+            )
 
         #Comprobamos el tipo
         for param, expected_type in expected_types.items():
@@ -173,7 +182,7 @@ class Config(dict):
                         f"Value provided: '{value}'."
                     )
                 
-        # Detectar y manejar parámetros no esperados
+        # Detecto y manejar parámetros no esperados
         internal_attributes = ['config_path'] #Parámetros creados dentro de la clase
         all_params = set(self.__dict__.keys())  # Todos los atributos actuales de la instancia
         allowed_params = set(expected_types.keys())  # Parámetros esperados
@@ -186,15 +195,98 @@ class Config(dict):
             )
             delattr(self, param) 
 
-        if self.enable_tap_service == False:
-            
-            #En el caso de TAP service False, compruebo aquí que input_data existe, de lo contrario se 
-            # comprobaría en otro módulo posteriormente y perdería lógica. 
 
-            if not Path(self.input_data).exists():
-                raise FileNotFoundError(
-                    f"Input file '{Path(self.input_data)}' not found."
+    def check_logic_input(self):
+        """
+        Validate the logic for the parameters readed from the configuration file.
+
+        """
+        #Si inupt_data tiene valores y TAP es True, da error, solo uno es posible.
+        if self.enable_tap_service and self.input_data:
+            raise ValueError(
+                "Error in config.yaml: When 'enable_tap_service' is True, 'input_data' must be "
+                "empty or None. If 'input_data' is provided, 'enable_tap_service' must be False "
+                "or None. Both cannot be active simultaneously."
+            )
+        
+        elif not self.enable_tap_service and not self.input_data: #self.input_data_list:
+
+            raise ValueError(
+                f"The parameter 'input_data' cannot be NoneType if 'enable_tap_service' is False. "
+                "Please type a valid 'input_data' or change 'enable_tap_service' to False."
+            )
+            
+        elif not self.enable_tap_service:
+
+            if not self.input_data_list:
+
+                #En el caso de TAP service False, compruebo aquí que input_data existe, de lo contrario se 
+                # comprobaría en otro módulo posteriormente y perdería lógica. Esto con list True.
+                if not Path(self.input_data).exists():
+                    raise FileNotFoundError(
+                        f"Input file '{Path(self.input_data)}' not found."
+                        )
+                
+                if Path(self.input_data).suffix.lower() != ".fits":
+                    raise ValueError(
+                        f"Input file '{Path(self.input_data)}' is not a FITS file. "
+                        f"Detected extension: '{Path(self.input_data).suffix}' but "
+                        "'input_data' must be a '.fits' file when 'input_data_list' is False"
                     )
+            
+            else: #self.input_data_list True
+            
+                input_path = Path(self.input_data)
+                
+                if not input_path.exists():
+                    raise FileNotFoundError(
+                        f"File '{input_path}' not found. "
+                        "'input_data' must be a text file when 'input_data_list' is True"
+                    )
+                # Check .txt extension
+                if input_path.suffix != ".txt":
+                    raise ValueError(
+                        f"Input file '{Path(self.input_data)}' is not a TXT file. "
+                        f"Detected extension: '{Path(self.input_data).suffix}' but "
+                        "'input_data' must be a '.txt' file when 'input_data_list' is True"
+                    )
+                
+                #Comprobar si esta vacío
+                with open(input_path, 'r') as f:
+                    if len(f.readlines()) == 0:
+                        raise ValueError(f"The file'{input_path}' is empty")
+
+                #compruebo que input_primaryBeam, sea una lista si input_primaryBeam es True   
+                if self.input_primaryBeam:
+                    
+                    pb_path = Path(self.input_primaryBeam)
+                    
+                    if not pb_path.exists():
+                        raise FileNotFoundError(
+                            f"File '{pb_path}' not found. "
+                            "'input_data' must be a text file when 'input_data_list' is True"
+                        )
+                    #Comprobar si esta vacío
+                    with open(pb_path, 'r') as f:
+                        if len(f.readlines()) == 0:
+                            raise ValueError(f"The file'{pb_path}' is empty")
+                    
+
+                    with open(self.input_data, 'r') as data_file, \
+                        open(self.input_primaryBeam, 'r') as pb_file:
+                        
+                        data_lines = [line.strip() for line in data_file if line.strip()]
+                        pb_lines = pb_file.readlines() #[line.strip() for line in pb_file if line.strip()]
+                        
+                        if len(data_lines) != len(pb_lines):
+                            raise ValueError(
+                                f"The input_data  and input_primaryBeam  lines files must have"
+                                " the same number of inputs. Note that blank or commented lines"
+                                " in the primary beams file mean that their counterpart in "
+                                "input_data will be processed without primary beam. Be "
+                                "especially careful with unwanted trailing blank lines."
+                            )
+        
 
 
         #print("All parameters are valid.")

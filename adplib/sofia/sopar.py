@@ -12,7 +12,7 @@ from adplib.logger import Logger
 logger = Logger.get_logger()
 
 
-def moment8_ima(sopar, output_fits=None, adpalmap_datap=None):
+def moment8_ima(adpalmap_sopar):
 
     """
     Reads a FITS file containing a data cube and creates a 2D image by
@@ -26,14 +26,15 @@ def moment8_ima(sopar, output_fits=None, adpalmap_datap=None):
     Returns:
         np.ndarray: 2D array with the maximum values along the z-axis.
     """
-    if not hasattr(sopar, "input_data") or not sopar.input_data:
+    if not hasattr(adpalmap_sopar, "input_data") or not adpalmap_sopar.input_data:
         logger.critical(
             "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
             " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
             "case."
         )
         sys.exit(-1)
-    fits_path = Path(sopar.input_data)
+
+    fits_path = Path(adpalmap_sopar.input_data)
 
     if not fits_path.exists():
         logger.critical(
@@ -57,56 +58,45 @@ def moment8_ima(sopar, output_fits=None, adpalmap_datap=None):
             "with your specific case.")
 
     #Ahora el PrimaryBeam
-    if hasattr(sopar, "input_primaryBeam") and sopar.input_primaryBeam:
+    if hasattr(adpalmap_sopar, "input_primaryBeam") and adpalmap_sopar.input_primaryBeam:
 
-            pb_path = Path(sopar.input_primaryBeam)
+        pb_path = Path(adpalmap_sopar.input_primaryBeam)
 
-            if not pb_path.exists():
-                logger.critical(
-                    f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
-                    " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your" 
-                    "specific case.")
-                sys.exit(-1)
+        if not pb_path.exists():
+            logger.critical(
+                f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
+                " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your" 
+                "specific case.")
+            sys.exit(-1)
 
-            with fits.open(pb_path) as hdul:
-                pb_cube = hdul[0].data
+        with fits.open(pb_path) as hdul:
+            pb_cube = hdul[0].data
 
-            if pb_cube is None:
-                raise ValueError("The FITS file does not contain data in the primary HDU.")
-            
-            if pb_cube.ndim == 4:
-                pb_cube = np.squeeze(pb_cube, axis=0)
-            elif pb_cube.ndim > 4:
-                logger.critical(
-                    "ADP Alma pipeline is not designed to handle data files with more than 4 "
-                    "dimensions. Please open an issue on GitLab "
-                    "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-                )
+        if pb_cube is None:
+            raise ValueError("The FITS file does not contain data in the primary HDU.")
+        
+        if pb_cube.ndim == 4:
+            pb_cube = np.squeeze(pb_cube, axis=0)
+        elif pb_cube.ndim > 4:
+            logger.critical(
+                "ADP Alma pipeline is not designed to handle data files with more than 4 "
+                "dimensions. Please open an issue on GitLab "
+                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+            )
 
-            final_data_cube = data_cube * pb_cube
+        final_data_cube = data_cube * pb_cube
                 
     else:
-        if adpalmap_datap is not None:
-            logger.warning(
-                "No primary beam available. Image at moment 8 cannot have the correction "
-                "subtracted by this."
-            )
-        else:
-            logger.warning(
-                "No data cube has been specified with Primary Beam information. "
-                "Image at moment 8 cannot have the correction subtracted by this"
-            )
+        logger.warning(
+            "No data cube has been specified with Primary Beam information. "
+            "Image at moment 8 cannot have the correction subtracted by the Primary "
+            "Beam."
+        )
         
         final_data_cube = data_cube
 
 
     max_projection = np.max(final_data_cube, axis=0)
-
-    if output_fits:
-        hdu = fits.PrimaryHDU(max_projection)
-        hdu.header = hdul[0].header  # Copy the header from the input file
-        hdu.header['HISTORY'] = 'Max projection along z-axis created.'
-        hdu.writeto(output_fits, overwrite=True)
 
     return max_projection
 
@@ -222,7 +212,7 @@ class SoPar(dict):
                         sys.exit(-1)
 
 
-    def update_input_parameters(self, sop_par, adpalmap_main=None, adpalmap_datap=None, mode=None, run=-1):
+    def update_input_parameters(self, sop_par, input_data, primary_beam=None, id="", mode=None, run=-1):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
         Manages input.data, output.directory, input.invert and input.primaryBeam priority 
@@ -239,29 +229,8 @@ class SoPar(dict):
         None: Updates the attributes of the SoPar object directly.
         """
         
-        #-------------------input.data logic--------------------#
-        #REMOVE. Si Pongo una condición en el main para este caso, aquí no hace falta definirlo. 
-        if adpalmap_main and adpalmap_datap: #Ambos definidos
-            #raise ValueError("Both adpalmap_main and adpalmap_datap are defined. Only one is 
-            # allowed.")
-            logger.warning(f"Ignoring 'input_data={adpalmap_main.input_data}' specified in the "
-                           "config.yaml file. The parameter 'enable_tap_service' has set 'True' "
-                           "so ADPALMAP will use the downloaded data as 'input_data'")
-            self.input_data = adpalmap_datap.data_loc_fits
-        elif adpalmap_main:
-            if self.input_data is not None:
-                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in"
-                               " {self.sofia_file_path}. If you want to change this, specify it "
-                               "in the input_data parameter in the config.yaml file.")
-            self.input_data = adpalmap_main.input_data
-        elif adpalmap_datap:
-            if self.input_data is not None:
-                logger.warning(f"Ignoring parameter 'input.data={self.input_data}' provided in"
-                               " {self.sofia_file_path}.")
-            self.input_data = adpalmap_datap.data_loc_fits
-        else: #Ambos None
-            raise ValueError("No valid source for input.data. Define it in either adpalmap_main"
-                             " or adpalmap_datap.")
+        #El parámetro input.data se gestiona antes en la función principal.
+        self.input_data = input_data
         
         
         #---------------output.directory logic-------------------#
@@ -270,9 +239,16 @@ class SoPar(dict):
         elif hasattr(self, "output_directory") and self.output_directory:  
             pass
         else: 
-            self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs")
+            if not id:
+                logger.critical(
+                    "All SoFiA products will be stored in the same directory. There is a risk "
+                    "of overwriting some of them."
+                )
+                self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs")
+            else:
+                self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs_{str(id)}")
         
-        #Guardo el directorio de salida final en un nuevo atributo
+        #CHANGE. Guardo el directorio de salida final en un nuevo atributo 
         self.base_output_directory = self.output_directory
 
         #-----------------input.invert logic---------------------#
@@ -306,31 +282,32 @@ class SoPar(dict):
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
-        if (adpalmap_datap is not None         
-            and hasattr(adpalmap_datap, "data_loc_pb")
-            ):
+        if primary_beam is not None:         
 
-                if self.input_primaryBeam is not None:
-                    logger.warning("Ignoring parameter 'input.primaryBeam={self.input_data}' "
-                                   f"provided in {self.sofia_file_path}. The newly downloaded "
-                                   "primary will be used.")    
-                if (sop_par is not None 
-                        and 'input.primaryBeam' in sop_par 
-                        and sop_par['input.primaryBeam'] is not None):
-                    logger.warning(
-                        f"Ignoring parameter 'input.data={self.primaryBeam}' provided in "
-                        f"{self.sofia_file_path}. The newly downloaded primary will be used."
-                    )
-
-                self.input_primaryBeam = adpalmap_datap.data_loc_pb
+            if (sop_par is not None 
+                    and 'input.primaryBeam' in sop_par 
+                    and sop_par['input.primaryBeam'] is not None):
+                logger.warning(
+                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the  'input.primaryBeam "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if self.input_primaryBeam is not None:
+                logger.warning(
+                    f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
+                )
+                       
+            self.input_primaryBeam = primary_beam
 
         else:
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
                     and sop_par['input.primaryBeam'] is not None):
                 self.input_primaryBeam = sop_par['input.primaryBeam']
-            
 
+            if self.input_primaryBeam is not None:
+                logger.warning(
+                    f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
+                )
         
 
         if sop_par is not None:
@@ -653,7 +630,7 @@ class SoPar(dict):
                 Logger.raw_file(f"{key_transformed}={value}")
 
 
-    def quality_assesment(self, adpalmap_datap, output_fits=None):
+    def quality_assesment(self, mask_file=None):
         """
         Perform a quality assessment by visualizing and comparing masks and moment images.
 
@@ -679,7 +656,7 @@ class SoPar(dict):
                         supported.
         """
         #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
-        mom8_ima = moment8_ima(self, output_fits=output_fits, adpalmap_datap=adpalmap_datap)
+        mom8_ima = moment8_ima(self)
 
         #Máscara de lo obtenido por SoFiA
         sofia_output_dir = Path(self.output_directory)
@@ -694,8 +671,8 @@ class SoPar(dict):
             )
             return
 
-        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
-            with fits.open(adpalmap_datap.data_loc_mask) as hdul:
+        if mask_file is not None:
+            with fits.open(mask_file) as hdul:
                 mask_archive = np.any(hdul[0].data, axis=0).astype(int)
         
             if mask_archive.ndim == 4:
@@ -714,7 +691,7 @@ class SoPar(dict):
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data
 
-        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
+        if mask_file is not None:
             fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         else:
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
@@ -729,7 +706,7 @@ class SoPar(dict):
         ax.imshow(sofia_2d_mask, cmap='gray', origin='lower')
         #ax.colorbar(label="Intensity")
 
-        if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
+        if mask_file is not None:
             ax = axs[2]
             ax.set_title("Mask ALMA archive")
             ax.imshow(mask_archive_proj, cmap='gray', origin='lower')

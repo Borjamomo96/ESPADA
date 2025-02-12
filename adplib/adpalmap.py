@@ -38,7 +38,6 @@ def parse_sofia_par(arg):
     """
 
     try:
-
         key, value = arg.split("=", 1)
         return key, value
     except ValueError:
@@ -124,8 +123,8 @@ def main():
 
     logger = Logger.get_logger(log_path=adpalmap_config.log_file, 
                                clear_logs=adpalmap_config.clear_logs)
-
-
+    
+    sys.exit(-1)
     logger.info("ADPALMAP start point")
     #------------------------------------------------------------------------------------------------#
     #Optionally download data from ALMA archive
@@ -146,12 +145,18 @@ def main():
         elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
 
         adpalmap_datap.download_data(TAP_df)
+
+        if adpalmap_config.quality_assesment == True:
+            adpalmap_datap.download_mask(TAP_df)
         
     else:
         adpalmap_datap = None
         logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
                     "Skipping data download")
     #--------------------------------------------------------------------------------------------#
+
+
+
 
 
 
@@ -165,43 +170,58 @@ def main():
             
             adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
             #Update sofia abs file with the -sop parameters
-            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
-                                                       adpalmap_datap=adpalmap_datap, 
-                                                       mode=adpalmap_config.run_mode)  
+            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       id=id_label,
+                                                       mode=adpalmap_config.run_mode
+                                                       )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
+
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
                 logger.info('Starting the quality assesment...')
-                if adpalmap_datap is not None:
-                    adpalmap_datap.download_mask(TAP_df)
-                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                if mask is not None:
+                    adpalmap_sopar_emi.quality_assesment(mask)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
-                                   "performed.")
-                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                    logger.warning(
+                        f"'enable_tap_service' is set to False. All checks in the QA will not be "
+                        "performed."
+                    )
+                    adpalmap_sopar_emi.quality_assesment(mask)
 
 
         elif adpalmap_config.run_mode == 'absorption':
 
             adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
             #Update sofia abs file with the -sop parameters
-            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
-                                                       adpalmap_datap=adpalmap_datap, 
-                                                       mode=adpalmap_config.run_mode)   
+            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       id=id_label,
+                                                       mode=adpalmap_config.run_mode
+                                                       )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
+
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
+<<<<<<< HEAD
                 logger.info('Starting the quality assesment...')
                 if adpalmap_datap is not None:
                     adpalmap_datap.download_mask(TAP_df)
+=======
+                if mask is not None:
+>>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks in the QA will"
-                                   " not be performed.")
+                    logger.warning(
+                        f"'enable_tap_service' is set to False. All checks in the QA will"
+                        " not be performed."
+                    )
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
 
         elif adpalmap_config.run_mode == 'both':
@@ -209,13 +229,20 @@ def main():
             adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
             adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
             #Update sofia abs file with the -sop parameters
-            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
-                                                       adpalmap_datap=adpalmap_datap, 
-                                                       mode=adpalmap_config.run_mode)  
+            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       id=id_label,
+                                                       mode=adpalmap_config.run_mode
+                                                       )  
             #Update sofia emi file with the -sop parameters
-            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, adpalmap_main=adpalmap_config, 
-                                                       adpalmap_datap=adpalmap_datap, 
-                                                       mode=adpalmap_config.run_mode, run=0)   
+            adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       id=id_label,
+                                                       mode=adpalmap_config.run_mode, 
+                                                       run=0
+                                                       )   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
@@ -223,9 +250,13 @@ def main():
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
+<<<<<<< HEAD
                 logger.info('Starting the quality assesment for the absorption run...')
                 if adpalmap_datap is not None:
                     adpalmap_datap.download_mask(TAP_df)
+=======
+                if mask is not None:
+>>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
                     adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
@@ -235,11 +266,15 @@ def main():
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
 
             if adpalmap_config.quality_assesment == True:
+<<<<<<< HEAD
                 logger.info('Starting the quality assesment for the emission run...')
                 if adpalmap_datap is not None:
                     #No sería necesario descargarse las máscara 2 veces. Aunque realmente no la des
                     #cargaría, la leería de la memoria caché. 
                     #adpalmap_datap.download_mask(TAP_df)
+=======
+                if mask is not None:
+>>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
                     adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "

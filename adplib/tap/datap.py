@@ -526,18 +526,15 @@ class datap(dict):
 
         # Selecciono los archivos más recientes (si hay múltiples)
         if data_files:
-            most_recent_fitsfile = max(data_files, key=lambda f: f.stat().st_mtime)
-            self.data_loc_fits = most_recent_fitsfile
-            logger.info(f"Most recent fits file selected: {most_recent_fitsfile}")
+            self.data_loc_fits = data_files
+            #logger.info(f"Most recent fits file selected: {most_recent_fitsfile}")
         else:
             self.data_loc_fits = None
             logger.warning("No valid fits files found.")
 
         if decompressed_pb_files:
-            most_recent_pbfile = max(decompressed_pb_files, key=lambda f: f.stat().st_mtime)
-            self.data_loc_pb = most_recent_pbfile
-            
-            logger.info(f"Most recent primary beam file selected: {most_recent_pbfile}")
+            self.data_loc_pb = decompressed_pb_files
+            #logger.info(f"Most recent primary beam file selected: {most_recent_pbfile}")
         else:
             logger.warning(
                 "No primary beam was found in the downloaded dataset. Either it is not"
@@ -608,9 +605,8 @@ class datap(dict):
 
         # Selecciona el archivo más reciente basado en su fecha de modificación
         if decompressed_files:
-            most_recent_maskfile = max(decompressed_files, key=lambda f: f.stat().st_mtime)
-            self.data_loc_mask = most_recent_maskfile
-            logger.info(f"Most recent file selected: {most_recent_maskfile}")
+            self.data_loc_mask = decompressed_files
+            #logger.info(f"Most recent file selected: {most_recent_maskfile}")
         else:
             logger.warning("No valid mask files were found or processed.")
 

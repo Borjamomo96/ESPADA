@@ -11,8 +11,14 @@ capture_outputs: False
 #   INPUT DATA   #
 ##################
 
+<<<<<<< HEAD
 input_data: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/archive_data/sofia_test_datacube.fits
 input_data_list: False 
+=======
+input_data: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits
+input_primaryBeam: #/home/usuario/ALMA_ADPPipeline/test_directories/pb.txt
+input_data_list: False
+>>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
 
 ################
 #    LOGGER    #
