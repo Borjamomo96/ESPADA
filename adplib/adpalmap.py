@@ -160,6 +160,7 @@ def main():
 
 
 
+
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
     from adplib.sofia.sopar import SoPar
@@ -329,6 +330,8 @@ def main():
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
         
         else:
+            logger.critical("For the moment SIP cannot be run if SoFiA is disable.")
+            sys.exit(-1)
             adpalmap_sipar.run_sip(adpalmap_config)
             
     else:

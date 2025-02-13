@@ -376,13 +376,10 @@ class SoPar(dict):
             self.reliability_minSNR = 3.0  
 
         else:
-            naxis1 = header.get("NAXIS1", None)
-            naxis2 = header.get("NAXIS2", None)
-            naxis3 = header.get("NAXIS3", None)
 
             if naxis1 is not None and naxis2 is not None and naxis3 is not None:
-                a = naxis1 / 2
-                b = naxis2 / 2
+                a = 3
+                b = 3
                 x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
                 self.reliability_minSNR = x
             else:
