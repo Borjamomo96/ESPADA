@@ -539,7 +539,14 @@ class datap(dict):
             
             logger.info(f"Most recent primary beam file selected: {most_recent_pbfile}")
         else:
-            self.data_loc_pb = None
+            logger.warning(
+                "No primary beam was found in the downloaded dataset. Either it is not"
+                " available in the file, or the strings included in the "
+                "'filename_must_include' parameter have been so restrictive that they "
+                "exclude the primary beam file from the download. Avoid full names if "
+                "you want to download the primary beam."
+            )
+            self.data_loc_pb = ""
 
 
     def get_downloaded_mask_path(self, base_dir):

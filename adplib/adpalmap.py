@@ -275,12 +275,9 @@ def main():
 
             elif adpalmap_config.run_mode == 'both':
 
-                try:
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-                except Exception as e:
-                    logger.error(f"Error running SIP: {e}")
+                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
         
         else:
             adpalmap_sipar.run_sip(adpalmap_config)
@@ -289,7 +286,7 @@ def main():
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
         
-    logger.info("ADPALMAP end point")
+    logger.info("ADPALMAP successfully ended")
 
     
 

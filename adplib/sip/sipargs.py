@@ -98,17 +98,17 @@ class SiPar(dict):
         """
         #Tipos esperados en los parámetros
         expected_types = {
-            'catalog_file': (str, type(None)),
-            'source_id': (int, list, type(None)),
+            'catalog_file': str | None,
+            'source_id': int | list | None,
             'output_image_file_type': str,
-            'spec_full_range': (str, type(None)),
-            'syn_beam_dimensions': (list, type(None)),
-            'channel_width': (float, type(None)),
-            'min_size': (int, float, type(None)),
+            'spec_full_range': str | None,
+            'syn_beam_dimensions': list | None,
+            'channel_width': float | None,
+            'min_size': int | float | None,
             'snr_range': list,
             'surveys_list': list,
             'combo': bool,
-            'user_image': (str, type(None)),
+            'user_image': str | None,
             'percentile_range': list,
             'spec_line': str,
         }
@@ -200,7 +200,7 @@ class SiPar(dict):
                     logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
 
 
-    def run_sip(self, adpalmap_config, sopar=None):
+    def run_sip(self, adpalmap_config, sopar=None, run=-1):
         """
         Run the SIP (Source Identification Pipeline) process with the specified configuration.
 
@@ -229,12 +229,15 @@ class SiPar(dict):
         """
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
-            
-            output_cubelets = Path(f"{sopar.output_directory}")
-            try:
-                sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))[0]
-                sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))[0]
-            except:
+            sofia_output_dir = Path(sopar.output_directory)
+            input_file_name = Path(sopar.input_data).stem
+                    
+            sofia_catalog_txt = sofia_output_dir / f"{input_file_name}_cat.txt"
+            sofia_catalog_xml = sofia_output_dir / f"{input_file_name}_xml.fits"
+
+            if sofia_catalog_txt.exists() or sofia_catalog_xml.exists():
+                pass
+            else:
                 sofia_catalog_txt = None
                 sofia_catalog_xml = None
     
@@ -247,7 +250,11 @@ class SiPar(dict):
             else:
                 logger.error(f"No valid .txt or .xml catalog for SIP found within the"
                                 f" {sopar.output_directory} directory.")
-                return
+                if adpalmap_config.run_mode == 'both' and run!=0:
+                    return
+                else:
+                    logger.info(f"Exiting pipeline...")
+                    sys.exit(-1)
 
         
         cmd = self.generate_command()
@@ -272,7 +279,12 @@ class SiPar(dict):
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
             logger.error(f"Error running SIP: {e}")
-            sys.exit(-1)
+            if adpalmap_config.run_mode == 'both' and run !=0:
+                logger.info(f"Skipping runs SIP")
+                return
+            else:
+                logger.info("Exiting pipeline")
+                sys.exit(-1)
         
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 

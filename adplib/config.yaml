@@ -11,21 +11,21 @@ capture_outputs: False
 #   INPUT DATA   #
 ##################
 
-input_data: ./adplib/sofia/sofia_test_datacube.fits
+input_data: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/archive_data/sofia_test_datacube.fits
 input_data_list: False 
 
 ################
 #    LOGGER    #
 ################
 
-clear_logs: False
+clear_logs: True
 log_file: log_dir/adpalmap.log
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: True
+enable_tap_service: False
 download_par_file: 
 
 #################

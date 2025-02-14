@@ -88,15 +88,13 @@ def moment8_ima(sopar, output_fits=None, adpalmap_datap=None):
     else:
         if adpalmap_datap is not None:
             logger.warning(
-                "The 'include_pb' parameter inside the download_par.yaml file has been set to "
-                "'False'. Image at moment 8 cannot have the correction subtracted by the Primary "
-                "Beam."
+                "No primary beam available. Image at moment 8 cannot have the correction "
+                "subtracted by this."
             )
         else:
             logger.warning(
                 "No data cube has been specified with Primary Beam information. "
-                "'False'. Image at moment 8 cannot have the correction subtracted by the Primary "
-                "Beam."
+                "Image at moment 8 cannot have the correction subtracted by this"
             )
         
         final_data_cube = data_cube
@@ -220,6 +218,7 @@ class SoPar(dict):
                     except ValueError: #CHANGE. Check is ValueError cover all the posibilities.
                         logger.error(f"The line '{line}' has not a valid format "
                                      "(module.parameter = value).")
+                        logger.info(f"Exiting pipeline...")
                         sys.exit(-1)
 
 
@@ -271,7 +270,7 @@ class SoPar(dict):
         elif hasattr(self, "output_directory") and self.output_directory:  
             pass
         else: 
-            self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/sofia_outputs")
+            self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs")
         
         #Guardo el directorio de salida final en un nuevo atributo
         self.base_output_directory = self.output_directory
@@ -473,6 +472,7 @@ class SoPar(dict):
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
+                logger.info(f"Exiting pipeline...")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
@@ -508,6 +508,7 @@ class SoPar(dict):
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Error running SoFia: {e}")
+                logger.info(f"Exiting pipeline...")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
@@ -555,12 +556,14 @@ class SoPar(dict):
                 # Uso el base_output_directory para buscarlo. Lo búsco, si no lo encuentra por 
                 # fallo o porque no encontró absorciones, se mantiene igual. 
                 if adpalmap_config.abs_flag_cube is not None and adpalmap_config.abs_flag_cube==True:
-                    absorption_dir = Path(f'{self.base_output_directory}_absorption')
+                    absorption_dir = Path(f"{self.base_output_directory}_absorption")
+                    input_file_name = Path(self.input_data).stem
                     
-                    #Caso en el que no encuentra absorciones
-                    if list(absorption_dir.glob('*_mask.fits')):
-                        flag_cube = list(absorption_dir.glob('*_mask.fits'))[0]
+                    flag_cube = absorption_dir / f"{input_file_name}_mask.fits"
+                    if flag_cube.exists():
                         self.flag_cube = flag_cube
+                    else:
+                        logger.warning("There is no mask available from the absorption run")
                 else:
                     logger.info("Ignoring absorption sources as input for flag.cube in the run"
                                 " trying to find emissions sources.")
@@ -593,6 +596,7 @@ class SoPar(dict):
                     Logger.raw("================================")            
                 except subprocess.CalledProcessError as e:
                     logger.error(f"Error running SoFia: {e}")
+                    logger.info(f"Exiting pipeline...")
                     sys.exit(-1)
                 finally:
                     if os.path.exists(temp_file_path):
@@ -678,13 +682,16 @@ class SoPar(dict):
         mom8_ima = moment8_ima(self, output_fits=output_fits, adpalmap_datap=adpalmap_datap)
 
         #Máscara de lo obtenido por SoFiA
-        output_cubelets = Path(f"{self.output_directory}")
-        file_2d_mask_list = list(output_cubelets.glob('*mask-2d.fits'))
+        sofia_output_dir = Path(self.output_directory)
+        input_file_name = Path(self.input_data).stem
+        file_2d_mask = sofia_output_dir / f"{input_file_name}_mask-2d.fits"
         
-        if file_2d_mask_list:
-            file_2d_mask = file_2d_mask_list[0]
+        if file_2d_mask.exits():
+            pass
         else:
-            logger.warning("SoFia has not produced any masks for this run, aborting the QA")
+            logger.warning("2D-Mask file from SoFia not found in {self.ouput.directory}."
+                           " Aborting the quality assesment"
+            )
             return
 
         if adpalmap_datap is not None and hasattr(adpalmap_datap, "data_loc_mask"):
@@ -702,11 +709,7 @@ class SoPar(dict):
                 )
             mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
 
-        
-
-        if adpalmap_datap is None and not file_2d_mask_list:
-            return logger.warning("2D-Mask file not found in {self.ouput.directory}. "
-                                  "Skipping the quality assesment")
+    
         
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data
