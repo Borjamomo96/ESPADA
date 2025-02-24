@@ -149,13 +149,7 @@ def reorganize_log(log_path):
     except Exception as e:
         print(f"Fatal error reorganizing log: {e}")
     
-
-def process_data_test(input_data, primary_beam, mask, adpalmap_config, args, num_cores, logger):
-    logger.info("UN PROCESO")
-    logger.info(f"{primary_beam}")
-    if primary_beam:
-        print("HOla")
-    
+   
 
 def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_cores, logger):
 
