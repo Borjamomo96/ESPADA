@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 
 # Logger:
 from adplib.logger import Logger
-logger = Logger.get_logger()
+logger= Logger.get_logger()
+
+
 
 
 def moment8_ima(adpalmap_sopar):
@@ -212,7 +214,9 @@ class SoPar(dict):
                         sys.exit(-1)
 
 
-    def update_input_parameters(self, sop_par, input_data, primary_beam=None, id="", mode=None, run=-1):
+    def update_input_parameters(
+            self, sop_par, input_data, primary_beam=None, id="", mode=None, run=-1, num_cores=1
+        ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
         Manages input.data, output.directory, input.invert and input.primaryBeam priority 
@@ -228,26 +232,41 @@ class SoPar(dict):
         ----------
         None: Updates the attributes of the SoPar object directly.
         """
+
+        logger.info(f"Reading parameters. Mode: {self.sopar_mode}.")
         
         #El parámetro input.data se gestiona antes en la función principal.
         self.input_data = input_data
         
+        #------------------pipeline.threads----------------------#
+        if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
+            logger.warning(
+                "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
+                f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
+                "of cores used to optimize execution."
+            )
+        
+        self.pipeline_threads = 1
         
         #---------------output.directory logic-------------------#
         if sop_par and "output.directory" in sop_par: 
             self.output_directory = sop_par["output.directory"]
         elif hasattr(self, "output_directory") and self.output_directory:  
             pass
-        else: 
+        else:
+            self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs"
+            """ 
             if not id:
                 logger.critical(
                     "All SoFiA products will be stored in the same directory. There is a risk "
                     "of overwriting some of them."
                 )
-                self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs")
+                self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs"
             else:
-                self.output_directory = str(f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs_{str(id)}")
-        
+                self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs_{str(id)}"
+            """
+    
+
         #CHANGE. Guardo el directorio de salida final en un nuevo atributo 
         self.base_output_directory = self.output_directory
 
@@ -291,7 +310,7 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['input.primaryBeam']}' for the  'input.primaryBeam "
                     "parameter provided in vía '-sop' comand."
                 )
-            if self.input_primaryBeam is not None:
+            if self.input_primaryBeam is not None and self.input_primaryBeam != "":
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
@@ -329,7 +348,9 @@ class SoPar(dict):
                     setattr(self, normalized_key, value)
                     logger.warning(f"Added new parameter '{key}' with value '{value}'.")
 
-    
+        logger.info(f"Parameters ready. Mode: {self.sopar_mode}.")
+
+
     def auto_setup(self):
         """
         Automatically configures attributes based on the FITS file header information.
@@ -344,8 +365,10 @@ class SoPar(dict):
         SystemExit: If `self.input_data` is not defined, is empty, or the FITS file does not exist.
         """
 
+        logger.info(f"Auto-setup start. Mode: {self.sopar_mode}")
+
         if not hasattr(self, "input_data") or not self.input_data:
-            logger.critical("El atributo 'input_data' no está definido o está vacío.")
+            logger.critical("The 'input_data' attribute is undefined or empty.")
             sys.exit(-1)
 
         fits_path = Path(self.input_data)
@@ -375,23 +398,16 @@ class SoPar(dict):
         if "BMAJ" in header and "BMIN" in header:
             self.reliability_minSNR = 3.0  
 
-        else:
+        else:            
+            a = 3
+            b = 3
+            x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
+            self.reliability_minSNR = x
 
-            if naxis1 is not None and naxis2 is not None and naxis3 is not None:
-                a = 3
-                b = 3
-                x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
-                self.reliability_minSNR = x
-            else:
-                # Manejo del caso en que falte alguno de los valores
-                logger.warning(
-                    "NAXIS1, NAXIS2, or NAXIS3 is not defined in the FITS file header."
-                    "Cannot calculate 'reliability.minSNR'."
-                )
                 
 
         # Otros parámetros pueden ser añadidos según las reglas específicas...
-        logger.info("Auto-setup DONE.")
+        logger.info(f"Auto-setup DONE. Mode: {self.sopar_mode}")
 
 
     def run_sofia(self, adpalmap_config, mode=None, run=-1):        
@@ -430,7 +446,7 @@ class SoPar(dict):
             temp_file_path = self.create_tempfile()
             try:
                 Logger.raw("================================")
-                logger.info("Starting to run SoFia...")
+                logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
                 self.log_parameters()
 
@@ -442,11 +458,11 @@ class SoPar(dict):
                     capture_output=adpalmap_config.capture_outputs
                 )
                 Logger.raw("================================")
-                logger.info("SoFia ended...")
+                logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
-                logger.error(f"Error running SoFia: {e}")
-                logger.info(f"Exiting pipeline...")
+                logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
+                logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
@@ -465,7 +481,7 @@ class SoPar(dict):
             temp_file_path = self.create_tempfile()
             try:
                 Logger.raw("================================")
-                logger.info("Starting to run SoFia...")
+                logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
                 self.log_parameters()
                 
@@ -478,11 +494,11 @@ class SoPar(dict):
                 ) 
 
                 Logger.raw("================================")
-                logger.info("SoFia ended...")
+                logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
-                logger.error(f"Error running SoFia: {e}")
-                logger.info(f"Exiting pipeline...")
+                logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
+                logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
@@ -500,7 +516,7 @@ class SoPar(dict):
                 temp_file_path = self.create_tempfile()
                 try:
                     Logger.raw("================================")
-                    logger.info("Starting to run SoFia...")
+                    logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
                     self.log_parameters()
 
@@ -513,13 +529,11 @@ class SoPar(dict):
                         ) 
 
                     Logger.raw("================================")
-                    logger.info("SoFia ended...")
+                    logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
                 except subprocess.CalledProcessError as e:
-                    logger.warning(f"SoFia has returned non-zero exit status: {e.returncode}, "
-                                   "trying you finding absorption. SoFia will run again in the"
-                                   " 'emission' mode without considering the absorption mask as"
-                                   " a flag.cube.")
+                    logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
+                    logger.info(f"SoFiA will try to run again in mode: emission.")
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
@@ -537,10 +551,12 @@ class SoPar(dict):
                     if flag_cube.exists():
                         self.flag_cube = flag_cube
                     else:
-                        logger.warning("There is no mask available from the absorption run")
+                        logger.warning("There is no mask available from the absorption run. "
+                                       "The parameter 'flag_cube' will not be used")
                 else:
-                    logger.info("Ignoring absorption sources as input for flag.cube in the run"
-                                " trying to find emissions sources.")
+                    logger.info("The mask from the absorption run will not be used as "
+                                "a 'flag_cube'. "
+                                f"Mode: {self.sopar_mode}.")
 
                 self.output_directory = Path(f'{self.output_directory}_emission')
                 if not os.path.exists(Path(self.output_directory)):
@@ -553,7 +569,7 @@ class SoPar(dict):
                 temp_file_path = self.create_tempfile()
                 try:
                     Logger.raw("================================")
-                    logger.info("Starting to run SoFia...")
+                    logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
                     self.log_parameters()
 
@@ -566,11 +582,11 @@ class SoPar(dict):
                         ) 
 
                     Logger.raw("================================")
-                    logger.info("SoFia ended...")
+                    logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")            
                 except subprocess.CalledProcessError as e:
-                    logger.error(f"Error running SoFia: {e}")
-                    logger.info(f"Exiting pipeline...")
+                    logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
+                    logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                     sys.exit(-1)
                 finally:
                     if os.path.exists(temp_file_path):
@@ -593,12 +609,12 @@ class SoPar(dict):
         """
 
         original_path = Path(self.sofia_file_path) if hasattr(self, "sofia_file_path") else Path(".")
-        temp_file_path = original_path.with_name(original_path.stem + "_tmp" + original_path.suffix)
+        temp_file_path = original_path.with_name(original_path.stem + "_tmp_PID" + str(self.pid) + original_path.suffix)
         
         with open(temp_file_path, 'w') as tf:
             for key, value in self.__dict__.items():
                 # Excluye estos atributos
-                if key not in {"sofia_file_path", "path", "base_output_directory"}:
+                if key not in {"sofia_file_path", "path", "base_output_directory", "sopar_mode", "pid"}:
                     key_transformed = key.replace("_", ".")
                     tf.write(f"{key_transformed}={value}\n")
 
@@ -622,9 +638,14 @@ class SoPar(dict):
         logger.info("Parameters set for the run: \n")
         for key, value in self.__dict__.items():
             # Excluye estos atributos
-            if key not in {"sofia_file_path", "path", "base_output_directory"}:  
+            if key not in {"sofia_file_path", 
+                           "path", 
+                           "base_output_directory",
+                           "sopar_mode",
+                           "pid"
+                           }:  
                 key_transformed = key.replace("_", ".")
-                Logger.raw_file(f"{key_transformed}={value}")
+                Logger.raw_file(f"[{self.pid}]{key_transformed}={value}")
 
 
     def quality_assesment(self, mask_file=None):
@@ -652,6 +673,9 @@ class SoPar(dict):
             ValueError: If the ALMA archive mask data has more than 4 dimensions, as this is not 
                         supported.
         """
+
+        logger.info(f"Quality assesment start. Mode: {self.sopar_mode}.")
+
         #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
         mom8_ima = moment8_ima(self)
 
@@ -660,15 +684,16 @@ class SoPar(dict):
         input_file_name = Path(self.input_data).stem
         file_2d_mask = sofia_output_dir / f"{input_file_name}_mask-2d.fits"
         
-        if file_2d_mask.exits():
+        if file_2d_mask.exists():
             pass
         else:
-            logger.warning("2D-Mask file from SoFia not found in {self.ouput.directory}."
-                           " Aborting the quality assesment"
+            logger.warning(
+                "2D-Mask file from SoFia not found in {self.ouput.directory}."            
             )
+            logger.info(" Aborting the quality assesment...")
             return
-
-        if mask_file is not None:
+        
+        if mask_file:
             with fits.open(mask_file) as hdul:
                 mask_archive = np.any(hdul[0].data, axis=0).astype(int)
         
@@ -688,7 +713,7 @@ class SoPar(dict):
         with fits.open(file_2d_mask) as hdul:
             sofia_2d_mask = hdul[0].data
 
-        if mask_file is not None:
+        if mask_file:
             fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         else:
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
@@ -703,15 +728,30 @@ class SoPar(dict):
         ax.imshow(sofia_2d_mask, cmap='gray', origin='lower')
         #ax.colorbar(label="Intensity")
 
-        if mask_file is not None:
+        if mask_file:
             ax = axs[2]
             ax.set_title("Mask ALMA archive")
             ax.imshow(mask_archive_proj, cmap='gray', origin='lower')
 
-        plt.tight_layout()
-        plt.show()
+        qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
+        qa_output_dir.mkdir(parents=True, exist_ok=True)  
+        qa_output_file = f"{qa_output_dir / Path(self.input_data).stem}_QA.png"
 
-        input("Press any key to continue...")
+        try:
+            plt.savefig(qa_output_file, bbox_inches='tight')
+            logger.info(
+                f"QA file saved in {qa_output_dir}. Quality assesment completed "
+                f"successfully. Mode: {self.sopar_mode}"
+                )
+        except Exception as e:
+            logger.warning(f"Something went wrong while saving QA file: {e}")
+            logger.info(f"Aborting quality assement. Mode: {self.sopar_mode}")
+            return
+            
+
+
+
+        
         
 
     

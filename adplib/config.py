@@ -1,10 +1,54 @@
 
-import os, yaml, logging
+import os, yaml, logging, sys
 from pathlib import Path
 
 # Logger:
 from adplib.logger import Initial_Logger
 logger = Initial_Logger.get_initial_logger()
+
+
+def get_data_path(line, input_path, line_number):
+
+    
+    expanded_path = os.path.expandvars(os.path.expanduser(line.strip()))
+    
+    line_path = Path(expanded_path)
+
+    if not line_path.is_absolute():
+        
+        data_path = (input_path.parent / line_path).resolve()
+    else:
+        data_path = line_path.resolve()  
+    
+    if data_path.exists():
+        return data_path
+    else:
+        raise FileNotFoundError(
+            f"File: {data_path} indicated in line {line_number} within {input_path} was not found."
+        )
+    
+    
+def get_pb_path(line, pb_path, line_number):
+    
+    if line=="\n":
+        return ""
+    else:
+        expanded_path = os.path.expandvars(os.path.expanduser(line))
+        
+        line_path = Path(expanded_path)
+
+        if not line_path.is_absolute():
+            
+            data_path = (pb_path.parent / line_path).resolve()
+        else:
+            data_path = line_path.resolve()  
+        
+        if data_path.exists():
+            return data_path
+        else:
+            raise FileNotFoundError(
+                f"File: {data_path} indicated in line {line_number} within {pb_path} was not found."
+            )
 
 
 class Config(dict):
@@ -218,43 +262,78 @@ class Config(dict):
             
         elif not self.enable_tap_service:
 
+            input_path = Path(self.input_data)
+
             if not self.input_data_list:
 
-                #En el caso de TAP service False, compruebo aquí que input_data existe, de lo contrario se 
+                #Compruebo aquí que input_data existe, de lo contrario se 
                 # comprobaría en otro módulo posteriormente y perdería lógica. Esto con list True.
-                if not Path(self.input_data).exists():
+                if not input_path.exists():
                     raise FileNotFoundError(
-                        f"Input file '{Path(self.input_data)}' not found."
+                        f"Input file '{input_path}' not found."
                         )
                 
-                if Path(self.input_data).suffix.lower() != ".fits":
+                elif input_path.suffix.lower() != ".fits":
                     raise ValueError(
-                        f"Input file '{Path(self.input_data)}' is not a FITS file. "
-                        f"Detected extension: '{Path(self.input_data).suffix}' but "
+                        f"Input file '{input_path}' is not a FITS file. "
+                        f"Detected extension: '{input_path.suffix}' but "
                         "'input_data' must be a '.fits' file when 'input_data_list' is False"
                     )
-            
+                
+                else:
+                    self.input_data = [input_path]
+
+                #Compruebo tb que el PB sea un .fits si lo hay.
+                if self.input_primaryBeam:
+
+                    pb_path = Path(self.input_primaryBeam)
+
+                    if not pb_path.exists():
+                        raise FileNotFoundError(
+                            f"Input primary beam file '{pb_path}' not found."
+                            )
+                
+                    elif pb_path.suffix.lower() != ".fits":
+                        raise ValueError(
+                            f"Input primary beam file '{pb_path}' is not a FITS file. "
+                            f"Detected extension: '{pb_path.suffix}' but "
+                            "'input_primaryBeam' must be a '.fits' file when 'input_data_list'"
+                            " is False."
+                        )
+                    
+                    else:
+                        self.input_primaryBeam = [pb_path]
+                
             else: #self.input_data_list True
-            
-                input_path = Path(self.input_data)
                 
                 if not input_path.exists():
                     raise FileNotFoundError(
                         f"File '{input_path}' not found. "
-                        "'input_data' must be a text file when 'input_data_list' is True"
+                        "'input_data' must be a text file when 'input_data_list' is True."
                     )
                 # Check .txt extension
-                if input_path.suffix != ".txt":
+                elif input_path.suffix != ".txt":
                     raise ValueError(
-                        f"Input file '{Path(self.input_data)}' is not a TXT file. "
-                        f"Detected extension: '{Path(self.input_data).suffix}' but "
-                        "'input_data' must be a '.txt' file when 'input_data_list' is True"
+                        f"Input file '{input_path}' is not a TXT file. "
+                        f"Detected extension: '{input_path.suffix}' but "
+                        "'input_data' must be a '.txt' file when 'input_data_list' is True."
                     )
-                
-                #Comprobar si esta vacío
-                with open(input_path, 'r') as f:
-                    if len(f.readlines()) == 0:
-                        raise ValueError(f"The file'{input_path}' is empty")
+                #Por ultimo comprobar si esta vacío y si no guardarlo
+                else:   
+                    with open(input_path, 'r') as f:
+                        lines = f.readlines()
+                        if len(lines) == 0:
+                            raise ValueError(f"The file'{input_path}' is empty")
+                        else:
+                            #Necesito obtener la ruta abssoluta de los archivos y comprobar que 
+                            #cada uno de ellos existe
+                            data_path_list = [
+                                get_data_path(line, input_path, line_number)
+                                for line_number, line in enumerate(lines)
+                            ]
+
+                            self.input_data = data_path_list
+
 
                 #compruebo que input_primaryBeam, sea una lista si input_primaryBeam es True   
                 if self.input_primaryBeam:
@@ -264,19 +343,36 @@ class Config(dict):
                     if not pb_path.exists():
                         raise FileNotFoundError(
                             f"File '{pb_path}' not found. "
-                            "'input_data' must be a text file when 'input_data_list' is True"
+                            "'input_data' must be a text file when 'input_data_list' is True."
                         )
-                    #Comprobar si esta vacío
-                    with open(pb_path, 'r') as f:
-                        if len(f.readlines()) == 0:
-                            raise ValueError(f"The file'{pb_path}' is empty")
                     
+                    # Check .txt extension
+                    elif input_path.suffix != ".txt":
+                        raise ValueError(
+                            f"Input file '{input_path}' is not a TXT file. "
+                            f"Detected extension: '{input_path.suffix}' but "
+                            "'input_data' must be a '.txt' file when 'input_data_list' is True."
+                        )
+                    #Por ultimo comprobar si esta vacío y coincide en lineas con input_data
+                    #Si cumple lo guardardo
+                    else:
+                        with open(pb_path, 'r') as f:
+                            lines = f.readlines()
+                            if len(lines) == 0:
+                                raise ValueError(f"The file'{pb_path}' is empty")
+                            else:
+                                pb_path_list = [
+                                    get_pb_path(line, pb_path, line_number)
+                                    for line_number, line in enumerate(lines)
+                                ]
+                                self.input_primaryBeam = pb_path_list
+                        
 
-                    with open(self.input_data, 'r') as data_file, \
-                        open(self.input_primaryBeam, 'r') as pb_file:
+                    with open(input_path, 'r') as data_file, \
+                        open(pb_path, 'r') as pb_file:
                         
                         data_lines = [line.strip() for line in data_file if line.strip()]
-                        pb_lines = pb_file.readlines() #[line.strip() for line in pb_file if line.strip()]
+                        pb_lines = pb_file.readlines() 
                         
                         if len(data_lines) != len(pb_lines):
                             raise ValueError(
@@ -286,6 +382,7 @@ class Config(dict):
                                 "input_data will be processed without primary beam. Be "
                                 "especially careful with unwanted trailing blank lines."
                             )
+                
         
 
 

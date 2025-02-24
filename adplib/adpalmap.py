@@ -5,13 +5,17 @@ Contact: Borja Montoro Molina (borjamomo96@gmail.com)
 from adplib.config import Config
 
 import os
-import sys
+from datetime import datetime
+import re
 import time
 from pathlib import Path
-import subprocess
 import argparse
 import numpy as np
-
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
+import logging
+from logging.handlers import QueueListener
+from multiprocessing import Queue
 
 from adplib.logger import Initial_Logger
 from adplib.logger import Logger
@@ -83,82 +87,77 @@ def sipargs_to_dict(args_list):
     return args_dict
 
 
-def main():
+def reorganize_log(log_path):
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
 
-    # Parse args:
-
-    parser = argparse.ArgumentParser(
-                    prog='adpalmap',
-                    formatter_class=argparse.RawDescriptionHelpFormatter,
-                    description='The ALMA advance data product pipeline',
-                    epilog= __doc__) 
-
-
-    parser.add_argument('-c', '--config-file', dest='config_file', default=None,
-                        help="<Optional> Path to the master config file to use. By default, "
-                        "APDALMAP will try to use the file config.yaml")
-    parser.add_argument('-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
-                        type=parse_sofia_par, default=None,
-                        help="<Optional> List of the parameters following the instruction of SoFia2 "
-                        "cookbook. Note, the parameter introduce here will overwirte the "
-                        "corresponding parameter in all the sofia files used in ADPALMAP")
-    parser.add_argument('-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 
-                        type=str, default=None, help="<Optional> Optional arguments for the SoFia "
-                        "Imaging Pipeline (SIP). If any other ADPAlmap argument is wanted to be "
-                        "introduced after this argument, the separtor '--' must be enter.")
-    
-    args = parser.parse_args()
-    
-    if args.sofia_par: args.sofia_par = dict(args.sofia_par)
-    if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
-
-    ini_logger = Initial_Logger.get_initial_logger()
-      
-    if (args.config_file is None):
-        ini_logger.warning("No config.yaml file specified, default config.yaml file will be used")
-        adpalmap_config = Config()
-    else:
-        adpalmap_config = Config(config_path=args.config_file)    
-
-
-    logger = Logger.get_logger(log_path=adpalmap_config.log_file, 
-                               clear_logs=adpalmap_config.clear_logs)
-    
-    sys.exit(-1)
-    logger.info("ADPALMAP start point")
-    #------------------------------------------------------------------------------------------------#
-    #Optionally download data from ALMA archive
-    from adplib.tap.datap import datap
-
-    if adpalmap_config.enable_tap_service == True:
-
-        if adpalmap_config.input_data is not None or adpalmap_config.input_data_list is not None:
-            logger.warning("The paremeter input_data or input_data_list specified in the "
-                           f"{args.config_file} will be ignore. This run will use the requested "
-                           "download data.")
-
-        adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
-        if adpalmap_datap.query_type=='proposal': TAP_df = adpalmap_datap.proposal_id()
-        elif adpalmap_datap.query_type=='conesearch': TAP_df = adpalmap_datap.conesearch()
-        elif adpalmap_datap.query_type=='target': TAP_df = adpalmap_datap.target()
-        elif adpalmap_datap.query_type=='keysearch': TAP_df = adpalmap_datap.keysearch()
-        elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
-
-        adpalmap_datap.download_data(TAP_df)
-
-        if adpalmap_config.quality_assesment == True:
-            adpalmap_datap.download_mask(TAP_df)
+        pid_groups = {}
+        main_pid = None
+        main_final = []
+        final_block = False
         
-    else:
-        adpalmap_datap = None
-        logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
-                    "Skipping data download")
-    #--------------------------------------------------------------------------------------------#
+        # Nueva expresión regular que captura ambos formatos
+        pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  # Captura [PID:XXXX] y [XXXX]
 
+        for i, line in enumerate(lines):
+            
+                      
+            pid_match = (pid_pattern.search(line))
 
+            if pid_match is None:
+                continue
 
+            current_pid = pid_match.group(1)
 
+            if current_pid not in pid_groups:
+                if not main_pid:
+                    main_pid = current_pid
+                pid_groups[current_pid] = []
 
+            if "ADPALMAP successfully ended" in line:
+                main_final.append(line)
+                final_block = True
+
+            else:    
+                if final_block == False:
+                    pid_groups[current_pid].append(line)
+                else:
+                    main_final.append(line)
+
+        # Ordenar
+        sorted_lines = []
+
+        # 1. Mensajes iniciales del main
+        sorted_lines.extend(pid_groups.pop(main_pid))
+
+        # 2. Subprocesos ordenados numéricamente
+        sub_pids = [pid for pid in pid_groups if pid != main_pid]
+        
+        for pid in sorted(sub_pids, key=int):
+            sorted_lines.append(f"\n=== Subprocess PID: {pid} start ===\n")
+            sorted_lines.extend(pid_groups[pid])
+            sorted_lines.append(f"=== Subprocess PID: {pid} end ===\n")
+
+        # 3. Mensajes finales del main
+        sorted_lines.extend(main_final)
+
+        # Escribir archivo
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.writelines(sorted_lines)
+            
+    except Exception as e:
+        print(f"Fatal error reorganizing log: {e}")
+    
+
+def process_data_test(input_data, primary_beam, mask, adpalmap_config, args, num_cores, logger):
+    logger.info("UN PROCESO")
+    logger.info(f"{primary_beam}")
+    if primary_beam:
+        print("HOla")
+    
+
+def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_cores, logger):
 
 
     #--------------------------------------------------------------------------------------------#
@@ -169,12 +168,15 @@ def main():
 
         if adpalmap_config.run_mode == 'emission':
             
-            adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
+            adpalmap_sopar_emi = SoPar(
+                sofia_file_path=adpalmap_config.sofia_emi_file, 
+                sopar_mode="emission",
+                pid = os.getpid()
+                )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       id=id_label,
                                                        mode=adpalmap_config.run_mode
                                                        )  
             if adpalmap_config.auto_setup == True:
@@ -183,7 +185,6 @@ def main():
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
-                logger.info('Starting the quality assesment...')
                 if mask is not None:
                     adpalmap_sopar_emi.quality_assesment(mask)
                 else:
@@ -196,12 +197,15 @@ def main():
 
         elif adpalmap_config.run_mode == 'absorption':
 
-            adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
+            adpalmap_sopar_abs = SoPar(
+                sofia_file_path=adpalmap_config.sofia_abs_file, 
+                sopar_mode="absorption",
+                pid = os.getpid()
+                )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       id=id_label,
                                                        mode=adpalmap_config.run_mode
                                                        )  
             if adpalmap_config.auto_setup == True:
@@ -210,37 +214,37 @@ def main():
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
-<<<<<<< HEAD
-                logger.info('Starting the quality assesment...')
-                if adpalmap_datap is not None:
-                    adpalmap_datap.download_mask(TAP_df)
-=======
                 if mask is not None:
->>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
-                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_abs.quality_assesment(mask)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will"
                         " not be performed."
                     )
-                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_abs.quality_assesment(mask)
 
         elif adpalmap_config.run_mode == 'both':
 
-            adpalmap_sopar_abs = SoPar(sofia_file_path=adpalmap_config.sofia_abs_file)
-            adpalmap_sopar_emi = SoPar(sofia_file_path=adpalmap_config.sofia_emi_file)
+            adpalmap_sopar_abs = SoPar(
+                sofia_file_path=adpalmap_config.sofia_abs_file,
+                sopar_mode="absorption",
+                pid = os.getpid()
+                )
+            adpalmap_sopar_emi = SoPar(
+                sofia_file_path=adpalmap_config.sofia_emi_file,
+                sopar_mode="emission",
+                pid = os.getpid()
+                )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       id=id_label,
                                                        mode=adpalmap_config.run_mode
                                                        )  
             #Update sofia emi file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       id=id_label,
                                                        mode=adpalmap_config.run_mode, 
                                                        run=0
                                                        )   
@@ -251,36 +255,22 @@ def main():
             adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
-<<<<<<< HEAD
-                logger.info('Starting the quality assesment for the absorption run...')
-                if adpalmap_datap is not None:
-                    adpalmap_datap.download_mask(TAP_df)
-=======
                 if mask is not None:
->>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
-                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_abs.quality_assesment(mask)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_abs.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_abs.quality_assesment(mask)
 
             adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
 
             if adpalmap_config.quality_assesment == True:
-<<<<<<< HEAD
-                logger.info('Starting the quality assesment for the emission run...')
-                if adpalmap_datap is not None:
-                    #No sería necesario descargarse las máscara 2 veces. Aunque realmente no la des
-                    #cargaría, la leería de la memoria caché. 
-                    #adpalmap_datap.download_mask(TAP_df)
-=======
                 if mask is not None:
->>>>>>> 3a135f8 (Adding some changes to run adp pipeline in parallel. In progess...)
-                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_emi.quality_assesment(mask)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_emi.quality_assesment(adpalmap_datap)
+                    adpalmap_sopar_emi.quality_assesment(mask)
 
     else:
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
@@ -310,37 +300,165 @@ def main():
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
             elif adpalmap_config.run_mode == 'both':
-<<<<<<< HEAD
 
-=======
-                
-                try:
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
-                except Exception as e:
-                    logger.critical(
-                        f"Unexpected error trying to run SIP: {e}. Please open an"
-                        " issue on GitLab "
-                        "https://gitlab.com/adp-group1/adp-alma-pipeline with your"
-                        " specific case."  
-                        )
-                    
->>>>>>> 66c5551 (Minor changes)
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
         
         else:
-            logger.critical("For the moment SIP cannot be run if SoFiA is disable.")
-            sys.exit(-1)
             adpalmap_sipar.run_sip(adpalmap_config)
             
     else:
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
-        
-    logger.info("ADPALMAP successfully ended")
 
+
+def main():
+    try:
+        # Parse args:
+
+        parser = argparse.ArgumentParser(
+                        prog='adpalmap',
+                        formatter_class=argparse.RawDescriptionHelpFormatter,
+                        description='The ALMA advance data product pipeline',
+                        epilog= __doc__) 
+
+
+        parser.add_argument('-c', '--config-file', dest='config_file', default=None,
+                            help="<Optional> Path to the master config file to use. By default, "
+                            "APDALMAP will try to use the file config.yaml")
+        parser.add_argument('-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
+                            type=parse_sofia_par, default=None,
+                            help="<Optional> List of the parameters following the instruction of SoFia2 "
+                            "cookbook. Note, the parameter introduce here will overwirte the "
+                            "corresponding parameter in all the sofia files used in ADPALMAP")
+        parser.add_argument('-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 
+                            type=str, default=None, help="<Optional> Optional arguments for the SoFia "
+                            "Imaging Pipeline (SIP). If any other ADPAlmap argument is wanted to be "
+                            "introduced after this argument, the separtor '--' must be enter.")
+        
+        args = parser.parse_args()
+        
+        if args.sofia_par: args.sofia_par = dict(args.sofia_par)
+        if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
+
+        #--------------------------------------------------------------------------------------------#
+
+        #--------------------------------------------------------------------------------------------#
+
+        ini_logger = Initial_Logger.get_initial_logger()
+        
+        if (args.config_file is None):
+            ini_logger.warning("No config.yaml file specified, default config.yaml file will be used")
+            adpalmap_config = Config()
+        else:
+            adpalmap_config = Config(config_path=args.config_file)    
+        
+        #--------------------------------------------------------------------------------------------#
+
+        #--------------------------------------------------------------------------------------------#
+        
+        log_queue = Queue()  
+        queue_listener = QueueListener(log_queue, *logging.getLogger().handlers) 
+        queue_listener.start() 
+
+        logger = Logger.get_logger(
+            log_path=adpalmap_config.log_file, 
+            clear_logs=adpalmap_config.clear_logs,
+            queue=log_queue
+        )
+
+        #--------------------------------------------------------------------------------------------# 
+        logger.info("ADPALMAP start point")
+        start = time.perf_counter()
+        #--------------------------------------------------------------------------------------------#
+
+        #Optionally download data from ALMA archive
+        from adplib.tap.datap import datap
+
+        if adpalmap_config.enable_tap_service == True:
+
+            if adpalmap_config.input_data is not None or adpalmap_config.input_data_list is not None:
+                logger.warning("The paremeter input_data or input_data_list specified in the "
+                            f"{args.config_file} will be ignore. This run will use the requested "
+                            "download data.")
+
+            adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
+            if adpalmap_datap.query_type=='proposal': TAP_df = adpalmap_datap.proposal_id()
+            elif adpalmap_datap.query_type=='conesearch': TAP_df = adpalmap_datap.conesearch()
+            elif adpalmap_datap.query_type=='target': TAP_df = adpalmap_datap.target()
+            elif adpalmap_datap.query_type=='keysearch': TAP_df = adpalmap_datap.keysearch()
+            elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
+
+            adpalmap_datap.download_data(TAP_df)
+
+            if adpalmap_config.quality_assesment == True:
+                adpalmap_datap.download_mask(TAP_df)
+            
+        else:
+            adpalmap_datap = None
+            logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
+                        "Skipping data download")
+        #--------------------------------------------------------------------------------------------#
+
+        #--------------------------------------------------------------------------------------------#
+
+        #Al igual que antes, a este bloque solo entra si input es False y Tap True.
+        if adpalmap_config.enable_tap_service == True:
+            
+            data_pack_list = [
+                (data, pb, mask)
+                for data, pb, mask in zip(
+                    adpalmap_datap.data_list, 
+                    adpalmap_datap.pb_list, 
+                    adpalmap_datap.mask_list
+                )
+            ]
+        #Datos ya descargados
+        else: 
+            if adpalmap_config.input_primaryBeam is None:
+                adpalmap_config.input_primaryBeam = ["" for _ in adpalmap_config.input_data]
+            
+            data_pack_list = [
+                (data, pb, mask)
+                for data, pb, mask in zip(
+                    adpalmap_config.input_data,
+                    adpalmap_config.input_primaryBeam,
+                    ["" for _ in adpalmap_config.input_data]
+                )
+            ]
+        
+
+        #--------------------------------------------------------------------------------------------#
+
+        #--------------------------------------------------------------------------------------------#
+
+        num_cores = 4#multiprocessing.cpu_count() #(variable) num_cores int
+        with ProcessPoolExecutor(max_workers=num_cores) as pool:
     
+            #Una list comprehension en lugar de un for, este también sería válido. 
+            futures = [
+                pool.submit(
+                    process_data, 
+                    data, primary_beam, mask, 
+                    adpalmap_config, args, num_cores, 
+                    Logger.setup_child_logger(log_queue) 
+                    )
+                for data, primary_beam, mask in data_pack_list
+            ]
+
+            [future.result() for future in futures]
+        
+        #--------------------------------------------------------------------------------------------#
+
+        logger.info("ADPALMAP successfully ended")
+        finish = time.perf_counter()
+        logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
+        queue_listener.stop() 
+
+    finally:
+        log_path = Logger.get_log_filename()
+        reorganize_log(log_path)
 
 # Run the main functions
 if __name__ == '__main__':

@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from datetime import datetime
+from logging.handlers import QueueHandler
 
 
 class ColoredFormatter(logging.Formatter):
@@ -19,7 +20,7 @@ class ColoredFormatter(logging.Formatter):
         color = self.COLORS.get(record.levelno, RESET)
         record.levelname = f"{color}{record.levelname}{RESET}"
         record.module = f"{self.MODULE_COLOR}{record.module}{RESET}"
-        format_string = "| %(levelname)s | %(module)s: - %(message)s"
+        format_string = "| %(levelname)s | [PID:%(process)d]  %(module)s: - %(message)s"
         formatter = logging.Formatter(format_string)
         return formatter.format(record)
 
@@ -57,9 +58,11 @@ class Initial_Logger:
     
 class Logger:
     _logger_instance = None
+    _log_queue = None
+    _log_path = None
 
     @classmethod
-    def setup_logger(cls, log_path="adpalmap.log", clear_logs=False):
+    def setup_logger(cls, log_path="adpalmap.log", clear_logs=False, queue=None):
         
         """Configura el logger si no está configurado."""
         if cls._logger_instance is None:
@@ -71,7 +74,7 @@ class Logger:
             original_path = Path(log_path)
             new_stem = f"{original_path.stem}_{timestamp}"
             log_path = original_path.with_name(new_stem).with_suffix(original_path.suffix)
-
+            
             # Limpiar el archivo de logs si es necesario
             
             if clear_logs:
@@ -95,7 +98,11 @@ class Logger:
             
             file_handler = logging.FileHandler(log_path, encoding='utf-8')
             file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(module)s: - %(message)s"))
+            file_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s | %(levelname)s | [PID:%(process)d] %(module)s: - %(message)s"
+                )
+            )
             #file_handler.setFormatter(ColoredFormatter()) #Para añadir al archivo .log este formato no lo entiende bien. 
             
             console_handler = logging.StreamHandler()
@@ -110,18 +117,32 @@ class Logger:
             logger.addHandler(console_handler)
 
             cls._logger_instance = logger
+            cls._log_queue = queue
+            cls._log_path = log_path
+
+            return log_path
 
 
     @classmethod
-    def get_logger(cls, log_path="adpalmap.log", clear_logs=False ):
+    def get_logger(cls, log_path="adpalmap.log", clear_logs=False, queue=None):
         
         if cls._logger_instance is None:
-            cls.setup_logger(log_path=log_path, clear_logs=clear_logs)
+            log_path = cls.setup_logger(log_path=log_path, clear_logs=clear_logs, queue=queue)
         return cls._logger_instance
+    
+
+    @classmethod
+    def setup_child_logger(cls, queue):
+        logger = logging.getLogger("adpalmap_logger")
+        logger.setLevel(logging.INFO)
+        logger.addHandler(QueueHandler(queue))  
+        return logger
+    
+
     
     @classmethod
     def raw(cls, message):
-        """Añade un mensaje sin formato al archivo .log."""
+        """Adds a plain message to the terminal"""
         if cls._logger_instance is not None:
             for handler in cls._logger_instance.handlers:
                 if isinstance(handler, logging.StreamHandler) or isinstance(handler, logging.FileHandler):  
@@ -130,13 +151,18 @@ class Logger:
     
     @classmethod
     def raw_file(cls, message):
-        """Añade un mensaje sin formato al archivo .log."""
+        """Adds a raw message to the .log file."""
         if cls._logger_instance is not None:
             for handler in cls._logger_instance.handlers:
                 if isinstance(handler, logging.FileHandler):  
                     handler.stream.write(message + "\n")
                     handler.flush()
 
-    
+    @classmethod
+    def get_log_filename(cls):
+        """Returns the name of the associated log file."""
+        if cls._log_path:
+            return cls._log_path.resolve()
+        return None
 
 

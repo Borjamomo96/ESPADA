@@ -8,6 +8,7 @@ import sys
 from adplib.logger import Logger
 logger = Logger.get_logger()
 
+
 class SiPar(dict): 
 
     # Diccionario estático que mapea nombres de atributos a shortcuts
@@ -99,11 +100,7 @@ class SiPar(dict):
         #Tipos esperados en los parámetros
         expected_types = {
             'catalog_file': str | None,
-<<<<<<< HEAD
             'source_id': int | list | None,
-=======
-            'source_id': (int | list | None),
->>>>>>> 66c5551 (Minor changes)
             'output_image_file_type': str,
             'spec_full_range': str | None,
             'syn_beam_dimensions': list | None,
@@ -233,7 +230,6 @@ class SiPar(dict):
         """
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
-<<<<<<< HEAD
             sofia_output_dir = Path(sopar.output_directory)
             input_file_name = Path(sopar.input_data).stem
                     
@@ -245,17 +241,6 @@ class SiPar(dict):
             else:
                 sofia_catalog_txt = None
                 sofia_catalog_xml = None
-=======
-            
-            output_cubelets = Path(f"{sopar.output_directory}")
-
-            try:     
-                sofia_catalog_txt = list(output_cubelets.glob('*_cat.txt'))[0]
-                sofia_catalog_xml = list(output_cubelets.glob('*_cat.xml'))[0]
-            except:
-                sofia_catalog_txt = None
-                sofia_catalog_txt = None
->>>>>>> 66c5551 (Minor changes)
     
             if sofia_catalog_txt and sofia_catalog_xml:
                 self.catalog_file = sofia_catalog_txt
@@ -266,15 +251,12 @@ class SiPar(dict):
             else:
                 logger.error(f"No valid .txt or .xml catalog for SIP found within the"
                                 f" {sopar.output_directory} directory.")
-<<<<<<< HEAD
                 if adpalmap_config.run_mode == 'both' and run!=0:
+                    logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
                     return
                 else:
-                    logger.info(f"Exiting pipeline...")
+                    logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
                     sys.exit(-1)
-=======
-                return
->>>>>>> 66c5551 (Minor changes)
 
         
         cmd = self.generate_command()
@@ -282,7 +264,7 @@ class SiPar(dict):
 
         try:
             Logger.raw("================================")
-            logger.info("Starting to run SIP...")
+            logger.info(f"SIP start. Run: {sopar.sopar_mode}")
             Logger.raw("================================")
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
 
@@ -293,17 +275,17 @@ class SiPar(dict):
                 capture_output=adpalmap_config.capture_outputs
                 )              
             Logger.raw("================================")
-            logger.info("SIP ended...")
+            logger.info(f"SIP finished. Run: {sopar.sopar_mode}")
             Logger.raw("================================")
 
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
-            logger.error(f"Error running SIP: {e}")
+            logger.error(f"Error running SIP. Run: {sopar.sopar_mode}. Error: {e}")
             if adpalmap_config.run_mode == 'both' and run !=0:
-                logger.info(f"Skipping runs SIP")
+                logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
                 return
             else:
-                logger.info("Exiting pipeline")
+                logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
                 sys.exit(-1)
         
         #DESCOMENTAR Cuando hable con Kelley
