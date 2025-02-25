@@ -12,7 +12,7 @@ from pathlib import Path
 import argparse
 import numpy as np
 import multiprocessing
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging
 from logging.handlers import QueueListener
 from multiprocessing import Queue
@@ -137,7 +137,7 @@ def reorganize_log(log_path):
         for pid in sorted(sub_pids, key=int):
             sorted_lines.append(f"\n=== Subprocess PID: {pid} start ===\n")
             sorted_lines.extend(pid_groups[pid])
-            sorted_lines.append(f"=== Subprocess PID: {pid} end ===\n")
+            sorted_lines.append(f"=== Subprocess PID: {pid} end ===\n\n")
 
         # 3. Mensajes finales del main
         sorted_lines.extend(main_final)
@@ -148,10 +148,9 @@ def reorganize_log(log_path):
             
     except Exception as e:
         print(f"Fatal error reorganizing log: {e}")
-    
-   
+     
 
-def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_cores, logger):
+def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores, logger):
 
 
     #--------------------------------------------------------------------------------------------#
@@ -171,7 +170,8 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_core
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mode=adpalmap_config.run_mode
+                                                       mode=adpalmap_config.run_mode,
+                                                       s_cores=s_cores
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
@@ -200,7 +200,8 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_core
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mode=adpalmap_config.run_mode
+                                                       mode=adpalmap_config.run_mode,
+                                                       s_cores=s_cores
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
@@ -233,14 +234,16 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, num_core
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mode=adpalmap_config.run_mode
+                                                       mode=adpalmap_config.run_mode,
+                                                       s_cores=s_cores
                                                        )  
             #Update sofia emi file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
                                                        mode=adpalmap_config.run_mode, 
-                                                       run=0
+                                                       run=0,
+                                                       s_cores=s_cores
                                                        )   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
@@ -421,27 +424,68 @@ def main():
                     ["" for _ in adpalmap_config.input_data]
                 )
             ]
+
+
+        #Número máx de cores dinámico
+        cpu_cores = multiprocessing.cpu_count()
+
+        if adpalmap_config.num_cores is not None:
+
+            if adpalmap_config.num_cores > cpu_cores:
+                logger.warning(
+                    "The number of cores indicated is greater than the number of cores available "
+                    f"in the CPU. The number of cores has been assigned as: {cpu_cores}. "
+                )
+                max_cores = cpu_cores 
+            else:
+                max_cores = adpalmap_config.num_cores
+
+        else:
+            max_cores = cpu_cores
+
+       
+        if len(data_pack_list) <= max_cores:
+            max_workers = len(data_pack_list)
+            s_cores = max(1, max_cores // max_workers)
+        else:
+            max_workers = max_cores
+            s_cores = 1  
         
-
+        
         #--------------------------------------------------------------------------------------------#
 
         #--------------------------------------------------------------------------------------------#
 
-        num_cores = 4#multiprocessing.cpu_count() #(variable) num_cores int
-        with ProcessPoolExecutor(max_workers=num_cores) as pool:
+        
+        with ProcessPoolExecutor(max_workers=max_cores) as pool:
     
             #Una list comprehension en lugar de un for, este también sería válido. 
             futures = [
                 pool.submit(
                     process_data, 
                     data, primary_beam, mask, 
-                    adpalmap_config, args, num_cores, 
+                    adpalmap_config, args, s_cores, 
                     Logger.setup_child_logger(log_queue) 
                     )
                 for data, primary_beam, mask in data_pack_list
             ]
 
-            [future.result() for future in futures]
+            
+            results = []
+            for future in as_completed(futures):  
+                try:
+                    result = future.result()
+                    results.append(result)
+                except SystemExit as e:
+                    #Simplemente lo capturo, ya he manejado cada error por separado
+                    results.append(e)
+                except Exception as e:
+                    logger.critical(
+                        f"Unexpected error: {str(e)}. Please open an issue on GitHub "
+                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                         "case."
+                    )
+                    results.append(e)
         
         #--------------------------------------------------------------------------------------------#
 

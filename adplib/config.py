@@ -156,6 +156,7 @@ class Config(dict):
         expected_types = {
             'quality_assesment': bool,
             'capture_outputs': bool,
+            'num_cores': int | None,
             'input_data': str | None,
             'input_primaryBeam': str | None,
             'input_data_list': bool | None,
@@ -177,6 +178,7 @@ class Config(dict):
         required_params = [
             'quality_assesment',
             'capture_outputs',
+            'num_cores',
             'input_data',
             'input_primaryBeam',
             'input_data_list',

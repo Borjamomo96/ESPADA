@@ -8,7 +8,6 @@ import sys
 import pandas as pd
 from pathlib import Path
 import yaml
-import fnmatch
 
 # astropy
 from astropy.coordinates import Angle
@@ -325,16 +324,16 @@ class datap(dict):
 
 
         if dl_files > 0:
-            Logger.raw("Download location = {}".format(self.alma.cache_location))
-            Logger.raw("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
-            Logger.raw("Selected Member OUSs: {}".format(dl_uid_list))
-            Logger.raw("Number of files to download = {}".format(dl_files))
+            logger.info("Download location = {}".format(self.alma.cache_location))
+            logger.info("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
+            logger.info("Selected Member OUSs: {}".format(dl_uid_list))
+            logger.info("Number of files to download = {}".format(dl_files))
             dl_size_fmt, dl_format = self._format_bytes(dl_size)
-            Logger.raw("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
+            logger.info("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
 
             
             if self.download_par['print_urls']:
-                Logger.raw("File URLs to download: \n" 
+                logger.info("File URLs to download: \n" 
                            "{}".format("\n".join(dl_link_list)))
                 
         else:
@@ -552,7 +551,7 @@ class datap(dict):
 
                     # Compruebo si el archivo descomprimido ya existe
                     if extracted_file_path.exists():
-                        Logger.raw(
+                        logger.info(
                             "The unzipped primary beam file already exists: "
                             f"{extracted_file_path}"
                         )
@@ -560,20 +559,20 @@ class datap(dict):
 
                         if self.download_par['remove_uncompress_file']:
                             file.unlink()
-                            Logger.raw(f"Compressed file deleted: {file}")
+                            logger.info(f"Compressed file deleted: {file}")
                     else:
                         # Intento descomprimir el archivo
                         try:
                             with gzip.open(file, 'rb') as gz_in:
                                 with open(extracted_file_path, 'wb') as extracted_out:
                                     shutil.copyfileobj(gz_in, extracted_out)
-                            Logger.raw(
+                            logger.info(
                                 f"Unzipped primary beam file: {extracted_file_path}"
                             )
 
                             if self.download_par['remove_uncompress_file']:
                                 file.unlink()
-                                Logger.raw(f"Compressed file deleted: {file}")
+                                logger.info(f"Compressed file deleted: {file}")
 
                             decompressed_pb_files.append(extracted_file_path)
                         except Exception as e:
@@ -648,22 +647,22 @@ class datap(dict):
 
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
-                    Logger.raw(f"The unzipped file already exists: {extracted_file_path}")
+                    logger.info(f"The unzipped file already exists: {extracted_file_path}")
                     decompressed_mask_files.append(extracted_file_path)
 
                     if self.download_par['remove_uncompress_file']:
                         file.unlink()
-                        Logger.raw(f"Compressed file deleted: {file}")
+                        logger.info(f"Compressed file deleted: {file}")
                 else:
                     try:
                         with gzip.open(file, 'rb') as gz_in:
                             with open(extracted_file_path, 'wb') as extracted_out:
                                 shutil.copyfileobj(gz_in, extracted_out)
-                        Logger.raw(f"Unzipped file: {extracted_file_path}")
+                        logger.info(f"Unzipped file: {extracted_file_path}")
 
                         if self.download_par['remove_uncompress_file']:
                             file.unlink()
-                            Logger.raw(f"Compressed file deleted: {file}")
+                            logger.info(f"Compressed file deleted: {file}")
 
                         decompressed_mask_files.append(extracted_file_path)
                     except Exception as e:

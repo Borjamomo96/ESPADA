@@ -215,7 +215,7 @@ class SoPar(dict):
 
 
     def update_input_parameters(
-            self, sop_par, input_data, primary_beam=None, id="", mode=None, run=-1, num_cores=1
+            self, sop_par, input_data, primary_beam=None, mode=None, run=-1, s_cores=1
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
@@ -243,10 +243,10 @@ class SoPar(dict):
             logger.warning(
                 "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
                 f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
-                "of cores used to optimize execution."
+                "of cores used with the parameter 'num_cores'."
             )
         
-        self.pipeline_threads = 1
+        self.pipeline_threads = s_cores
         
         #---------------output.directory logic-------------------#
         if sop_par and "output.directory" in sop_par: 
@@ -330,6 +330,7 @@ class SoPar(dict):
         
 
         if sop_par is not None:
+
             for key, value in sop_par.items():
                 normalized_key = key.replace('.', '_')
 
@@ -392,18 +393,32 @@ class SoPar(dict):
             x = (bmaj + bmin) / (2 * cdelt1)
             self.scfind_kernelsXY = f"0, {x:.0f}, {2*x:.0f}"  # Format "0, x, 2x"
             self.linker_minSizeXY = round(x)  
-        
+            logger.info(
+                "The 'self.scfind_kernelsXY' parameter has been update to: "
+                f"{self.scfind_kernelsXY}"
+            )
+            logger.info(
+                "The 'self.linker_minSizeXY' parameter has been update to: "
+                f"{self.linker_minSizeXY}"
+            )
 
         # reliability.minSNR
         if "BMAJ" in header and "BMIN" in header:
-            self.reliability_minSNR = 3.0  
+            self.reliability_minSNR = 3.0 
+            logger.info(
+                "The 'self.reliability_minSNR' parameter has been update to: "
+                f"{self.reliability_minSNR}"
+            ) 
 
         else:            
             a = 3
             b = 3
             x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
             self.reliability_minSNR = x
-
+            logger.info(
+                "The 'self.reliability_minSNR' parameter has been update to: "
+                f"{self.reliability_minSNR}"
+            )
                 
 
         # Otros parámetros pueden ser añadidos según las reglas específicas...

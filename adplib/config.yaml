@@ -6,28 +6,29 @@
 
 quality_assesment: True
 capture_outputs: False
+num_cores: 18
+
+################
+#    LOGGER    #
+################
+
+clear_logs: False
+log_file: log_dir/adpalmap.log
 
 ##################
 #   INPUT DATA   #
 ##################
 
 #input_data: /home/usuario/ALMA_ADPPipeline/test_directories/data.txt 
-input_data: #/home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits 
-input_primaryBeam: #/home/usuario/ALMA_ADPPipeline/test_directories/pb.txt
+input_data: archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor.fits #/home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits 
+input_primaryBeam: archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pb.fits  #/home/usuario/ALMA_ADPPipeline/test_directories/pb.txt
 input_data_list: False
-
-################
-#    LOGGER    #
-################
-
-clear_logs: True
-log_file: log_dir/adpalmap.log
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: True
+enable_tap_service: False
 download_par_file: 
 
 #################
@@ -37,7 +38,7 @@ download_par_file:
 enable_sofia : True
 run_mode: 'both' #'both', 'absorption'
 abs_flag_cube: True
-auto_setup: True
+auto_setup: False
 sofia_abs_file :
 sofia_emi_file : 
 
