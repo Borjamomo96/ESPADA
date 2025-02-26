@@ -321,18 +321,24 @@ def main():
                         epilog= __doc__) 
 
 
-        parser.add_argument('-c', '--config-file', dest='config_file', default=None,
-                            help="<Optional> Path to the master config file to use. By default, "
-                            "APDALMAP will try to use the file config.yaml")
-        parser.add_argument('-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
-                            type=parse_sofia_par, default=None,
-                            help="<Optional> List of the parameters following the instruction of SoFia2 "
-                            "cookbook. Note, the parameter introduce here will overwirte the "
-                            "corresponding parameter in all the sofia files used in ADPALMAP")
-        parser.add_argument('-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 
-                            type=str, default=None, help="<Optional> Optional arguments for the SoFia "
-                            "Imaging Pipeline (SIP). If any other ADPAlmap argument is wanted to be "
-                            "introduced after this argument, the separtor '--' must be enter.")
+        parser.add_argument(
+            '-c', '--config-file', dest='config_file', default=None,
+            help="<Optional> Path to the master config file to use. By default, "
+            "APDALMAP will try to use the file 'config.yaml'"
+        )
+        parser.add_argument(
+            '-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
+            type=parse_sofia_par, default=None,
+            help="<Optional> List of the parameters following the instructions of SoFia2 "
+            "cookbook. Note, the parameter introduced here will overwrite the "
+            "corresponding parameter in all the sofia files used in ADPALMAP"
+        )
+        parser.add_argument(
+            '-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 
+            type=str, default=None, help="<Optional> Optional arguments for the SoFia "
+            "Imaging Pipeline (SIP). Do not add any other arguments after using -sarg."
+            " If you add -sop ... or -c ... they will simply be ignored.."
+        )
         
         args = parser.parse_args()
         

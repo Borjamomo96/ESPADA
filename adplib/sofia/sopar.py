@@ -254,7 +254,7 @@ class SoPar(dict):
         elif hasattr(self, "output_directory") and self.output_directory:  
             pass
         else:
-            self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs"
+            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_outputs"
             """ 
             if not id:
                 logger.critical(
@@ -518,6 +518,8 @@ class SoPar(dict):
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
+                    
+                    
         
         elif mode == 'both':
             if run!=0:
@@ -623,13 +625,23 @@ class SoPar(dict):
         str: The path to the created temporary file as a string.
         """
 
-        original_path = Path(self.sofia_file_path) if hasattr(self, "sofia_file_path") else Path(".")
-        temp_file_path = original_path.with_name(original_path.stem + "_tmp_PID" + str(self.pid) + original_path.suffix)
-        
+        original_path = Path.cwd()        
+        temp_file_name = (
+            self.sofia_file_path.stem + "_tmp_PID" + str(self.pid) + self.sofia_file_path.suffix
+        )
+        temp_file_path = original_path / temp_file_name
+
+
         with open(temp_file_path, 'w') as tf:
             for key, value in self.__dict__.items():
                 # Excluye estos atributos
-                if key not in {"sofia_file_path", "path", "base_output_directory", "sopar_mode", "pid"}:
+                if key not in {
+                    "sofia_file_path", 
+                    "path", 
+                    "base_output_directory", 
+                    "sopar_mode", 
+                    "pid"
+                }:
                     key_transformed = key.replace("_", ".")
                     tf.write(f"{key_transformed}={value}\n")
 
