@@ -176,7 +176,7 @@ class Config(dict):
         self.check_config_par()
 
         #Check the logic for the input parameters
-        self.parse_input_data_set()
+        self.input_logic()
 
             
     def check_config_par(self):
@@ -190,6 +190,7 @@ class Config(dict):
             'capture_outputs': bool,
             'num_cores': int | None,
             'input_data_set': str | list | dict | None,
+            'input_file': str | None,
             'clear_logs': bool,
             'log_file': str,
             'enable_tap_service': bool,
@@ -210,6 +211,7 @@ class Config(dict):
             'capture_outputs',
             'num_cores',
             'input_data_set',
+            'input_file', 
             'clear_logs',
             'log_file',
             'enable_tap_service',
@@ -271,51 +273,138 @@ class Config(dict):
             delattr(self, param)         
 
 
-    def parse_input_data_set(self):
+    def input_logic(self):
+
         """
         Validate the logic for the parameters readed from the configuration file.
 
-        """
-        #Si inupt_data tiene valores y TAP es True, da error, solo uno es posible.
-        if self.enable_tap_service and self.input_data_set:
+        """ 
+        
+        if self.enable_tap_service and self.input_data_set and self.input_file:
 
             raise ValueError(
-                "Error in config.yaml: When 'enable_tap_service' is True, 'input_data_set' must be "
-                "empty or None. If 'input_data' is provided, 'enable_tap_service' must be False "
-                "or None. Both cannot be active simultaneously."
+                "Error in 'config.yaml': 'enable_tap_service', 'input_data_set' and 'input_file'"
+                "cannot be set simultaneously. Set 'enable_tap_service' to False or leave either"
+                "'input_data_set' or 'input_file' blank."
             )
         
-        elif not self.enable_tap_service and not self.input_data_set: #self.input_data_list:
+        elif self.enable_tap_service and self.input_data_set:
 
             raise ValueError(
-                f"The parameter 'input_data_set' cannot be NoneType if 'enable_tap_service' is False. "
-                "Please type a valid 'input_data_set' or change 'enable_tap_service' to True."
+                "Error in 'config.yaml': 'enable_tap_service' and 'input_data_set' "
+                "cannot be set simultaneously. Set 'enable_tap_service' to False or leave"
+                "'input_data_set' blank."
+            )
+        
+        elif self.enable_tap_service and self.input_file:
+
+            raise ValueError(
+                "Error in 'config.yaml': 'enable_tap_service' and 'input_file' "
+                "cannot be set simultaneously. Set 'enable_tap_service' to False or leave"
+                "'input_file' blank."
+            )
+        
+        elif not self.enable_tap_service and not self.input_data_set and not self.input_file:
+
+            raise ValueError(
+                "Error in 'config.yaml': None of the parameters 'enable_tap_service', "
+                "'input_data_set' or 'input_file' has been set. At least one must be set."
             )
             
-        elif not self.enable_tap_service:     
-            
-            data_type = type(self.input_data_set).__name__
-            data_set_list = []
+        elif not self.enable_tap_service: 
 
-            # Caso 1: Dict. Manejo los mismo que con list o str pero multiples veces
-            if data_type == "dict":
-                for id, data_set in self.input_data_set.items():
-                    parsed_files = parse_single_dataset(data_set, id=id)
-                    data_set_list.append(parsed_files)
-
-                self.input_data_set = validate_fits_files(data_set_list, self.input_data_set.keys())
-
-            # Caso 2: list o str
-            elif data_type in ["list", "str"]:
-                parsed_files = parse_single_dataset(self.input_data_set, id="0")
-                data_set_list.append(parsed_files)
-                
-                self.input_data_set = validate_fits_files(data_set_list, id_list="0")
-
-            else:
+            if self.input_data_set and self.input_file:
                 raise ValueError(
-                    f"Not valid format: {self.input_data_set} (type {type(data_type)})"
+                    "Error in 'config.yaml': 'input_data_set' and 'input_file'"
+                    "cannot be set simultaneously. Leave 'input_data_set' or 'input_file'"
+                    " blank"
                 )
             
+            elif not self.input_file:
+                self.parse_input_data_set()
+            
+            elif not self.input_data_set:
+                self.parse_input_file()
+            
+
+    def parse_input_data_set(self):
+        
+        data_type = type(self.input_data_set).__name__
+        data_set_list = []
+
+        # Caso 1: Dict. Manejo los mismo que con list o str pero multiples veces
+        if data_type == "dict":
+            for id, data_set in self.input_data_set.items():
+                parsed_files = parse_single_dataset(data_set, id=id)
+                data_set_list.append(parsed_files)
+
+            self.input_data_set = validate_fits_files(data_set_list, self.input_data_set.keys())
+
+        # Caso 2: list o str
+        elif data_type in ["list", "str"]:
+            parsed_files = parse_single_dataset(self.input_data_set, id="0")
+            data_set_list.append(parsed_files)
+            
+            self.input_data_set = validate_fits_files(data_set_list, id_list="0")
+
+        else:
+            raise ValueError(
+                f"Not valid format: {self.input_data_set} (type {type(data_type)})"
+            )
+    
+    def parse_input_file(self):
+        
+        input_file_path = Path(self.input_file)
+
+        if input_file_path.suffix.lower() not in [".txt", ".lst", ".dat"]:
+            raise ValueError(
+                f"The input file must be text (.txt, .lst, .dat)"
+            )
+        
+        if not input_file_path.exists():
+            raise FileNotFoundError(
+                f"Input file '{input_file_path}' not found"
+            )
+        
+        #Para comprobar si hay permisos de lectura o no
+        try:
+            with open(input_file_path, "r") as f:
+                pass  # Solo verificar que se puede abrir
+        except IOError as e:
+            raise IOError(
+                f"Cannot read input file '{input_file_path}': {str(e)}"
+            )
+        
+        data_set_dict = {}
+        
+        with open(input_file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                
+                # Ignoro líneas vacías y comentarios
+                if not line or line.startswith('#'):
+                    continue
+                    
+                if ':' not in line:
+                    raise ValueError(
+                        f"Invalid format on line: {line}.The format must be key : files" 
+                    )
+                    
+                key_part, value_part = line.split(':', 1)
+                key = key_part.strip()
+                value = value_part.strip()
+                
+                try:
+                    parsed_files = parse_single_dataset(value, id=key)
+                    data_set_dict[key] = parsed_files
+                except ValueError as e:
+                    raise ValueError(
+                        f"Error on line '{line}': {str(e)}"
+                    )
+        
+        data_set_list = list(data_set_dict.values())
+        id_list = list(data_set_dict.keys())
+        
+        self.input_data_set = validate_fits_files(data_set_list, id_list)
             
 

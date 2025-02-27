@@ -21,9 +21,9 @@ log_file: log_dir/adpalmap.log
 
 #input_data: /home/usuario/ALMA_ADPPipeline/test_directories/data.txt 
 input_data_set:  
-    1: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits
-    2: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits
-
+#    1: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits
+#    2: /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_test_datacube.fits
+input_file: /home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 
 #####################
 #    TAP SERVICE    #
