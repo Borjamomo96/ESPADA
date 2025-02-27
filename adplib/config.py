@@ -7,48 +7,80 @@ from adplib.logger import Initial_Logger
 logger = Initial_Logger.get_initial_logger()
 
 
-def get_data_path(line, input_path, line_number):
+def parse_single_dataset(data_set, id):
+    """Procesa un único conjunto de datos (ya sea string, lista o lista con strings anidados)."""
+    files = []
 
-    
-    expanded_path = os.path.expandvars(os.path.expanduser(line.strip()))
-    
-    line_path = Path(expanded_path)
+    # Si es str
+    if isinstance(data_set, str):
+        parts = [p.strip() for p in data_set.replace(',', ' ').split() if p.strip()]
+        files.extend(parts)
 
-    if not line_path.is_absolute():
-        
-        data_path = (input_path.parent / line_path).resolve()
+    # Si es list
+    elif isinstance(data_set, list):
+        for item in data_set:
+            if isinstance(item, str):
+                parts = [p.strip() for p in item.replace(',', ' ').split() if p.strip()]
+                #parts = []
+                #for part in item.replace(',', ' ').split():
+                #    stripped_part = part.strip().lower()  # Case-insensitive
+                #    if stripped_part in ["none", "null", ""]:
+                #        parts.append("")
+                #    else:
+                #        parts.append(stripped_part)
+                files.extend(parts)
+            elif item is None:
+                files.append("")
+            else:
+                files.append(str(item).strip())
+
     else:
-        data_path = line_path.resolve()  
-    
-    if data_path.exists():
-        return data_path
-    else:
-        raise FileNotFoundError(
-            f"File: {data_path} indicated in line {line_number} within {input_path} was not found."
+        raise ValueError(
+            f"Not valid format for the set '{id}': {data_set} (type {type(data_set)})"
         )
-    
-    
-def get_pb_path(line, pb_path, line_number):
-    
-    if line=="\n":
-        return ""
-    else:
-        expanded_path = os.path.expandvars(os.path.expanduser(line))
-        
-        line_path = Path(expanded_path)
 
-        if not line_path.is_absolute():
-            
-            data_path = (pb_path.parent / line_path).resolve()
-        else:
-            data_path = line_path.resolve()  
-        
-        if data_path.exists():
-            return data_path
-        else:
-            raise FileNotFoundError(
-                f"File: {data_path} indicated in line {line_number} within {pb_path} was not found."
-            )
+    # Validaciones comunes
+    if not files:
+        raise ValueError(f"No files were provided in the set: '{id}'")
+
+    # Limitar a 3 elementos máximo
+    files = files[:3]  
+    while len(files) < 3:
+        files.append("")
+
+    if not files[0]:
+        raise ValueError(f"The data file cannot be empty at input '{id}'")
+
+    return files
+
+
+def validate_fits_files(data_set_list, id_list):
+    """
+    Checks that the files are not empty and are .fits. Return the same 
+    list with each element converted to a Path object.
+    """
+    data_set_list_path = []
+    for id, data_set in zip(id_list, data_set_list):
+        new_dataset = []
+        for file in data_set:
+            if file:  
+            #if file == "" or str(file).strip().lower() in ["none", "null"]:
+                if not file.endswith(".fits"):
+                    raise ValueError(
+                        f"Input file '{file}' is not a FITS file. "
+                    )
+                elif not os.path.isfile(file):
+                    raise FileNotFoundError(
+                        f"Input file '{file}' not found. Dataset: {id}"
+                    )
+                else:
+                    new_dataset.append(Path(file))
+            else:
+                new_dataset.append("") 
+
+        data_set_list_path.append(tuple(new_dataset))
+       
+    return data_set_list_path
 
 
 class Config(dict):
@@ -144,7 +176,7 @@ class Config(dict):
         self.check_config_par()
 
         #Check the logic for the input parameters
-        self.check_logic_input()
+        self.parse_input_data_set()
 
             
     def check_config_par(self):
@@ -157,9 +189,7 @@ class Config(dict):
             'quality_assesment': bool,
             'capture_outputs': bool,
             'num_cores': int | None,
-            'input_data': str | None,
-            'input_primaryBeam': str | None,
-            'input_data_list': bool | None,
+            'input_data_set': str | list | dict | None,
             'clear_logs': bool,
             'log_file': str,
             'enable_tap_service': bool,
@@ -179,9 +209,7 @@ class Config(dict):
             'quality_assesment',
             'capture_outputs',
             'num_cores',
-            'input_data',
-            'input_primaryBeam',
-            'input_data_list',
+            'input_data_set',
             'clear_logs',
             'log_file',
             'enable_tap_service',
@@ -208,6 +236,7 @@ class Config(dict):
             if hasattr(self, param):
                 value = getattr(self, param)
                 if not isinstance(value, expected_type):
+                    print(value)
                     raise ValueError(
                         f"Parameter '{param}' must be of type {expected_type.__name__}, "
                         f"but got {type(value).__name__}, '{value}'."
@@ -239,154 +268,54 @@ class Config(dict):
             logger.warning(
                 f"Unexpected parameter '{param}' found in config.yaml. It will be ignored."
             )
-            delattr(self, param) 
+            delattr(self, param)         
 
 
-    def check_logic_input(self):
+    def parse_input_data_set(self):
         """
         Validate the logic for the parameters readed from the configuration file.
 
         """
         #Si inupt_data tiene valores y TAP es True, da error, solo uno es posible.
-        if self.enable_tap_service and self.input_data:
+        if self.enable_tap_service and self.input_data_set:
+
             raise ValueError(
-                "Error in config.yaml: When 'enable_tap_service' is True, 'input_data' must be "
+                "Error in config.yaml: When 'enable_tap_service' is True, 'input_data_set' must be "
                 "empty or None. If 'input_data' is provided, 'enable_tap_service' must be False "
                 "or None. Both cannot be active simultaneously."
             )
         
-        elif not self.enable_tap_service and not self.input_data: #self.input_data_list:
+        elif not self.enable_tap_service and not self.input_data_set: #self.input_data_list:
 
             raise ValueError(
-                f"The parameter 'input_data' cannot be NoneType if 'enable_tap_service' is False. "
-                "Please type a valid 'input_data' or change 'enable_tap_service' to False."
+                f"The parameter 'input_data_set' cannot be NoneType if 'enable_tap_service' is False. "
+                "Please type a valid 'input_data_set' or change 'enable_tap_service' to True."
             )
             
-        elif not self.enable_tap_service:
+        elif not self.enable_tap_service:     
+            
+            data_type = type(self.input_data_set).__name__
+            data_set_list = []
 
-            input_path = Path(self.input_data)
+            # Caso 1: Dict. Manejo los mismo que con list o str pero multiples veces
+            if data_type == "dict":
+                for id, data_set in self.input_data_set.items():
+                    parsed_files = parse_single_dataset(data_set, id=id)
+                    data_set_list.append(parsed_files)
 
-            if not self.input_data_list:
+                self.input_data_set = validate_fits_files(data_set_list, self.input_data_set.keys())
 
-                #Compruebo aquí que input_data existe, de lo contrario se 
-                # comprobaría en otro módulo posteriormente y perdería lógica. Esto con list True.
-                if not input_path.exists():
-                    raise FileNotFoundError(
-                        f"Input file '{input_path}' not found."
-                        )
+            # Caso 2: list o str
+            elif data_type in ["list", "str"]:
+                parsed_files = parse_single_dataset(self.input_data_set, id="0")
+                data_set_list.append(parsed_files)
                 
-                elif input_path.suffix.lower() != ".fits":
-                    raise ValueError(
-                        f"Input file '{input_path}' is not a FITS file. "
-                        f"Detected extension: '{input_path.suffix}' but "
-                        "'input_data' must be a '.fits' file when 'input_data_list' is False"
-                    )
-                
-                else:
-                    self.input_data = [input_path]
+                self.input_data_set = validate_fits_files(data_set_list, id_list="0")
 
-                #Compruebo tb que el PB sea un .fits si lo hay.
-                if self.input_primaryBeam:
-
-                    pb_path = Path(self.input_primaryBeam)
-
-                    if not pb_path.exists():
-                        raise FileNotFoundError(
-                            f"Input primary beam file '{pb_path}' not found."
-                            )
-                
-                    elif pb_path.suffix.lower() != ".fits":
-                        raise ValueError(
-                            f"Input primary beam file '{pb_path}' is not a FITS file. "
-                            f"Detected extension: '{pb_path.suffix}' but "
-                            "'input_primaryBeam' must be a '.fits' file when 'input_data_list'"
-                            " is False."
-                        )
-                    
-                    else:
-                        self.input_primaryBeam = [pb_path]
-                
-            else: #self.input_data_list True
-                
-                if not input_path.exists():
-                    raise FileNotFoundError(
-                        f"File '{input_path}' not found. "
-                        "'input_data' must be a text file when 'input_data_list' is True."
-                    )
-                # Check .txt extension
-                elif input_path.suffix != ".txt":
-                    raise ValueError(
-                        f"Input file '{input_path}' is not a TXT file. "
-                        f"Detected extension: '{input_path.suffix}' but "
-                        "'input_data' must be a '.txt' file when 'input_data_list' is True."
-                    )
-                #Por ultimo comprobar si esta vacío y si no guardarlo
-                else:   
-                    with open(input_path, 'r') as f:
-                        lines = f.readlines()
-                        if len(lines) == 0:
-                            raise ValueError(f"The file'{input_path}' is empty")
-                        else:
-                            #Necesito obtener la ruta abssoluta de los archivos y comprobar que 
-                            #cada uno de ellos existe
-                            data_path_list = [
-                                get_data_path(line, input_path, line_number)
-                                for line_number, line in enumerate(lines)
-                            ]
-
-                            self.input_data = data_path_list
-
-
-                #compruebo que input_primaryBeam, sea una lista si input_primaryBeam es True   
-                if self.input_primaryBeam:
-                    
-                    pb_path = Path(self.input_primaryBeam)
-                    
-                    if not pb_path.exists():
-                        raise FileNotFoundError(
-                            f"File '{pb_path}' not found. "
-                            "'input_data' must be a text file when 'input_data_list' is True."
-                        )
-                    
-                    # Check .txt extension
-                    elif input_path.suffix != ".txt":
-                        raise ValueError(
-                            f"Input file '{input_path}' is not a TXT file. "
-                            f"Detected extension: '{input_path.suffix}' but "
-                            "'input_data' must be a '.txt' file when 'input_data_list' is True."
-                        )
-                    #Por ultimo comprobar si esta vacío y coincide en lineas con input_data
-                    #Si cumple lo guardardo
-                    else:
-                        with open(pb_path, 'r') as f:
-                            lines = f.readlines()
-                            if len(lines) == 0:
-                                raise ValueError(f"The file'{pb_path}' is empty")
-                            else:
-                                pb_path_list = [
-                                    get_pb_path(line, pb_path, line_number)
-                                    for line_number, line in enumerate(lines)
-                                ]
-                                self.input_primaryBeam = pb_path_list
-                        
-
-                    with open(input_path, 'r') as data_file, \
-                        open(pb_path, 'r') as pb_file:
-                        
-                        data_lines = [line.strip() for line in data_file if line.strip()]
-                        pb_lines = pb_file.readlines() 
-                        
-                        if len(data_lines) != len(pb_lines):
-                            raise ValueError(
-                                f"The input_data  and input_primaryBeam  lines files must have"
-                                " the same number of inputs. Note that blank or commented lines"
-                                " in the primary beams file mean that their counterpart in "
-                                "input_data will be processed without primary beam. Be "
-                                "especially careful with unwanted trailing blank lines."
-                            )
-                
-        
-
-
-        #print("All parameters are valid.")
+            else:
+                raise ValueError(
+                    f"Not valid format: {self.input_data_set} (type {type(data_type)})"
+                )
+            
+            
 

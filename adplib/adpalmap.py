@@ -419,18 +419,7 @@ def main():
             ]
         #Datos ya descargados
         else: 
-            if adpalmap_config.input_primaryBeam is None:
-                adpalmap_config.input_primaryBeam = ["" for _ in adpalmap_config.input_data]
-            
-            data_pack_list = [
-                (data, pb, mask)
-                for data, pb, mask in zip(
-                    adpalmap_config.input_data,
-                    adpalmap_config.input_primaryBeam,
-                    ["" for _ in adpalmap_config.input_data]
-                )
-            ]
-
+            data_pack_list = adpalmap_config.input_data_set
 
         #Número máx de cores dinámico
         cpu_cores = multiprocessing.cpu_count()
