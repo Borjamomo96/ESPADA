@@ -12,7 +12,50 @@ This pipeline makes use of the external programs Source Finding Application (SoF
 
 Additionally, part of the code from the ALMA Archive Mining & Visualization Toolkit (ALMINER) software has been used and suitably adapted. Since this software uses the Astropy package, it must also be installed beforehand.
 
+**Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
+
+_Alternatively (not recommended option, under user responsibility)_: the corresponding line of code where each software is executed can be changed. To do this:
+
+  - Look for the function `run_sofia` inside the _sopar.py_ module. 
+  - Inside each function, look for the lines `cmd = ["sofia", f"{temp_file_path}"]` in each of the if blocks corresponding to each of the usage modes. 
+  - Change the (str) _"sofia"_ for the corresponding command used to run SoFiA on the device.
+
+  - Look for the function `generate_command` inside the _sipagrs.py_ module.
+  - Look for the line `cmd = ["sofia_image_pipeline"]` 
+  - Change the (str) _"sofia_image_pipeline"_ for the corresponding command used to run SIP on the device.
 ---
+
+## Instalation
+
+We recommend installing ADP Alma pipeline in an isolated environment as described below. 
+
+**Note**: ADPALMAP requires Python 3.10 or later. You can check your Python version with python --version. If you have a compatible version, you can skip this step.
+
+
+If you don't have Python 3.10 or later, you can install pyenv and pyenv-virtualenv, which will manage python versions for you. You can use the automatic installer pyenv-installer:
+
+```
+    $ curl https://pyenv.run | bash
+```
+
+Follow the instructions that this command outputs to add pyenv to PATH (or copy the commands from https://github.com/pyenv/pyenv for your shell). Restart your terminal, or source the file (e.g. . ~/.bashrc or . ~/.zshrc) Then, run:
+
+```
+    $ pyenv install 3.10
+    $ pyenv virtualenv 3.10 adpalmap
+    $ pyenv activate adpalmap
+```
+Now you will have a virtual environment with the right Python version, and you can continue with the next step. To deactivate, just run `pyenv deactivate`.
+
+
+With the environment activated, download this repository and install ADPALMAP:
+```
+  $ git clone https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git
+  $ pip install -e .
+```
+This will install it in developer mode, alternatively you can simply install it with `pip install .`.
+
+
 
 ## Configuration master file, 'config.yaml'
 
@@ -21,9 +64,31 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 ###  **GENERAL**:
   - `quality_assessment`: If `True`, a quick and simple quality assessment of the data obtained with SoFiA will be performed. Type `<bool>`.
   - `capture_outputs`: If `True`, it will capture all outputs from the external programs SoFiA and SIP. Type `<bool>`. It is generally recommended to leave this as `False`.
+  - `num_cores`: Number of cores to use when running ADPALMAP. If none or more cores are specified, all available cores on the device are used. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified.
 
 ###  **INPUT DATA**:
-  - `input_data`: Path (including the filename) to the data cube where the pipeline will run. Type `<str>`.
+  - `input_data_set`: Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline will run. Available types are `<list>`, `<str>` or `<dict>`. Below some examples ("||" symbol means different way to input the dataset)
+    + As a `<list>`:   
+      `input_data_set`: [data.fits, pb.fits, mask.fits] || [data.fits, "", mask.fits] || [data.fits, pb.fits] || [data.fits] || [data.fits, "", ""].
+    + As a `<str>`:  
+     `input_data_set`: data.fits pb.fits mask.fits|| data.fits, pb.fits, mask || data.fits, pb.fits mask. 
+    **No valid entries** are those that contain a "", None, or any other symbol or str that is not actually a file Path: data.fist "" mask.fits || data.fits None mask.fits || This is valid: data.fits, , mask.fits but it will be interpreter as: [data.fits, mask.fits, ''].
+    + As a `<dict>` for multiple data sets. All the previous rules are applied. Examples:  
+    `input_data_set`:  
+    1 : [data.fits, pb.fits, mask.fits]  
+    2 : [data.fits, "", mask.fits]  
+    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits
+    4 : data.fits  
+    `input_data_set`: { 
+    1 : [data.fits, pb.fits, mask.fits]  
+    2 : [data.fits, "", mask.fits]  
+    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits
+    4 : data.fits
+    }
+    
+  As an additional note, it will be assumed that the first, second (if any) and third (if any) files will always correspond to data, primary beam and mask respectively.
+
+  
   - `input_data_list`: NOT YET IMPLEMENTED. This means that for now, if you want to download more than one data cube at a time from the ALMA archive, the pipeline will only take the most recent one. See description below.
 
 ###  **LOGGER**:

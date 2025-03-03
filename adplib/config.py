@@ -7,28 +7,37 @@ from adplib.logger import Initial_Logger
 logger = Initial_Logger.get_initial_logger()
 
 
+
 def parse_single_dataset(data_set, id):
     """Procesa un único conjunto de datos (ya sea string, lista o lista con strings anidados)."""
     files = []
-
+    no_valid_entries = ['""',"''",'none','None','null','Null', '']
     # Si es str
-    if isinstance(data_set, str):
-        parts = [p.strip() for p in data_set.replace(',', ' ').split() if p.strip()]
-        files.extend(parts)
 
+    if isinstance(data_set, str):
+
+        parts = [p.strip() for p in data_set.replace(',', ' ').split() if p.strip()]
+        parts = [part if part not in no_valid_entries else '' for part in parts]
+      
+
+        files.extend(parts)
     # Si es list
     elif isinstance(data_set, list):
+        
         for item in data_set:
             if isinstance(item, str):
                 parts = [p.strip() for p in item.replace(',', ' ').split() if p.strip()]
-                #parts = []
-                #for part in item.replace(',', ' ').split():
-                #    stripped_part = part.strip().lower()  # Case-insensitive
-                #    if stripped_part in ["none", "null", ""]:
-                #        parts.append("")
-                #    else:
-                #        parts.append(stripped_part)
-                files.extend(parts)
+                parts = [part if part not in no_valid_entries else '' for part in parts]
+
+                
+                if parts:
+                    for part in parts: 
+                        if part:
+                            files.append(part)
+                        else:
+                            files.append('')
+                else:
+                    files.append('')
             elif item is None:
                 files.append("")
             else:
@@ -38,7 +47,7 @@ def parse_single_dataset(data_set, id):
         raise ValueError(
             f"Not valid format for the set '{id}': {data_set} (type {type(data_set)})"
         )
-
+    
     # Validaciones comunes
     if not files:
         raise ValueError(f"No files were provided in the set: '{id}'")
@@ -177,6 +186,7 @@ class Config(dict):
 
         #Check the logic for the input parameters
         self.input_logic()
+        
 
             
     def check_config_par(self):
@@ -238,7 +248,7 @@ class Config(dict):
             if hasattr(self, param):
                 value = getattr(self, param)
                 if not isinstance(value, expected_type):
-                    print(value)
+                    
                     raise ValueError(
                         f"Parameter '{param}' must be of type {expected_type.__name__}, "
                         f"but got {type(value).__name__}, '{value}'."
@@ -337,7 +347,7 @@ class Config(dict):
             for id, data_set in self.input_data_set.items():
                 parsed_files = parse_single_dataset(data_set, id=id)
                 data_set_list.append(parsed_files)
-
+                
             self.input_data_set = validate_fits_files(data_set_list, self.input_data_set.keys())
 
         # Caso 2: list o str
@@ -404,7 +414,7 @@ class Config(dict):
         
         data_set_list = list(data_set_dict.values())
         id_list = list(data_set_dict.keys())
-        
+    
         self.input_data_set = validate_fits_files(data_set_list, id_list)
             
 
