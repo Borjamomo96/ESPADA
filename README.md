@@ -67,33 +67,40 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   - `num_cores`: Number of cores to use when running ADPALMAP. If none or more cores are specified, all available cores on the device are used. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified.
 
 ###  **INPUT DATA**:
-  - `input_data_set`: Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline will run. Available types are `<list>`, `<str>` or `<dict>`. Below some examples ("||" symbol means different way to input the dataset)
+  - `input_data_set`: Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline will run. Available types are `<list>`, `<str>` or `<dict>`. 
+  **Note**: Do not confuse the '||' symbol as part of the input, this is simply a separator
     + As a `<list>`:   
       `input_data_set`: [data.fits, pb.fits, mask.fits] || [data.fits, "", mask.fits] || [data.fits, pb.fits] || [data.fits] || [data.fits, "", ""].
     + As a `<str>`:  
-     `input_data_set`: data.fits pb.fits mask.fits|| data.fits, pb.fits, mask || data.fits, pb.fits mask. 
-    **No valid entries** are those that contain a "", None, or any other symbol or str that is not actually a file Path: data.fist "" mask.fits || data.fits None mask.fits || This is valid: data.fits, , mask.fits but it will be interpreter as: [data.fits, mask.fits, ''].
-    + As a `<dict>` for multiple data sets. All the previous rules are applied. Examples:  
+     `input_data_set`: data.fits pb.fits mask.fits|| data.fits, pb.fits, mask || data.fits, pb.fits mask || data.fits, "" mask || data.fits, "", mask || data.fits "", mask.fits || data.fits, "" ""
+  
+    **Be careful**: -data.fits, , mask.fits- is valid but it will be interpreter as: [data.fits, mask.fits, ''].
+    + As a `<dict>`, for multiple data sets. All the previous rules are applied.   
     `input_data_set`:  
     1 : [data.fits, pb.fits, mask.fits]  
     2 : [data.fits, "", mask.fits]  
-    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits
+    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
     4 : data.fits  
-    `input_data_set`: { 
+    `input_data_set`: {   
     1 : [data.fits, pb.fits, mask.fits]  
     2 : [data.fits, "", mask.fits]  
-    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits
-    4 : data.fits
+    3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
+    4 : data.fits  
     }
     
-  As an additional note, it will be assumed that the first, second (if any) and third (if any) files will always correspond to data, primary beam and mask respectively.
+  As an additional note, it will be assumed that the first, second (if any) and third (if any) files will always correspond to data, primary beam and mask, respectively.
 
   
-  - `input_data_list`: NOT YET IMPLEMENTED. This means that for now, if you want to download more than one data cube at a time from the ALMA archive, the pipeline will only take the most recent one. See description below.
+  - `input_data_list`: Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of the data sets on which to run the pipeline.
+  Type `<str>`. 
+
+    Within the text file, the required format for each of the lines is: key : Path. The rules for entering data sets are the same as those above for the case of <str>. In this case, 'lists' are not allowed, that is, the use of [] because they will not be understood as such, but rather as a string and will result in an error.
 
 ###  **LOGGER**:
   - `log_file`: Name of the file where logger messages should be saved. Type `<str>`. Example: "adpalmap.log".
   - `clear_logs`: If `True`, clears the file where all logger entries will be written. This only works if the selected filename matches the name of the file from previous runs. Type `<bool>`.
+
+
 
 ###  **TAP SERVICE**:
   - `enable_tap_service`: If `True`, allows execution of the module `datap.py`, which downloads data from the ALMA archive based on parameters selected in the 'download_par_file'. Type `<bool>`.
