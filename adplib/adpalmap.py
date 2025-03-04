@@ -280,7 +280,10 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
 
     if adpalmap_config.enable_sip == True:
 
-        adpalmap_sipar = SiPar(sip_file_path=adpalmap_config.sip_par_file)
+        adpalmap_sipar = SiPar(
+            sip_file_path=adpalmap_config.sip_par_file,
+            enable_sofia = adpalmap_config.enable_sofia
+            )
         
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
               
@@ -288,7 +291,6 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':
-                
                 
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
 
@@ -472,15 +474,24 @@ def main():
                     result = future.result()
                     results.append(result)
                 except SystemExit as e:
-                    #Simplemente lo capturo, ya he manejado cada error por separado
                     results.append(e)
+                except ValueError as e:    
+                    results.append(e)
+                    raise 
+                except FileNotFoundError as e:
+                    results.append(e)
+                    raise 
+                except RuntimeError as e:
+                    results.append(e)
+                    raise 
                 except Exception as e:
+                    results.append(e)
                     logger.critical(
-                        f"Unexpected error: {str(e)}. Please open an issue on GitHub "
+                        f"Unexpected error. Please open an issue on GitHub "
                          "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                          "case."
                     )
-                    results.append(e)
+                    raise 
         
         #--------------------------------------------------------------------------------------------#
 

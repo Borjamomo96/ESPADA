@@ -12,18 +12,18 @@ num_cores: 18
 #    LOGGER    #
 ################
 
-clear_logs: False
+clear_logs: True
 log_file: log_dir/adpalmap.log
 
 ##################
 #   INPUT DATA   #
 ##################
 
-input_data_set: #/home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/sofia.fits , /home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/mask.fits
+input_data_set: /home/usuario/ALMA_ADPPipeline/test_directories/test253_spw3.fits
     #1: /home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/sofia.fits, , /home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/mask.fits
     #2: [/home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/sofia.fits, '' , /home/usuario/ALMA_ADPPipeline/test_directories/input_data_dir/mask.fits]
 
-input_file: /home/usuario/ALMA_ADPPipeline/test_directories/data.txt
+input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 
 #####################
 #    TAP SERVICE    #
@@ -37,11 +37,11 @@ download_par_file:
 #################
 
 enable_sofia : True
-run_mode: 'both' #'both', 'absorption'
+run_mode: 'emission' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False
-sofia_abs_file :
-sofia_emi_file : 
+sofia_abs_file : /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_abs_default.par
+sofia_emi_file :  /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_emi_default.par
 
 #################
 #      SIP      #

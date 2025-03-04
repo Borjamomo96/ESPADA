@@ -141,6 +141,12 @@ class Config(dict):
         if reconfigure or not Config._configured:
             self.configure(**kwargs)
 
+        #Check the parameter from the config.yaml
+        self.check_config_par()
+
+        #Check the logic for the input parameters
+        self.input_logic()
+
 
     def configure(self, config_path=None, **kwargs):
 
@@ -180,13 +186,7 @@ class Config(dict):
         # modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in config_dict.items():
             setattr(self, k, v)
-        
-        #Check the parameter from the config.yaml
-        self.check_config_par()
-
-        #Check the logic for the input parameters
-        self.input_logic()
-        
+                
 
             
     def check_config_par(self):

@@ -152,16 +152,15 @@ class SoPar(dict):
 
             if Path(sofia_file_path).exists():
                 self.read_sofia_par_file(sofia_file_path)
-                self.sofia_file_path = sofia_file_path
+                self.sofia_file_path = Path(sofia_file_path)
 
             else:
                 raise FileNotFoundError(f"Download file {Path(sofia_file_path)} not found.")
             
         else:
             self.read_sofia_par_file(sofia_file_path)
-            self.sofia_file_path = sofia_file_path
-
-        
+            self.sofia_file_path = Path(sofia_file_path)
+    
 
     def read_sofia_par_file(self, sofia_file_path):
         """
@@ -625,7 +624,7 @@ class SoPar(dict):
         str: The path to the created temporary file as a string.
         """
 
-        original_path = Path.cwd()        
+        original_path = Path.cwd()     
         temp_file_name = (
             self.sofia_file_path.stem + "_tmp_PID" + str(self.pid) + self.sofia_file_path.suffix
         )

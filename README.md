@@ -64,7 +64,23 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 ###  **GENERAL**:
   - `quality_assessment`: If `True`, a quick and simple quality assessment of the data obtained with SoFiA will be performed. Type `<bool>`.
   - `capture_outputs`: If `True`, it will capture all outputs from the external programs SoFiA and SIP. Type `<bool>`. It is generally recommended to leave this as `False`.
-  - `num_cores`: Number of cores to use when running ADPALMAP. If none or more cores are specified, all available cores on the device are used. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified.
+  - `num_cores`: Number of cores to use when running ADPALMAP. If none or more cores are specified, all available cores on the device are used. Type <int>. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified. See section below.
+
+    #### Core allocation rules
+    | Condition                      | Formula                                  |
+    |--------------------------------|------------------------------------------|
+    | User over-allocates cores      | \( $C_{\text{available}} = C_{\text{total}} $\) |
+    | User under-allocates cores     | \( $C_{\text{available}} = U $\)           |
+    | Tasks ≤ Available Cores        | \( $W_{\text{max}} = T,\ C_{\text{per\_worker}} = \left\lfloor \frac{C_{\text{available}}}{T} \right\rfloor$ \) |
+    | Tasks > Available Cores        | \( $W_{\text{max}} = C_{\text{available}},\ C_{\text{per\_worker}} = 1$ \) |
+
+    $C_{\text{total}}$: total CPU cores available  
+    $U$: user-defined core limit  
+    $T$: number of parallel tasks   
+    $C_{\text{available}}$: adjusted core limit after validation  
+    $W_{\text{max}}$: maximum concurrent workers  
+    $C_{\text{per\_worker}}$: Cores allocated to each worker   
+
 
 ###  **INPUT DATA**:
   - `input_data_set`: Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline will run. Available types are `<list>`, `<str>` or `<dict>`. 
