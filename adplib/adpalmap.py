@@ -383,8 +383,8 @@ def main():
 
         if adpalmap_config.enable_tap_service == True:
 
-            if adpalmap_config.input_data is not None or adpalmap_config.input_data_list is not None:
-                logger.warning("The paremeter input_data or input_data_list specified in the "
+            if adpalmap_config.input_data is not None or adpalmap_config.input_file is not None:
+                logger.warning("The paremeter input_data or input_file specified in the "
                             f"{args.config_file} will be ignore. This run will use the requested "
                             "download data.")
 

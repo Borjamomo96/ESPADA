@@ -69,17 +69,17 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
     #### Core allocation rules
     | Condition                      | Formula                                  |
     |--------------------------------|------------------------------------------|
-    | User over-allocates cores      | \( $C_{\text{available}} = C_{\text{total}} $\) |
-    | User under-allocates cores     | \( $C_{\text{available}} = U $\)           |
-    | Tasks ≤ Available Cores        | \( $W_{\text{max}} = T,\ C_{\text{per\_worker}} = \left\lfloor \frac{C_{\text{available}}}{T} \right\rfloor$ \) |
-    | Tasks > Available Cores        | \( $W_{\text{max}} = C_{\text{available}},\ C_{\text{per\_worker}} = 1$ \) |
+    | User over-allocates cores      | \( $C_{\mathrm{available}} = C_{\mathrm{total}} $\) |
+    | User under-allocates cores     | \( $C_{\mathrm{available}} = U $\)           |
+    | Dataset ≤ Available Cores        | \( $W_{\mathrm{max}} = D,\ C_{\mathrm{per\_worker}} = \left\lfloor \frac{C_{\mathrm{available}}}{T} \right\rfloor$ \) |
+    | Dataset > Available Cores        | \( $W_{\mathrm{max}} = C_{\mathrm{available}},\ C_{\mathrm{per\_worker}} = 1$ \) |
 
-    $C_{\text{total}}$: total CPU cores available  
+    $C_{\mathrm{total}}$: total CPU cores available  
     $U$: user-defined core limit  
-    $T$: number of parallel tasks   
-    $C_{\text{available}}$: adjusted core limit after validation  
-    $W_{\text{max}}$: maximum concurrent workers  
-    $C_{\text{per\_worker}}$: Cores allocated to each worker   
+    $D$: number of dataset to run in parallel  
+    $C_{\mathrm{available}}$: adjusted core limit after validation  
+    $W_{\mathrm{max}}$: maximum concurrent workers  
+    $C_{\mathrm{per\_worker}}$: Cores allocated to each worker   
 
 
 ###  **INPUT DATA**:
@@ -107,7 +107,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   As an additional note, it will be assumed that the first, second (if any) and third (if any) files will always correspond to data, primary beam and mask, respectively.
 
   
-  - `input_data_list`: Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of the data sets on which to run the pipeline.
+  - `input_file`: Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of the data sets on which to run the pipeline.
   Type `<str>`. 
 
     Within the text file, the required format for each of the lines is: key : Path. The rules for entering data sets are the same as those above for the case of <str>. In this case, 'lists' are not allowed, that is, the use of [] because they will not be understood as such, but rather as a string and will result in an error.

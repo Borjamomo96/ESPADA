@@ -323,7 +323,7 @@ class SiPar(dict):
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 
             cmd = self.make_summary(cmd)
-            subprocess.run(cmd, text=True, check=True, capture_output=config.capture_outputs)  
+            subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)  
         except subprocess.CalledProcessError as e:
             logger.critical(f"Error running SIP making summary images: {e}")
             sys.exit(-1)'''
