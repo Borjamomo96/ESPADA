@@ -71,7 +71,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
     |--------------------------------|------------------------------------------|
     | User over-allocates cores      | \( $C_{\mathrm{available}} = C_{\mathrm{total}} $\) |
     | User under-allocates cores     | \( $C_{\mathrm{available}} = U $\)           |
-    | Dataset ≤ Available Cores        | \( $W_{\mathrm{max}} = D,\ C_{\mathrm{per\_worker}} = \left\lfloor \frac{C_{\mathrm{available}}}{T} \right\rfloor$ \) |
+    | Dataset ≤ Available Cores        | \( $W_{\mathrm{max}} = D,\ C_{\mathrm{per\_worker}} = \left\lfloor \frac{C_{\mathrm{available}}}{D} \right\rfloor$ \) |
     | Dataset > Available Cores        | \( $W_{\mathrm{max}} = C_{\mathrm{available}},\ C_{\mathrm{per\_worker}} = 1$ \) |
 
     $C_{\mathrm{total}}$: total CPU cores available  
