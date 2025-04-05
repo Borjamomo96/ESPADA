@@ -25,7 +25,7 @@ _Alternatively (not recommended option, under user responsibility)_: the corresp
   - Change the (str) _"sofia_image_pipeline"_ for the corresponding command used to run SIP on the device.
 ---
 
-## Instalation
+## Installation
 
 We recommend installing ADP Alma pipeline in an isolated environment as described below. 
 
