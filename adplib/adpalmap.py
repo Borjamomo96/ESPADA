@@ -16,9 +16,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import logging
 from logging.handlers import QueueListener
 from multiprocessing import Queue
+import sys
 
 from adplib.logger import Initial_Logger
 from adplib.logger import Logger
+import psutil
 
 
 # Functions 
@@ -97,8 +99,8 @@ def reorganize_log(log_path):
         main_final = []
         final_block = False
         
-        # Nueva expresión regular que captura ambos formatos
-        pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  # Captura [PID:XXXX] y [XXXX]
+        #Captura [PID:XXXX] y [XXXX]
+        pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
 
         for i, line in enumerate(lines):
             
@@ -125,13 +127,12 @@ def reorganize_log(log_path):
                 else:
                     main_final.append(line)
 
-        # Ordenar
         sorted_lines = []
 
-        # 1. Mensajes iniciales del main
+        #Mensajes iniciales del main
         sorted_lines.extend(pid_groups.pop(main_pid))
 
-        # 2. Subprocesos ordenados numéricamente
+        #Subprocesos ordenados numéricamente
         sub_pids = [pid for pid in pid_groups if pid != main_pid]
         
         for pid in sorted(sub_pids, key=int):
@@ -139,10 +140,9 @@ def reorganize_log(log_path):
             sorted_lines.extend(pid_groups[pid])
             sorted_lines.append(f"=== Subprocess PID: {pid} end ===\n\n")
 
-        # 3. Mensajes finales del main
+
         sorted_lines.extend(main_final)
 
-        # Escribir archivo
         with open(log_path, 'w', encoding='utf-8') as f:
             f.writelines(sorted_lines)
             
@@ -150,8 +150,34 @@ def reorganize_log(log_path):
         print(f"Fatal error reorganizing log: {e}")
      
 
-def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores, logger):
+def calculate_workers(data_pack_list, max_cores):
+    total_files = len(data_pack_list)
+    
+    #Estimación de memoria por proceso
+    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
+    avg_size = (total_size / total_files) if total_files > 0 else 0
+    #Memoria disponible en GB
+    mem_available = psutil.virtual_memory().available / 1024**3  
+    #Heurística:1.5x tamaño + 1GB base
+    relative_memory_used_sofia = 2.25
+    mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
+    
+    max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
+    max_workers = min(max_cores, max_workers_mem, total_files)
+    
+    return max_workers
 
+
+def process_data(number,
+                 input_data, 
+                 primary_beam, 
+                 mask, 
+                 adpalmap_config, 
+                 args, 
+                 sofia_threads, 
+                 number_list,
+                 logger
+    ):
 
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
@@ -171,7 +197,7 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
                                                        mode=adpalmap_config.run_mode,
-                                                       s_cores=s_cores
+                                                       sofia_threads=sofia_threads
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
@@ -201,7 +227,7 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
                                                        mode=adpalmap_config.run_mode,
-                                                       s_cores=s_cores
+                                                       sofia_threads=sofia_threads
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
@@ -235,7 +261,7 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
                                                        mode=adpalmap_config.run_mode,
-                                                       s_cores=s_cores
+                                                       sofia_threads=sofia_threads
                                                        )  
             #Update sofia emi file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
@@ -243,7 +269,7 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
                                                        primary_beam=primary_beam, 
                                                        mode=adpalmap_config.run_mode, 
                                                        run=0,
-                                                       s_cores=s_cores
+                                                       sofia_threads=sofia_threads
                                                        )   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
@@ -281,8 +307,12 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
     if adpalmap_config.enable_sip == True:
 
         adpalmap_sipar = SiPar(
-            sip_file_path=adpalmap_config.sip_par_file,
-            enable_sofia = adpalmap_config.enable_sofia
+            sip_file_path = adpalmap_config.sip_par_file,
+            adpalmap_config = adpalmap_config,
+            input_data = input_data,
+            sargs = args.sip_args,
+            number_list = number_list,
+            number = number
             )
         
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
@@ -290,23 +320,30 @@ def process_data(input_data, primary_beam, mask, adpalmap_config, args, s_cores,
         
         if adpalmap_config.enable_sofia == True:
             
-            if adpalmap_config.run_mode == 'emission':
-                
+            if adpalmap_config.run_mode == 'emission':         
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
 
             elif adpalmap_config.run_mode == 'absorption':
-                
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
 
             elif adpalmap_config.run_mode == 'both':
-
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-
                 adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
         
+        elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
+            if adpalmap_config.run_mode == 'emission':         
+                adpalmap_sipar.run_sip(adpalmap_config)
+
+            elif adpalmap_config.run_mode == 'absorption':
+                adpalmap_sipar.run_sip(adpalmap_config)
+
+            elif adpalmap_config.run_mode == 'both':
+                adpalmap_sipar.run_sip(adpalmap_config)
+                adpalmap_sipar.run_sip(adpalmap_config, run=0)
+
         else:
             adpalmap_sipar.run_sip(adpalmap_config)
-            
+
     else:
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
@@ -423,7 +460,12 @@ def main():
         else: 
             data_pack_list = adpalmap_config.input_data_set
 
-        #Número máx de cores dinámico
+        number_list = list(range(len(data_pack_list)))
+        #--------------------------------------------------------------------------------------------#
+
+        #--------------------------------------------------------------------------------------------#
+
+        '''#Número máx de cores dinámico
         cpu_cores = multiprocessing.cpu_count()
 
         if adpalmap_config.num_cores is not None:
@@ -446,27 +488,48 @@ def main():
             s_cores = max(1, max_cores // max_workers)
         else:
             max_workers = max_cores
-            s_cores = 1  
+            s_cores = 1  '''
         
+        cpu_cores = multiprocessing.cpu_count()
         
-        #--------------------------------------------------------------------------------------------#
+        if adpalmap_config.num_cores is not None:
+
+            if adpalmap_config.num_cores > cpu_cores:
+                logger.warning(
+                    "The number of cores indicated is greater than the number of cores available "
+                    f"in the CPU. The number of cores has been assigned as: {cpu_cores}. "
+                )
+                max_cores = cpu_cores 
+            else:
+                max_cores = adpalmap_config.num_cores
+
+        else:
+            max_cores = cpu_cores
+
+        reserved_cores = 1
+        available_cores = max_cores - reserved_cores 
+
+        max_workers = calculate_workers(data_pack_list, available_cores)
+
+        sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
         #--------------------------------------------------------------------------------------------#
 
-        
-        with ProcessPoolExecutor(max_workers=max_cores) as pool:
+        #--------------------------------------------------------------------------------------------#
+
+
+        with ProcessPoolExecutor(max_workers=max_workers) as pool:
     
-            #Una list comprehension en lugar de un for, este también sería válido. 
             futures = [
                 pool.submit(
                     process_data, 
-                    data, primary_beam, mask, 
-                    adpalmap_config, args, s_cores, 
-                    Logger.setup_child_logger(log_queue) 
+                    i, data, primary_beam, mask, 
+                    adpalmap_config,
+                    args, sofia_threads, number_list,
+                    Logger.setup_child_logger(log_queue)
                     )
-                for data, primary_beam, mask in data_pack_list
+                for i, (data, primary_beam, mask) in enumerate(data_pack_list)
             ]
-
             
             results = []
             for future in as_completed(futures):  
@@ -493,6 +556,7 @@ def main():
                     )
                     raise 
         
+
         #--------------------------------------------------------------------------------------------#
 
         logger.info("ADPALMAP successfully ended")
