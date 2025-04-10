@@ -1,6 +1,8 @@
 
 # ADP ALMA Pipeline
 
+ADPAlmaP is a wrapper for the software (ALminer, SoFiA2 and SIP) designed to obtain advanced ALMA data products.
+
 ## Requirements
 
 This code has been developed and tested (not yet) with Python 3.10.15.
@@ -10,7 +12,7 @@ This pipeline makes use of the external programs Source Finding Application (SoF
 (https://gitlab.com/SoFiA-Admin/SoFiA-2)  
 (https://github.com/kmhess/SoFiA-image-pipeline)
 
-Additionally, part of the code from the ALMA Archive Mining & Visualization Toolkit (ALMINER) software has been used and suitably adapted. Since this software uses the Astropy package, it must also be installed beforehand.
+Additionally, part of the code from the ALMA Archive Mining & Visualization Toolkit (ALMINER, https://github.com/emerge-erc/ALminer.git) software has been used and suitably adapted.
 
 **Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
 
@@ -45,16 +47,41 @@ Follow the instructions that this command outputs to add pyenv to PATH (or copy 
     $ pyenv virtualenv 3.10 adpalmap
     $ pyenv activate adpalmap
 ```
+
 Now you will have a virtual environment with the right Python version, and you can continue with the next step. To deactivate, just run `pyenv deactivate`.
 
+**Note**: Within this enviroment you need to be able o run SoFiA and SIP using the previously mentioned commands.
 
 With the environment activated, download this repository and install ADPALMAP:
 ```
   $ git clone https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git
+  $ cd ADP-ALMA-Pipeline
   $ pip install -e .
 ```
 This will install it in developer mode, alternatively you can simply install it with `pip install .`.
 
+## Running ADPAlmaP
+
+If you have followed the instructions mentioned above, you can now run the pipeline as if it were a module with the command:
+```
+$adpalmap
+```
+If, on the other hand, you have followed an alternative path and it is not yet a module, the pipeline can be run as a script:
+
+```
+$python adpalmap.py
+```
+From now on, it will be assumed that it will be run as a module.
+
+The pipeline runs using a configuration file named *config.yaml*, which is explained in detail in the next section. Unless otherwise specified, the pipeline will attempt to use the 'config.yaml' file that is found by default when cloning the repository. If this file is moved to another directory or a different one is to be used, an equivalent file must be specified per terminal using the '-c|--config-file' argument:
+```
+adpalmap -c config_example.yaml
+```
+The pipeline also has two other arguments, '-sop|sofia-parameters' and 'sarg|sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if they were run in isolation, respectively. The following sections provide more details about their usage. Example:
+```
+adpalmap -sop contsub.threshold=3.0 linker.radiusXY=3 -sarg -i 0.15
+
+```
 
 
 ## Configuration master file, 'config.yaml'
@@ -148,6 +175,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
     Example: `-sarg -c catalog.xml -i 0.15 -m`. 
 
     **NOTE:** The argument `-c|--catalog` will only be necessary if the module responsible for running SoFiA is disabled; otherwise, this parameter will be ignored, and the newly obtained catalog from SoFiA will be used.
+    If we are in the case mentioned and the number of datasets we are going to use is strictly greater than 1, this parameter must contain a list of catalogs, one for each dataset.
 
 
 
@@ -206,7 +234,7 @@ In addition to specific parameters for each query type, certain common parameter
 
 ## Typical errors
 
-- `Old version of python`: It is common to use Python 3.8, however, during the pipeline features that are only available are used, such as using "|" instead of ".union()" to define, for example, several possible types of a variable.
+- `Old version of python`: It is common for the Python version installed and used by default on your operating system to be 3.8 or older. If it your case and you have not followed the instructions above to created a virtual environment with the minimum required version (3.10), some parts of the code will not work.
 
 
 

@@ -31,7 +31,7 @@ def moment8_ima(adpalmap_sopar):
     if not hasattr(adpalmap_sopar, "input_data") or not adpalmap_sopar.input_data:
         logger.critical(
             "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
-            " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
             "case."
         )
         sys.exit(-1)
@@ -41,7 +41,7 @@ def moment8_ima(adpalmap_sopar):
     if not fits_path.exists():
         logger.critical(
             f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
-            " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
             "case.")
         sys.exit(-1)
 
@@ -56,7 +56,7 @@ def moment8_ima(adpalmap_sopar):
     elif data_cube.ndim > 4:
         logger.critical(
             "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-            "Please open an issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline" 
+            "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
             "with your specific case.")
 
     #Ahora el PrimaryBeam
@@ -67,7 +67,7 @@ def moment8_ima(adpalmap_sopar):
         if not pb_path.exists():
             logger.critical(
                 f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
-                " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with your" 
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your" 
                 "specific case.")
             sys.exit(-1)
 
@@ -82,8 +82,8 @@ def moment8_ima(adpalmap_sopar):
         elif pb_cube.ndim > 4:
             logger.critical(
                 "ADP Alma pipeline is not designed to handle data files with more than 4 "
-                "dimensions. Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                "dimensions. Please open an issue on "
+                "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
             )
 
         final_data_cube = data_cube * pb_cube
@@ -214,7 +214,7 @@ class SoPar(dict):
 
 
     def update_input_parameters(
-            self, sop_par, input_data, primary_beam=None, mode=None, run=-1, s_cores=1
+            self, sop_par, input_data, primary_beam=None, mode=None, run=-1, sofia_threads=1
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
@@ -242,10 +242,12 @@ class SoPar(dict):
             logger.warning(
                 "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
                 f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
-                "of cores used with the parameter 'num_cores'."
+                "of threds used with the parameter 'num_cores' and estimated the optimal"
+                "use of these based on the number of cores and RAM available and the size "
+                "of the files"
             )
         
-        self.pipeline_threads = s_cores
+        self.pipeline_threads = sofia_threads
         
         #---------------output.directory logic-------------------#
         if sop_par and "output.directory" in sop_par: 
@@ -485,8 +487,9 @@ class SoPar(dict):
         elif (mode is not None and mode=='emission'):
 
             self.output_directory = Path(f'{self.output_directory}_emission')
-            
+            print(Path(self.output_directory))
             if not os.path.exists(Path(self.output_directory)):
+                print("Nodebería entrar")
                 os.makedirs(Path(self.output_directory))
             else:
                 logger.warning(f"The {Path(self.output_directory)} directory already exists."
@@ -728,8 +731,8 @@ class SoPar(dict):
             elif mask_archive.ndim > 4:
                 logger.critical(
                     "ADP Alma pipeline is not designed to handle data files with "
-                    "more than 4 dimensions. Please open an issue on GitLab "
-                    "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific "
+                    "more than 4 dimensions. Please open an issue on "
+                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                     "case."
                 )
             mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)

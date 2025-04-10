@@ -9,6 +9,7 @@ from adplib.logger import Logger
 logger = Logger.get_logger()
 
 
+
 class SiPar(dict): 
 
     # Diccionario estático que mapea nombres de atributos a shortcuts
@@ -27,6 +28,7 @@ class SiPar(dict):
          "percentile_range": ["-ur", "--user-range"],
          "spec_line": ["-l", "--spectral-line"]
     }
+
 
     def __init__(self, **kwargs):
         """
@@ -54,8 +56,7 @@ class SiPar(dict):
         #Check the parameter from the sip_args.yaml
         self.check_sip_args()
 
-
-        
+    
     def configure(self, sip_file_path=None, **kwargs):
         
         
@@ -104,7 +105,6 @@ class SiPar(dict):
         """
         #Tipos esperados en los parámetros
         expected_types = {
-            'catalog_file': str | None,
             'source_id': int | list | None,
             'output_image_file_type': str | None,
             'spec_full_range': str | None,
@@ -118,6 +118,12 @@ class SiPar(dict):
             'percentile_range': list | None,
             'spec_line': str | None,
         }
+
+        if (len(self.number_list)>1):
+            expected_types['catalog_file'] =  list | None
+        else:
+            expected_types['catalog_file'] =  str | list | None
+
 
         #Extra check en algunos parámetros
         valid_values = {
@@ -137,16 +143,89 @@ class SiPar(dict):
             else:
                 raise ValueError(f"The required parameter '{param}' is not defined in the"
                                  " sip_args.yaml file.")
-            
-        #Valido espcificamente catalog_file
-        if self.enable_sofia:
-            pass
+
+
+        #Valido específicamente catalog_file
+        if self.adpalmap_config.enable_sofia:
+            if self.catalog_file is not None:
+                logger.warning(
+                    "The catalog(s) specified in the 'catalog_file' parameter in "
+                    "'sip_args.yaml' will be ignore. Those obtained from "
+                    "SoFiA will be used instead, if any"
+                ) 
+
         else:
-            if getattr(self, 'catalog_file') is None:
-                raise ValueError(
-                    "The parameter 'catalog_file' in 'sip_args.yaml' must be set if the "
-                    "parameter 'enable_sofia' in the 'config.yaml' has set False"
-                )
+            if self.adpalmap_config.enable_tap_service:
+                input_name = self.input_data.stem
+                cwd_file = Path.cwd().resolve()
+                if self.adpalmap_config.run_mode == "emission":
+                    sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
+                    sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"
+                    self.catalog_file = self.set_catalog(
+                        sofia_catalog_txt, 
+                        sofia_catalog_xml,
+                        cwd_file / "adpalmap_outputs_emission" 
+                    )
+
+                elif self.adpalmap_config.run_mode == "absorption":
+                    sofia_catalog_txt = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.txt"
+                    sofia_catalog_xml = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.xml"
+                    self.catalog_file = self.set_catalog(
+                        sofia_catalog_txt, 
+                        sofia_catalog_xml,
+                        cwd_file / "adpalmap_outputs_absorption" 
+                    )
+
+                elif self.adpalmap_config.run_mode == "both":
+                    emi_sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
+                    emi_sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"
+                    abs_sofia_catalog_txt = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.txt"
+                    abs_sofia_catalog_xml = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.xml"
+                    #Guardo ambos, si los hubiera 
+                    self.catalog_file = [
+                        self.set_catalog(emi_sofia_catalog_txt, emi_sofia_catalog_xml, 
+                                    cwd_file/ "adpalmap_outputs_absorption"
+                        ),
+                        self.set_catalog(abs_sofia_catalog_txt, abs_sofia_catalog_xml,
+                                    cwd_file / "adpalmap_outputs_emission"
+                        )
+                    ]
+            else:
+                #Si no hay en sip_args.yaml y no hay sargs
+                if self.catalog_file is None and not self.sargs:
+                    raise ValueError(
+                            "The parameter 'catalog_file'  must be set via the corresponding "
+                            " parameter in 'sip_args.yaml' or via terminal using the -sarg argument "
+                            "if the parameter 'enable_sofia' in the 'config.yaml' has set False"
+                        )
+                #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
+                elif self.catalog_file is None and self.sargs:
+                    if (('-c' or '--catalog') not in self.sargs.keys()):
+                        raise ValueError(
+                            "The parameter 'catalog_file'  must be set via the corresponding "
+                            " parameter in 'sip_args.yaml' or via terminal using the -sarg argument "
+                            "if the parameter 'enable_sofia' in the 'config.yaml' has set False"
+                        )
+                #Si hay en archivo, debo comprobar que sea correcto en longitud.
+                elif self.catalog_file is not None:
+                    catalog_list = self.catalog_file
+                    if isinstance(catalog_list, list) and len(self.number_list) != len(catalog_list):
+                        raise ValueError(
+                            f"The number of catalogs provided in 'catalog_file' parameter is "
+                            " different from the number of datasets. There must be one "
+                            "catalog per dataset."
+                        )
+                    elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
+                        setattr(self, 'catalog_file', catalog_list[self.number])
+                    else:
+                        pass
+                else:
+                    logger.error(
+                        "You have found a combination of parameters that has not been taken into "
+                        "account and may be misleading. Please open an issue on "
+                        "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
+                    )
+
 
         # Valido valores permitidos
         for param, valid_values_list in valid_values.items():
@@ -193,7 +272,7 @@ class SiPar(dict):
         None: Directly updates the class attributes.
         """
     
-
+        
         if sip_args is not None:
             for key, value in sip_args.items():
                 #Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
@@ -207,14 +286,41 @@ class SiPar(dict):
                     # Special case for 'catalog_file' or '-c'
                     if matched_attr == "catalog_file" and adpalmap_config.enable_sofia:
                         logger.warning(
-                            f"Ignoring argument '{key}' provided because  enable_sofia=True in"
-                            f"the file {adpalmap_config.config_path}.")
+                            f"Ignoring argument '{key}' provided because the catalog provided by"
+                            f" SoFiA will be used in this run."
+                        )
                         continue  
+                    elif matched_attr == "catalog_file" and not adpalmap_config.enable_sofia:
+                        #Quiere decir que ha encontrado catalogos validos de TAP, tienen prioriodad
+                        if(adpalmap_config.enable_tap_service 
+                           and self.catalog_file is not None
+                        ):
+                            logger.warning(
+                                "The catalog(s) provide via -sarg will be ignored. Existing "
+                                " catalgos correspondings to the downloaded data will be used "
+                                "instead."
+                            )
+                            continue
+                        #Esto se da porque en check args en este caso específico cuadno hay sarg
+                        #y nada maś simplemente se pasa y self.catalog_file permanece None
+                        elif(adpalmap_config.enable_tap_service 
+                           and self.catalog_file is None
+                        ):
+                            if len(self.number_list) != len(value):
+                                raise ValueError(
+                                    f"The number of catalogs provided in 'catalog_list' is "
+                                    "different from the number of datasets. There must be "
+                                    "one catalog per dataset."
+                                )
+                            else:
+                                setattr(self, matched_attr, value[self.number])
+                                continue
 
                     # Update the attribute with the new value
                     setattr(self, matched_attr, value)
                 else:
                     logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
+        
 
 
     def run_sip(self, adpalmap_config, sopar=None, run=-1):
@@ -274,6 +380,15 @@ class SiPar(dict):
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
                     sys.exit(-1)
 
+        else:
+            if adpalmap_config.enable_tap_service and adpalmap_config.run_mode == "both":             
+                if run != 0:
+                    #En 0 guardo el catalago de absorciones
+                    self.catalog_file = self.catalog_file[0]
+                else:
+                    #En 1 guardo el catalago de absorciones
+                    self.catalog_file = self.catalog_file[1]
+
         
         cmd = self.generate_command()
         
@@ -292,7 +407,8 @@ class SiPar(dict):
                 text=True, 
                 check=True, 
                 capture_output=adpalmap_config.capture_outputs
-                )              
+                )  
+                        
             Logger.raw("================================")
             if sopar:
                 logger.info(f"SIP finished. Run: {sopar.sopar_mode}")
@@ -387,6 +503,50 @@ class SiPar(dict):
             cmd.extend(["-id", "0"])
 
         return cmd
+    
+
+    def set_catalog(self, sofia_catalog_txt, sofia_catalog_xml, output_directory):
+
+        existing_files = [file for file in [sofia_catalog_txt, sofia_catalog_xml] if file.exists()]
+        if existing_files:
+            return existing_files[0]  
+        else:
+            logger.warning(
+                f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory. "
+            )
+            #Si no hay en sip_args.yaml y no hay sargs
+            if self.catalog_file is None and not self.sargs:
+                raise ValueError(
+                    "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or via "
+                    "the '-sarg|--sip-arguments'. Aborting SIP..."
+                )
+            #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
+            elif self.catalog_file is None and self.sargs:
+                if (('-c' or '--catalog') not in self.sargs.keys()):
+                    raise ValueError(
+                        "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or "
+                        "via the '-sarg|--sip-arguments'. Aborting SIP..."
+                    )
+            #Si hay en archivo, debo comprobar que sea correcto en longitud.
+            elif self.catalog_file is not None:
+                catalog_list = self.catalog_file
+                if isinstance(catalog_list, list) and len(self.number_list) != len(catalog_list):
+                    raise ValueError(
+                        f"The number of catalogs provided in 'catalog_file' parameter is "
+                        " different from the number of datasets. There must be one "
+                        "catalog per dataset."
+                    )
+                elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
+                    return catalog_list[self.number]
+                else:
+                    pass
+            else:
+                logger.error(
+                    "You have found a case that has not been taken into "
+                    "account and may be misleading. Please open an issue on "
+                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
+                )
+        
 
     
 
