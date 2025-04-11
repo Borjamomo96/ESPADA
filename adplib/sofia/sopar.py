@@ -6,8 +6,11 @@ import numpy as np
 from pathlib import Path
 from astropy.io import fits
 import matplotlib.pyplot as plt
+from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
+
 
 # Logger:
+import logging
 from adplib.logger import Logger
 logger= Logger.get_logger()
 
@@ -34,7 +37,7 @@ def moment8_ima(adpalmap_sopar):
             " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
             "case."
         )
-        sys.exit(-1)
+        raise
 
     fits_path = Path(adpalmap_sopar.input_data)
 
@@ -43,21 +46,29 @@ def moment8_ima(adpalmap_sopar):
             f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
             " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
             "case.")
-        sys.exit(-1)
+        raise
 
     with fits.open(fits_path) as hdul:
         data_cube = hdul[0].data
 
     if data_cube is None:
-        raise ValueError("The FITS file does not contain data in the primary HDU.")
+        error_msg = (
+            f"The FITS file '{data_cube}' does not contain data in the primary HDU." 
+            "Aborting quality assement..."
+        )
+        logger.error(error_msg)
+        raise RecoverableValueError(error_msg)
 
     if data_cube.ndim == 4:
         data_cube = np.squeeze(data_cube, axis=0)
     elif data_cube.ndim > 4:
-        logger.critical(
+        error_msg = (
             "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
+            "Aborting quality assesment... "
             "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
             "with your specific case.")
+        logger.error(error_msg)
+        raise RecoverableValueError(error_msg)
 
     #Ahora el PrimaryBeam
     if hasattr(adpalmap_sopar, "input_primaryBeam") and adpalmap_sopar.input_primaryBeam:
@@ -69,30 +80,35 @@ def moment8_ima(adpalmap_sopar):
                 f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
                 " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your" 
                 "specific case.")
-            sys.exit(-1)
+            raise
 
         with fits.open(pb_path) as hdul:
             pb_cube = hdul[0].data
 
         if pb_cube is None:
-            raise ValueError("The FITS file does not contain data in the primary HDU.")
+            error_msg = (
+                f"The FITS file '{pb_cube}' does not contain data in the primary HDU." 
+                "Aborting quality assement..."
+            )
+            logger.error(error_msg)
+            raise RecoverableValueError(error_msg)
         
         if pb_cube.ndim == 4:
             pb_cube = np.squeeze(pb_cube, axis=0)
         elif pb_cube.ndim > 4:
-            logger.critical(
-                "ADP Alma pipeline is not designed to handle data files with more than 4 "
-                "dimensions. Please open an issue on "
-                "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
-            )
+            error_msg = (
+                "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
+                "Aborting quality assesment... "
+                "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
+                "with your specific case.")
+            logger.error(error_msg)
+            raise RecoverableValueError(error_msg)
 
         final_data_cube = data_cube * pb_cube
                 
     else:
         logger.warning(
-            "No data cube has been specified with Primary Beam information. "
-            "Image at moment 8 cannot have the correction subtracted by the Primary "
-            "Beam."
+            "No data cube has been specified with Primary Beam information."
         )
         
         final_data_cube = data_cube
@@ -155,7 +171,14 @@ class SoPar(dict):
                 self.sofia_file_path = Path(sofia_file_path)
 
             else:
-                raise FileNotFoundError(f"Download file {Path(sofia_file_path)} not found.")
+                error_msg = (
+                    f"Download file {Path(sofia_file_path)} not found."
+                    "No SoFiA parameter file was provided and the default parameter file "
+                    f"{sofia_file_path} could not be found. Provide a valid SoFiA parameter "
+                    "file or check if you have deleted or moved the default file."
+                    )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise FileNotFoundError(error_msg)
             
         else:
             self.read_sofia_par_file(sofia_file_path)
@@ -206,11 +229,13 @@ class SoPar(dict):
                         # Set attributes to the class dinamically
                         setattr(self, k, v)
                         
-                    except ValueError: #CHANGE. Check is ValueError cover all the posibilities.
-                        logger.error(f"The line '{line}' has not a valid format "
-                                     "(module.parameter = value).")
-                        logger.info(f"Exiting pipeline...")
-                        sys.exit(-1)
+                    except: #CHANGE. Check is ValueError cover all the posibilities.
+                        error_msg = (
+                            f"The line '{line}' has not a valid format "
+                                     "(module.parameter = value)."
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
 
 
     def update_input_parameters(
@@ -370,15 +395,22 @@ class SoPar(dict):
         logger.info(f"Auto-setup start. Mode: {self.sopar_mode}")
 
         if not hasattr(self, "input_data") or not self.input_data:
-            logger.critical("The 'input_data' attribute is undefined or empty.")
-            sys.exit(-1)
+            logger.critical(
+                "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                "case."
+            )
+            raise
 
         fits_path = Path(self.input_data)
 
 
         if not fits_path.exists():
-            logger.critical(f"File FITS '{fits_path}' does not exist.")
-            sys.exit(-1)
+            logger.critical(
+                f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                "case.")
+            raise
 
         with fits.open(fits_path) as hdul:
             header = hdul[0].header

@@ -2,6 +2,7 @@
 Contact: Borja Montoro Molina (borjamomo96@gmail.com)
 """
 #Configuration
+from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 from adplib.config import Config
 
 import os
@@ -11,17 +12,19 @@ import time
 from pathlib import Path
 import argparse
 import numpy as np
-import multiprocessing
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import logging
-from logging.handlers import QueueListener
-from multiprocessing import Queue
-import sys
-
-from adplib.logger import Initial_Logger
-from adplib.logger import Logger
 import psutil
 
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from logging.handlers import QueueListener
+from multiprocessing import Queue
+
+import logging
+from adplib.logger import Initial_Logger
+from adplib.logger import Logger
+from traceback import format_exc
+
+import sys
 
 # Functions 
 def parse_sofia_par(arg):
@@ -138,7 +141,7 @@ def reorganize_log(log_path):
         for pid in sorted(sub_pids, key=int):
             sorted_lines.append(f"\n=== Subprocess PID: {pid} start ===\n")
             sorted_lines.extend(pid_groups[pid])
-            sorted_lines.append(f"=== Subprocess PID: {pid} end ===\n\n")
+            sorted_lines.append(f"===  Subprocess PID: {pid} end  ===\n\n")
 
 
         sorted_lines.extend(main_final)
@@ -517,7 +520,6 @@ def main():
 
         #--------------------------------------------------------------------------------------------#
 
-
         with ProcessPoolExecutor(max_workers=max_workers) as pool:
     
             futures = [
@@ -532,23 +534,28 @@ def main():
             ]
             
             results = []
+            exceptions = []
             for future in as_completed(futures):  
                 try:
                     result = future.result()
                     results.append(result)
+                #Este primero porque python lee Excepciones de arriba a abajo
+                #Errores salvables. El resto de procesos sigue corriendo
+                except RecoverableError as e:  
+                    exceptions.append(e)
+                    #Quitando esta línea eliminamos el traceback
+                    Logger.raw(format_exc())
+                #Errores criticos
+                except (ValueError, FileNotFoundError) as e:
+                    exceptions.append(e)
+                    raise 
                 except SystemExit as e:
-                    results.append(e)
-                except ValueError as e:    
-                    results.append(e)
-                    raise 
-                except FileNotFoundError as e:
-                    results.append(e)
-                    raise 
+                    exceptions.append(e)
                 except RuntimeError as e:
-                    results.append(e)
+                    exceptions.append(e)
                     raise 
                 except Exception as e:
-                    results.append(e)
+                    exceptions.append(e)
                     logger.critical(
                         f"Unexpected error. Please open an issue on GitHub "
                          "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "

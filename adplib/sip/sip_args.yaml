@@ -1,4 +1,4 @@
-catalog_file: [/home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adpalmap_outputs_emission/KH2016_test_cat.txt, /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adpalmap_outputs_emission/KH2016_test_1_cat.txt, /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adpalmap_outputs_emission/KH2016_test_2_cat.txt, /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adpalmap_outputs_emission/KH2016_test_3_cat.txt]               #'-c' or '--catalog'    Catalog file. Can be the ascii file ending in .txt or the XML file from SoFiA-2.
+catalog_file:                 #'-c' or '--catalog'    Catalog file. Can be the ascii file ending in .txt or the XML file from SoFiA-2.
 
 source_id:                    #'-id' or '--source-id'   Select certain sources, or range of sources from catalog based on the source id number. Default is all sources. Include `0` to make summary image of all sources.
 output_image_file_type: 'png' #'-x' or '--suffix'    Output image file type. Any file type accepted by plt.savefig() is in theory valid.  Default is 'png'.

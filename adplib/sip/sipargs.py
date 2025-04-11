@@ -2,9 +2,12 @@ from pathlib import Path
 import yaml
 import subprocess
 import sys
+from traceback import format_exc
+from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 
 
 # Logger:
+import logging
 from adplib.logger import Logger
 logger = Logger.get_logger()
 
@@ -65,11 +68,13 @@ class SiPar(dict):
             sip_file_path = script_dir / "sip_args.yaml"
 
             if not sip_file_path.exists():
-                raise FileNotFoundError(
-                    f"Sip arguments file {sip_file_path} not found. Checked if the "
-                    "'tap/download_par.yaml' have been deleted or the structure have changed. "
-                    "See README for furhter details"
+                error_msg = (
+                    "No SIP configuration file was provided and the default configuration file "
+                    f"{sip_file_path} could not be found. Provide a valid SIP configuration "
+                    "file or check if you have deleted or moved the default file."
                 )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise FileNotFoundError(error_msg)
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
@@ -77,14 +82,18 @@ class SiPar(dict):
             sip_file_path = Path(sip_file_path)
 
             if not sip_file_path.exists():
-                raise FileNotFoundError(f"Sip arguments file {sip_file_path} not found.")
+                error_msg = f"Sip arguments file {sip_file_path} not found."
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise FileNotFoundError(error_msg)
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
         else:
-            raise FileNotFoundError(
+            error_msg = (
                 f"Critial error. Something with the Sip file path or the Sip file went wrong"
             )
+            Logger.log_to_file(logging.ERROR, error_msg)
+            raise FileNotFoundError(error_msg)
             
         with open(sip_file_path, 'r') as f:
             sip_args_dict = yaml.safe_load(f)
@@ -136,13 +145,19 @@ class SiPar(dict):
             if hasattr(self, param):
                 value = getattr(self, param)
                 if not isinstance(value, expected_type):
-                    raise ValueError(
+                    error_msg = (
                         f"The parameter '{param}' in the sip_args.yaml file must be of "
                         f"type {expected_type}, but is of type {type(value)}."
                     )
+                    Logger.log_to_file(logging.ERROR, error_msg)
+                    raise ValueError(error_msg)
             else:
-                raise ValueError(f"The required parameter '{param}' is not defined in the"
-                                 " sip_args.yaml file.")
+                error_msg = (
+                    f"The required parameter '{param}' is not defined in the"
+                    " sip_args.yaml file."
+                )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
 
 
         #Valido específicamente catalog_file
@@ -193,28 +208,35 @@ class SiPar(dict):
             else:
                 #Si no hay en sip_args.yaml y no hay sargs
                 if self.catalog_file is None and not self.sargs:
-                    raise ValueError(
-                            "The parameter 'catalog_file'  must be set via the corresponding "
-                            " parameter in 'sip_args.yaml' or via terminal using the -sarg argument "
-                            "if the parameter 'enable_sofia' in the 'config.yaml' has set False"
-                        )
+                    error_msg = (
+                        "The parameter 'catalog_file' must be set via the corresponding "
+                        " parameter in 'sip_args.yaml' or via terminal using the -sarg argument."
+                    )
+                    Logger.log_to_file(logging.ERROR, error_msg)
+                    raise ValueError(error_msg)
+                
                 #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
                 elif self.catalog_file is None and self.sargs:
                     if (('-c' or '--catalog') not in self.sargs.keys()):
-                        raise ValueError(
+                        error_msg = (
                             "The parameter 'catalog_file'  must be set via the corresponding "
-                            " parameter in 'sip_args.yaml' or via terminal using the -sarg argument "
-                            "if the parameter 'enable_sofia' in the 'config.yaml' has set False"
+                            " parameter in 'sip_args.yaml' or via terminal using the -sarg argument."
                         )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+                    
                 #Si hay en archivo, debo comprobar que sea correcto en longitud.
                 elif self.catalog_file is not None:
                     catalog_list = self.catalog_file
                     if isinstance(catalog_list, list) and len(self.number_list) != len(catalog_list):
-                        raise ValueError(
+                        error_msg = (
                             f"The number of catalogs provided in 'catalog_file' parameter is "
                             " different from the number of datasets. There must be one "
                             "catalog per dataset."
                         )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+                    
                     elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
                         setattr(self, 'catalog_file', catalog_list[self.number])
                     else:
@@ -225,6 +247,7 @@ class SiPar(dict):
                         "account and may be misleading. Please open an issue on "
                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                     )
+                    raise
 
 
         # Valido valores permitidos
@@ -233,26 +256,33 @@ class SiPar(dict):
                 value = getattr(self, param)
                 
                 if value not in valid_values_list:
-                    raise ValueError(
+                    error_msg = (
                         f"The parameter '{param}' must have one of the following values:"
                         f" {valid_values_list}. Value provided: '{value}'."
                     )
+                    Logger.log_to_file(logging.ERROR, error_msg)
+                    raise ValueError(error_msg)
 
         # Valido parámetros que solo admiten listas con una cierta longitud
         if hasattr(self, 'snr_range') and getattr(self, 'snr_range') is not None:
             snr_range = getattr(self, 'snr_range')
             if not (isinstance(snr_range, list) and len(snr_range) == 2):
-                raise ValueError(
-                    f"The 'snr_range' parameter must be a list of two values."
-                    " Provided value: {snr_range}."
-                )
+                error_msg = (
+                        f"The 'snr_range' parameter must be a list of two values."
+                        " Provided value: {snr_range}."
+                    )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
+                
         if hasattr(self, 'percentile_range') and getattr(self, 'snr_range') is not None:
             percentile_range = getattr(self, 'percentile_range')
             if not (isinstance(percentile_range, list) and len(percentile_range) == 2):
-                raise ValueError(
+                error_msg = (
                     f"The 'percentile_range' parameter must be a list of two values."
                      " Provided value: {percentile_range}."
                 )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
 
         #logger.info("All parameters are valid.")
 
@@ -307,11 +337,13 @@ class SiPar(dict):
                            and self.catalog_file is None
                         ):
                             if len(self.number_list) != len(value):
-                                raise ValueError(
+                                error_msg = (
                                     f"The number of catalogs provided in 'catalog_list' is "
                                     "different from the number of datasets. There must be "
                                     "one catalog per dataset."
                                 )
+                                Logger.log_to_file(logging.ERROR, error_msg)
+                                raise ValueError(error_msg)
                             else:
                                 setattr(self, matched_attr, value[self.number])
                                 continue
@@ -509,43 +541,61 @@ class SiPar(dict):
 
         existing_files = [file for file in [sofia_catalog_txt, sofia_catalog_xml] if file.exists()]
         if existing_files:
+            logger.info(
+                "Valid catalog from previous runs found for the dataset. Catalog: "
+                f"{existing_files[0]}"
+            )
             return existing_files[0]  
         else:
             logger.warning(
-                f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory. "
+                f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory "
+                "from previous runs."
             )
             #Si no hay en sip_args.yaml y no hay sargs
             if self.catalog_file is None and not self.sargs:
-                raise ValueError(
+                error_msg = (
                     "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or via "
                     "the '-sarg|--sip-arguments'. Aborting SIP..."
                 )
+                logger.error(f"ValueError: {error_msg}")
+                raise RecoverableValueError(error_msg)
+                
             #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
             elif self.catalog_file is None and self.sargs:
                 if (('-c' or '--catalog') not in self.sargs.keys()):
-                    raise ValueError(
+                    error_msg = (
                         "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or "
                         "via the '-sarg|--sip-arguments'. Aborting SIP..."
                     )
+                    logger.error(f"ValueError: {error_msg}")
+                    raise RecoverableValueError(error_msg)
+                
             #Si hay en archivo, debo comprobar que sea correcto en longitud.
             elif self.catalog_file is not None:
                 catalog_list = self.catalog_file
                 if isinstance(catalog_list, list) and len(self.number_list) != len(catalog_list):
-                    raise ValueError(
+                    error_msg = (
                         f"The number of catalogs provided in 'catalog_file' parameter is "
                         " different from the number of datasets. There must be one "
                         "catalog per dataset."
                     )
+                    logger.error(f"ValueError: {error_msg}")
+                    raise RecoverableValueError(error_msg)
+                
                 elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
+                    logger.info(
+                        f"Valid 'catalog_file' parameter found in 'sip_args.yaml'."
+                    )
                     return catalog_list[self.number]
                 else:
                     pass
             else:
-                logger.error(
+                logger.critical(
                     "You have found a case that has not been taken into "
                     "account and may be misleading. Please open an issue on "
                     "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                 )
+                raise
         
 
     
