@@ -1,5 +1,6 @@
 import logging
 import os
+import inspect
 from pathlib import Path
 from datetime import datetime
 from logging.handlers import QueueHandler
@@ -142,7 +143,7 @@ class Logger:
     
     @classmethod
     def raw(cls, message):
-        """Adds a plain message to the terminal"""
+        """Adds a raw message to the terminal"""
         if cls._logger_instance is not None:
             for handler in cls._logger_instance.handlers:
                 if isinstance(handler, logging.StreamHandler) or isinstance(handler, logging.FileHandler):  
@@ -158,11 +159,35 @@ class Logger:
                     handler.stream.write(message + "\n")
                     handler.flush()
 
+
+    @classmethod
+    def log_to_file(cls, level, message):
+        """
+        Registra un mensaje exclusivamente en el archivo de log con el formato habitual.
+        """
+        if cls._logger_instance is not None:
+            frame = inspect.currentframe().f_back
+            module_name = frame.f_globals.get("__name__", "Unknown module")
+            #Solo el nombre del archivo no el modulo completo
+            module_name = os.path.basename(module_name.split(".")[-1])
+
+            record = cls._logger_instance.makeRecord(
+                cls._logger_instance.name, 
+                level, fn=None, lno=0, msg=message, args=None, 
+                exc_info=None
+            )
+            record.module = module_name
+
+            for handler in cls._logger_instance.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    handler.handle(record)
+                    handler.flush()
+
+
     @classmethod
     def get_log_filename(cls):
         """Returns the name of the associated log file."""
         if cls._log_path:
             return cls._log_path.resolve()
         return None
-
 
