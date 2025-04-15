@@ -802,6 +802,7 @@ class SoPar(dict):
 
         for par in SOFIA_PARAMETER:
             par_underscore = par.replace(".", "_") 
+            
             if hasattr(self, par_underscore):
                 Logger.raw_file(f"[{self.pid}]{par}={getattr(self, par_underscore)}")
             else:
