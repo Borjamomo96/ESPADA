@@ -38,7 +38,7 @@ download_par_file:
 #     SOFIA     #
 #################
 
-enable_sofia : True
+enable_sofia : False
 run_mode: 'emission' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False

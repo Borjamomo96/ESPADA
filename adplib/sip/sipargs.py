@@ -159,7 +159,7 @@ class SiPar(dict):
                 raise ValueError(error_msg)
 
 
-        #Valido específicamente catalog_file
+        #-----------------catalog_file---------------------# 
         if self.adpalmap_config.enable_sofia:
             if self.catalog_file is not None:
                 logger.warning(
@@ -247,6 +247,7 @@ class SiPar(dict):
                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                     )
                     raise
+        #--------------------------------------------------# 
 
 
         # Valido valores permitidos
@@ -268,17 +269,17 @@ class SiPar(dict):
             if not (isinstance(snr_range, list) and len(snr_range) == 2):
                 error_msg = (
                         f"The 'snr_range' parameter must be a list of two values."
-                        " Provided value: {snr_range}."
+                        f" Provided value: {snr_range}."
                     )
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise ValueError(error_msg)
                 
-        if hasattr(self, 'percentile_range') and getattr(self, 'snr_range') is not None:
+        if hasattr(self, 'percentile_range') and getattr(self, 'percentile_range') is not None:
             percentile_range = getattr(self, 'percentile_range')
             if not (isinstance(percentile_range, list) and len(percentile_range) == 2):
                 error_msg = (
                     f"The 'percentile_range' parameter must be a list of two values."
-                     " Provided value: {percentile_range}."
+                    f" Provided value: {percentile_range}."
                 )
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise ValueError(error_msg)
@@ -501,14 +502,32 @@ class SiPar(dict):
 
             if attr_name == "combo":  # Special case for the 'combo' attribute
                 value = getattr(self, attr_name, None)
-                if value is True:  # If True, add only '-m'
+                if value:  # If True, add only '-m'
                     cmd.append(shortcut[0])
                 elif isinstance(value, str):  # If a string (path), add '-m' followed by the value
                     cmd.append(shortcut[0])
                     cmd.append(value)
-                continue  #Skip further processing for 'combo'
+                continue  #Skip further processing for 'combo
 
-            if hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
+            elif attr_name in {
+                "snr_range", "surveys_list", "percentile_range"
+                } and getattr(self, attr_name) is not None:
+                
+                cmd.append(shortcut[0])
+                for value in getattr(self, attr_name):
+                    cmd.append(str(value))
+
+            elif attr_name == "source_id" and getattr(self, attr_name) is not None:
+                cmd.append(shortcut[0])
+                attr_value = getattr(self, attr_name)
+                if isinstance(attr_value, list):
+                    for value in attr_value:
+                        cmd.append(str(value))
+                else:
+                    cmd.append(shortcut[0])  
+                    cmd.append(str(attr_value))  
+
+            elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  
                 cmd.append(str(getattr(self, attr_name))) 
 
