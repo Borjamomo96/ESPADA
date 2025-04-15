@@ -103,7 +103,6 @@ class SiPar(dict):
             setattr(self, k, v)
 
 
-
     def check_sip_args(self):
         """
         Validate the attributes for the SiPar class readed from the SIP arguments file.

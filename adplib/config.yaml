@@ -5,7 +5,7 @@
 ###############
 
 quality_assesment: True
-capture_outputs: False
+capture_outputs: True
 num_cores: 12
 
 ################
@@ -22,8 +22,8 @@ log_file: log_dir/adpalmap.log
 input_data_set: #/home/usuario/ALMA_ADPPipeline/test_directories/test253_spw3.fits
     #1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
     #2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
-    #3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
-    #4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
+    3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
+    4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
 
 input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 
@@ -31,14 +31,14 @@ input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: True
+enable_tap_service: False
 download_par_file: 
 
 #################
 #     SOFIA     #
 #################
 
-enable_sofia : False
+enable_sofia : True
 run_mode: 'emission' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False

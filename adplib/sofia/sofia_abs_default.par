@@ -131,7 +131,7 @@ dilation.threshold         =  0.001
 
 parameter.enable           =  true
 parameter.wcs              =  true
-parameter.physical         =  false
+parameter.physical         =  true
 parameter.prefix           =  SoFiA
 parameter.offset           =  false
 

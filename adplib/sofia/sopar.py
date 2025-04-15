@@ -15,6 +15,97 @@ from adplib.logger import Logger
 logger= Logger.get_logger()
 
 
+SOFIA_PARAMETER = [
+    "pipeline.verbose",
+    "pipeline.pedantic",
+    "pipeline.threads",
+    "input.data",
+    "input.primaryBeam",
+    "input.region",
+    "input.gain",
+    "input.noise",
+    "input.weights",
+    "input.mask",
+    "input.invert",
+    "flag.region",
+    "flag.catalog",
+    "flag.radius",
+    "flag.auto",
+    "flag.threshold",
+    "flag.log",
+    "flag.cube",
+    "contsub.enable",
+    "contsub.order",
+    "contsub.threshold",
+    "contsub.shift",
+    "contsub.padding",
+    "scaleNoise.enable",
+    "scaleNoise.mode",
+    "scaleNoise.statistic",
+    "scaleNoise.fluxRange",
+    "scaleNoise.windowXY",
+    "scaleNoise.windowZ",
+    "scaleNoise.gridXY",
+    "scaleNoise.gridZ",
+    "scaleNoise.interpolate",
+    "scaleNoise.scfind",
+    "rippleFilter.enable",
+    "rippleFilter.statistic",
+    "rippleFilter.windowXY",
+    "rippleFilter.windowZ",
+    "rippleFilter.gridXY",
+    "rippleFilter.gridZ",
+    "rippleFilter.interpolate",
+    "scfind.enable",
+    "scfind.kernelsXY",
+    "scfind.kernelsZ",
+    "scfind.threshold",
+    "scfind.replacement",
+    "scfind.statistic",
+    "scfind.fluxRange",
+    "threshold.enable",
+    "threshold.threshold",
+    "threshold.mode",
+    "threshold.statistic",
+    "threshold.fluxRange",
+    "linker.enable",
+    "linker.radiusXY",
+    "linker.radiusZ",
+    "linker.minSizeXY",
+    "linker.minSizeZ",
+    "linker.maxSizeXY",
+    "linker.maxSizeZ",
+    "linker.minPixels",
+    "linker.maxPixels",
+    "linker.minFill",
+    "linker.maxFill",
+    "linker.positivity",
+    "linker.keepNegative",
+    "reliability.enable",
+    "reliability.parameters",
+    "reliability.threshold",
+    "reliability.scaleKernel",
+    "reliability.minSNR",
+    "reliability.minPixels",
+    "reliability.autoKernel",
+    "reliability.iterations",
+    "reliability.tolerance",
+    "reliability.catalog",
+    "reliability.plot",
+    "reliability.plotExtra",
+    "reliability.debug",
+    "dilation.enable",
+    "dilation.iterationsXY",
+    "dilation.iterationsZ",
+    "dilation.threshold",
+    "parameter.enable",
+    "parameter.wcs",
+    "parameter.physical",
+    "parameter.prefix",
+    "parameter.offset",
+    "output.directory",
+    "output.file"
+]
 
 
 def moment8_ima(adpalmap_sopar):
@@ -256,10 +347,16 @@ class SoPar(dict):
         ----------
         None: Updates the attributes of the SoPar object directly.
         """
-
+        
         logger.info(f"Reading parameters. Mode: {self.sopar_mode}.")
         
         #El parámetro input.data se gestiona antes en la función principal.
+        if hasattr(self, 'input_data') and getattr(self, 'input_data') is not None:
+            logger.warning(
+                f"Ignoring parameter 'input.data' provided in the parameter file. If you want to "
+                "change this, specify it in the input_data_set or input_data_file parameter in "
+                "the configuration file."
+            )
         self.input_data = input_data
         
         #------------------pipeline.threads----------------------#
@@ -327,8 +424,7 @@ class SoPar(dict):
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
-        if primary_beam is not None:         
-
+        if not primary_beam:      
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
                     and sop_par['input.primaryBeam'] is not None):
@@ -336,7 +432,9 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['input.primaryBeam']}' for the  'input.primaryBeam "
                     "parameter provided in vía '-sop' comand."
                 )
-            if self.input_primaryBeam is not None and self.input_primaryBeam != "":
+            if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
+               is not None and self.input_primaryBeam != ""
+            ):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
@@ -361,9 +459,11 @@ class SoPar(dict):
                 normalized_key = key.replace('.', '_')
 
                 if key in {"input.data"}:
-                    logger.warning(f"Ignoring parameter '{key}={value}' provided via -sop. If you "
-                                   "want to change this, specify it in the input_data parameter in"
-                                   " the config.yaml file.")
+                    logger.warning(
+                        f"Ignoring parameter '{key}={value}' provided via -sop. If you "
+                        "want to change this, specify it in the input_data_set or " \
+                        "input_datafile parameter in the configuration file."
+                    )
                     continue
                 if key in {"output.directory", "input.invert"}: continue
 
@@ -519,9 +619,7 @@ class SoPar(dict):
         elif (mode is not None and mode=='emission'):
 
             self.output_directory = Path(f'{self.output_directory}_emission')
-            print(Path(self.output_directory))
             if not os.path.exists(Path(self.output_directory)):
-                print("Nodebería entrar")
                 os.makedirs(Path(self.output_directory))
             else:
                 logger.warning(f"The {Path(self.output_directory)} directory already exists."
@@ -679,6 +777,10 @@ class SoPar(dict):
                     key_transformed = key.replace("_", ".")
                     tf.write(f"{key_transformed}={value}\n")
 
+        logger.info(
+            "Creating temporary SoFiA parameter file based on the parameter file "
+            f"{temp_file_path}."
+            )
         return str(temp_file_path)
                 
 
@@ -697,16 +799,14 @@ class SoPar(dict):
         """
 
         logger.info("Parameters set for the run: \n")
-        for key, value in self.__dict__.items():
-            # Excluye estos atributos
-            if key not in {"sofia_file_path", 
-                           "path", 
-                           "base_output_directory",
-                           "sopar_mode",
-                           "pid"
-                           }:  
-                key_transformed = key.replace("_", ".")
-                Logger.raw_file(f"[{self.pid}]{key_transformed}={value}")
+
+        for par in SOFIA_PARAMETER:
+            par_underscore = par.replace(".", "_") 
+            if hasattr(self, par_underscore):
+                Logger.raw_file(f"[{self.pid}]{par}={getattr(self, par_underscore)}")
+            else:
+                Logger.raw_file(f"[{self.pid}]{par}= ")
+
 
 
     def quality_assesment(self, mask_file=None):

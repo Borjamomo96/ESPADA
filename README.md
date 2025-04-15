@@ -29,12 +29,11 @@ _Alternatively (not recommended option, under user responsibility)_: the corresp
 
 ## Installation
 
+**DISCLAIMER**: The steps provided here are RECOMMENDATION only, there may be other ways to install ADP Alma Pipeline that will also work.
+
 We recommend installing ADP Alma pipeline in an isolated environment as described below. 
 
-**Note**: ADPALMAP requires Python 3.10 or later. You can check your Python version with python --version. If you have a compatible version, you can skip this step.
-
-
-If you don't have Python 3.10 or later, you can install pyenv and pyenv-virtualenv, which will manage python versions for you. You can use the automatic installer pyenv-installer:
+ADPALMAP requires Python 3.10 or later, If you don't have Python 3.10 or later, you can install pyenv and pyenv-virtualenv, which will manage python versions for you. You can use the automatic installer pyenv-installer:
 
 ```
     $ curl https://pyenv.run | bash
@@ -50,8 +49,6 @@ Follow the instructions that this command outputs to add pyenv to PATH (or copy 
 
 Now you will have a virtual environment with the right Python version, and you can continue with the next step. To deactivate, just run `pyenv deactivate`.
 
-**Note**: Within this enviroment you need to be able o run SoFiA and SIP using the previously mentioned commands.
-
 With the environment activated, download this repository and install ADPALMAP:
 ```
   $ git clone https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git
@@ -60,26 +57,29 @@ With the environment activated, download this repository and install ADPALMAP:
 ```
 This will install it in developer mode, alternatively you can simply install it with `pip install .`.
 
+As mentioned, ADPALMAP uses the external software SoFiA2 and SIP, which must be able to run within the newly created environment by issuing the commands `sofia` and `sofia_image_pipeline`, respectively, in the terminal. See "Requirements" for details.
+
+
 ## Running ADPAlmaP
 
 If you have followed the instructions mentioned above, you can now run the pipeline as if it were a module with the command:
 ```
-$adpalmap
+$ adpalmap
 ```
 If, on the other hand, you have followed an alternative path and it is not yet a module, the pipeline can be run as a script:
 
 ```
-$python adpalmap.py
+$ python adpalmap.py
 ```
 From now on, it will be assumed that it will be run as a module.
 
 The pipeline runs using a configuration file named *config.yaml*, which is explained in detail in the next section. Unless otherwise specified, the pipeline will attempt to use the 'config.yaml' file that is found by default when cloning the repository. If this file is moved to another directory or a different one is to be used, an equivalent file must be specified per terminal using the '-c|--config-file' argument:
 ```
-adpalmap -c config_example.yaml
+$ adpalmap -c config_example.yaml
 ```
-The pipeline also has two other arguments, '-sop|sofia-parameters' and 'sarg|sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if they were run in isolation, respectively. The following sections provide more details about their usage. Example:
+The pipeline also has two other arguments, '-sop|--sofia-parameters' and '-sarg|--sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if they were run in isolation, respectively. The following sections provide more details about their usage. Example:
 ```
-adpalmap -sop contsub.threshold=3.0 linker.radiusXY=3 -sarg -i 0.15
+$ adpalmap -sop contsub.threshold=3.0 linker.radiusXY=3 -sarg -i 0.15
 
 ```
 
@@ -137,7 +137,11 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   - `input_file`: Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of the data sets on which to run the pipeline.
   Type `<str>`. 
 
-    Within the text file, the required format for each of the lines is: key : Path. The rules for entering data sets are the same as those above for the case of <str>. In this case, 'lists' are not allowed, that is, the use of [] because they will not be understood as such, but rather as a string and will result in an error.
+    The required format for each line within the file is the same as for 'input_data_set', with the exception of the use of '[ ]'. The latter is not allowed, since when reading the file, the pipeline will not identify it as a Python 'list' but rather as a character within the filename, which will generate an error. Example of how lines should be entered into the file:
+
+    1 : data.fits pb.fits mask.fits  
+    2 : data1.fits pb1.fits mask1.fits  
+    3 : data2.fits pb2.fits mask2.fits
 
 ###  **LOGGER**:
   - `log_file`: Name of the file where logger messages should be saved. Type `<str>`. Example: "adpalmap.log".
@@ -156,6 +160,8 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   - `auto_setup`: If `True`, adjusts certain SoFiA parameters based on specific keywords found in data cube headers. Type `<bool>`.
   - `sofia_abs_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for absorptions. Type `<str>`.
   - `sofia_emi_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for emissions. Type `<str>`.
+
+    **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the specific process where SoFiA2 is running.
 
     **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
     - **'input.data'**: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded via 'download_par.yaml'. A warning will indicate that it is being ignored.
