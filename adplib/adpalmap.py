@@ -521,7 +521,7 @@ def main():
         sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
         #--------------------------------------------------------------------------------------------#
-        sys.exit(-1)
+        
         #--------------------------------------------------------------------------------------------#
 
         with ProcessPoolExecutor(max_workers=max_workers) as pool:
