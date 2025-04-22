@@ -93,6 +93,7 @@ def sipargs_to_dict(args_list):
 
 
 def reorganize_log(log_path):
+    
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -146,7 +147,10 @@ def reorganize_log(log_path):
 
         sorted_lines.extend(main_final)
 
-        with open(log_path, 'w', encoding='utf-8') as f:
+        sorted_log = log_path.name.replace("raw_", "", 1)
+        sorted_log_path = log_path.with_name(sorted_log)
+
+        with open(sorted_log_path, 'w', encoding='utf-8') as f:
             f.writelines(sorted_lines)
             
     except Exception as e:
@@ -517,7 +521,7 @@ def main():
         sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
         #--------------------------------------------------------------------------------------------#
-    
+        sys.exit(-1)
         #--------------------------------------------------------------------------------------------#
 
         with ProcessPoolExecutor(max_workers=max_workers) as pool:

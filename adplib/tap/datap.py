@@ -250,7 +250,6 @@ class datap(dict):
             logger.error("No data to download. Check the input DataFrame.")
             sys.exit(-1)
 
-
         if self.download_par['data_dir'] is None:
             #La función alma.cache_location ya crea el directorio con el nombre en cuestión. 
             self.alma.cache_location = default_location
@@ -261,12 +260,16 @@ class datap(dict):
                 logger.warning(f"The directory '{self.download_par['data_dir']}' already exits."
                                " The data from the archive wiil be storaged in this directory.")
                 self.alma.cache_location = self.download_par['data_dir']
-
+        
+    
         #Fits only and phrase within the file to download
         if self.download_par['fitsonly']:
+            
             data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
+            
             # filter the data_table and keep only rows with "fits" in 'access_url' and the strings 
             # provided by user in 'filename_must_include' parameter
+            
             if self.download_par['include_pb']:
                 dl_table = data_table[
                     [i for i, v in enumerate(data_table['access_url'])
@@ -295,7 +298,7 @@ class datap(dict):
                     [i for i, v in enumerate(data_table['access_url'])
                     if all(fmi in v for fmi in self.download_par['filename_must_include'])]
                 ]
-
+        
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
         dl_df = dl_df.loc[dl_df.access_url != '']
@@ -333,8 +336,9 @@ class datap(dict):
 
             
             if self.download_par['print_urls']:
-                logger.info("File URLs to download: \n" 
-                           "{}".format("\n".join(dl_link_list)))
+                logger.info("File URLs to download: ")
+                for url in dl_link_list:
+                    Logger.raw(f"{url}") 
                 
         else:
             logger.warning("Nothing to download.")
@@ -891,14 +895,15 @@ class datap(dict):
         keysearch : Query the ALMA archive for any (string-type) keywords defined in ALMA TAP system.
 
         """
-        if isinstance(self.query_par['sources'], str):
-            sources = [self.query_par['sources']]
+        """if isinstance(self.query_par['sources'], str):
+            sources = [self.query_par['sources']]"""
+        
         print("================================")
         print("adpalmap.target results ")
         print("================================")
         complete_results = []
         # go through list of sources provided by user and add query results to a list
-        for s in sources:
+        for s in self.query_par['sources']:
             print("Target = {}".format(s))
             try:
                 # Get source coodinates from astropy SESAME resolver querying multiple databases 

@@ -73,7 +73,7 @@ class Logger:
             timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
             
             original_path = Path(log_path)
-            new_stem = f"{original_path.stem}_{timestamp}"
+            new_stem = f"raw_{original_path.stem}_{timestamp}"
             log_path = original_path.with_name(new_stem).with_suffix(original_path.suffix)
             
             # Limpiar el archivo de logs si es necesario
@@ -81,8 +81,10 @@ class Logger:
             if clear_logs:
                 # Elimino todos los logs antiguos del mismo tipo
                 log_dir = log_path.parent
-                base_name = original_path.stem.split('_')[0]  
-                pattern = f"{base_name}_*{original_path.suffix}"
+                #base_name = original_path.stem.split('_')[0]  
+                #{base_name}_
+                pattern = f"*{original_path.suffix}"
+                
                 
                 for old_log in log_dir.glob(pattern):
                     if old_log != log_path:  # No borro el nuevo

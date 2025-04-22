@@ -1,7 +1,7 @@
 
 # ADP ALMA Pipeline
 
-ADPAlmaP is a wrapper for the software (ALminer, SoFiA2 and SIP) designed to obtain advanced ALMA data products.
+ADP Alma Pipeline (ADPALMAP) is a wrapper for the software (ALminer, SoFiA2 and SIP) designed to obtain advanced ALMA data products.
 
 ## Requirements
 
@@ -29,9 +29,9 @@ _Alternatively (not recommended option, under user responsibility)_: the corresp
 
 ## Installation
 
-**DISCLAIMER**: The steps provided here are RECOMMENDATION only, there may be other ways to install ADP Alma Pipeline that will also work.
+**DISCLAIMER**: The steps provided here are RECOMMENDATION only, there may be other ways to install ADPALMAP that will also work.
 
-We recommend installing ADP Alma pipeline in an isolated environment as described below. 
+We recommend installing ADPALMAP in an isolated environment as described below. 
 
 ADPALMAP requires Python 3.10 or later, If you don't have Python 3.10 or later, you can install pyenv and pyenv-virtualenv, which will manage python versions for you. You can use the automatic installer pyenv-installer:
 
@@ -200,29 +200,67 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 ---
 
 ### **QUERY**:
-- `'query_type'`: Requesting data from the archive is done through what is known as a Query, which uses ADQL language. To simplify usage, there are predefined query types: `'proposal'`, `'conesearch'`, `'target'`, `'keysearch'`, and `'free'`. Each requires specific parameters:
+
+Requesting data from the archive is done through what is known as a Query, which uses ADQL language. Since we assume this language is not commonly used in the community, we have predefined certain types of queries to simplify its use. To do this, we have extracted part of the external software ALminer and included it within ADPALMAP.
+
+Each query consists of two essential parts: the query type, indicated with the `'query_type'` parameter, and the parameters used for this query, indicated within the `'query_par'` parameter.
+Within `query_par`, there are two types of parameters: essential and specific to each query type, which are included and commented out in the default *download_par.yaml* file included in the repository; and the parameters common to all types, which appear below.
+
+- `'query_type'`: The available predefined types are: `'proposal'`, `'conesearch'`, `'target'`, `'keysearch'`, and `'free'`. The specific parameters for each type of query are listed below:
   - `'proposal'`:
-    - **proposal_id**. Type `<str>`.
+    - **proposal_id**: Type `<str>`.
   - `'conesearch'`:
-    - **ra**. Type `<float>`.
-    - **dec**. Type `<float>`.
-    - **search_radius'`. Type `<float>`.
+    - **ra**: Type `<float>`.
+    - **dec**: Type `<float>`.
+    - **search_radius**: Type `<float>`.
   - `'target'`:
     - **sources**. Type `<str>`.
-    - **search_radius**. Type `<float>`.
+    - **search_radius**: Type `<float>`.
   - `'keysearch'`:
-    - **search_dict**. Type `<dict>`. Example: *{"proposal_abstract": ["high-mass star formation outflow disk"]}*.
+    - **search_dict**: Type `<dict>`.
   - `'free'`:
-    - **query_str**. Type `<str>`. This option is for more advanced users familiar with ADQL language who can write their own queries. Example:  
-      *"SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"*
+    - **query_str**: Type `<str>`. This option is for more advanced users familiar with ADQL language who can write their own queries.  
+
+**NOTE**: To use parameters specific to a specific query type, make sure that the other specific parameters are not included. For convenience and to avoid possible future oversights, it is recommended to simply comment them out.
 
 In addition to specific parameters for each query type, certain common parameters are required:
-  - `'point'`. Type `<bool>`.
-  - `'public'`. Type `<bool>`.
-  - `'published'`. Type `<bool>`.
-  - `'print_targets'`. Type `<bool>`.
-  - `'print_query'`. Type `<bool>`.
+  - `common parameters`:
+    - **point**: Type `<bool>`.
+    - **public**: Type `<bool>`.
+    - **published**: Type `<bool>`.
+    - **print_targets**: Type `<bool>`.
+    - **print_query**: Type `<bool>`.
 
+Examples:
+```yaml
+query_type: 'proposal'   
+query_par: 
+  proposal_id: '2016.1.00778.S'   
+  point: False   
+  public: True  
+  published: None  
+  print_targets: True   
+  print_query: True  
+```
+
+```yaml
+query_type: 'target'
+query_par:
+  sources: ['V605 Aql']
+  search_radius: 2.
+```
+
+```yaml
+query_type: 'keysearch'
+query_par:
+  search_dict: {'target_name':['G31.41'], 'proposal_id': ['2018']}
+```
+
+```yaml
+query_type: 'free'   
+query_par: 
+  query_str: *"SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"*
+```
 ---
 
 ### **PARAMETERS**:
