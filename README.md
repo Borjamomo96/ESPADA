@@ -248,18 +248,33 @@ query_type: 'target'
 query_par:
   sources: ['V605 Aql']
   search_radius: 2.
+  point: False   
+  public: True  
+  published: None  
+  print_targets: True   
+  print_query: True 
 ```
 
 ```yaml
 query_type: 'keysearch'
 query_par:
   search_dict: {'target_name':['G31.41'], 'proposal_id': ['2018']}
+  point: False   
+  public: True  
+  published: None  
+  print_targets: True   
+  print_query: True 
 ```
 
 ```yaml
 query_type: 'free'   
 query_par: 
   query_str: *"SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"*
+    point: False   
+    public: True  
+    published: None  
+    print_targets: True   
+    print_query: True 
 ```
 ---
 
