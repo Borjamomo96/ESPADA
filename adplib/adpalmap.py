@@ -469,7 +469,7 @@ def main():
 
         number_list = list(range(len(data_pack_list)))
         #--------------------------------------------------------------------------------------------#
-
+        
         #--------------------------------------------------------------------------------------------#
 
         '''#Número máx de cores dinámico
@@ -513,7 +513,7 @@ def main():
         else:
             max_cores = cpu_cores
 
-        reserved_cores = 1
+        reserved_cores = 0
         available_cores = max_cores - reserved_cores 
 
         max_workers = calculate_workers(data_pack_list, available_cores)

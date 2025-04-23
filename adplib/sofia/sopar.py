@@ -603,7 +603,7 @@ class SoPar(dict):
                     cmd,
                     text=True,
                     check=True,
-                    capture_output=adpalmap_config.capture_outputs
+                    capture_output=not adpalmap_config.verbose
                 )
                 Logger.raw("================================")
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
@@ -637,7 +637,7 @@ class SoPar(dict):
                     cmd, 
                     text=True, 
                     check=True, 
-                    capture_output=adpalmap_config.capture_outputs
+                    capture_output=not adpalmap_config.verbose
                 ) 
 
                 Logger.raw("================================")
@@ -674,7 +674,7 @@ class SoPar(dict):
                         cmd, 
                         text=True, 
                         check=True, 
-                        capture_output=adpalmap_config.capture_outputs
+                        capture_output=not adpalmap_config.verbose
                         ) 
 
                     Logger.raw("================================")
@@ -727,7 +727,7 @@ class SoPar(dict):
                         cmd, 
                         text=True, 
                         check=True, 
-                        capture_output=adpalmap_config.capture_outputs
+                        capture_output=not adpalmap_config.verbose
                         ) 
 
                     Logger.raw("================================")

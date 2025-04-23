@@ -197,7 +197,7 @@ class Config(dict):
         #Tipos esperados en los parámetros
         expected_types = {
             'quality_assesment': bool,
-            'capture_outputs': bool,
+            'verbose': bool,
             'num_cores': int | None,
             'input_data_set': str | list | dict | None,
             'input_file': str | None,
@@ -218,7 +218,7 @@ class Config(dict):
         #Los parámetros obligatorios, hasta la fecha
         required_params = [
             'quality_assesment',
-            'capture_outputs',
+            'verbose',
             'num_cores',
             'input_data_set',
             'input_file', 

@@ -5,7 +5,7 @@
 ###############
 
 quality_assesment: True
-capture_outputs: True
+verbose: True
 num_cores: 12
 
 ################
@@ -20,10 +20,10 @@ log_file: log_dir/adpalmap.log
 ##################
 
 input_data_set: #/home/usuario/ALMA_ADPPipeline/test_directories/test253_spw3.fits
-    #1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
-    #2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
-    3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
-    4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
+    1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
+    2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
+    #3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
+    #4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
 
 input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 
@@ -38,8 +38,8 @@ download_par_file:
 #     SOFIA     #
 #################
 
-enable_sofia : False
-run_mode: 'emission' #'both', 'absorption'
+enable_sofia : True
+run_mode: 'both' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False
 sofia_abs_file : /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_abs_default.par

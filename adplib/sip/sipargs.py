@@ -191,16 +191,17 @@ class SiPar(dict):
                     )
 
                 elif self.adpalmap_config.run_mode == "both":
+                    
                     emi_sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
                     emi_sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"
                     abs_sofia_catalog_txt = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.txt"
                     abs_sofia_catalog_xml = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.xml"
                     #Guardo ambos, si los hubiera 
                     self.catalog_file = [
-                        self.set_catalog(emi_sofia_catalog_txt, emi_sofia_catalog_xml, 
+                        self.set_catalog(abs_sofia_catalog_txt, abs_sofia_catalog_xml, 
                                     cwd_file/ "adpalmap_outputs_absorption"
                         ),
-                        self.set_catalog(abs_sofia_catalog_txt, abs_sofia_catalog_xml,
+                        self.set_catalog(emi_sofia_catalog_txt, emi_sofia_catalog_xml,
                                     cwd_file / "adpalmap_outputs_emission"
                         )
                     ]
@@ -418,7 +419,7 @@ class SiPar(dict):
                     #En 0 guardo el catalago de absorciones
                     self.catalog_file = self.catalog_file[0]
                 else:
-                    #En 1 guardo el catalago de absorciones
+                    #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.catalog_file[1]
 
         
@@ -438,7 +439,7 @@ class SiPar(dict):
                 cmd, 
                 text=True, 
                 check=True, 
-                capture_output=adpalmap_config.capture_outputs
+                capture_output=not adpalmap_config.verbose
                 )  
                         
             Logger.raw("================================")
@@ -471,7 +472,7 @@ class SiPar(dict):
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 
             cmd = self.make_summary(cmd)
-            subprocess.run(cmd, text=True, check=True, capture_output=adpalmap_config.capture_outputs)  
+            subprocess.run(cmd, text=True, check=True, not capture_output= not adpalmap_config.verbose)  
         except subprocess.CalledProcessError as e:
             logger.critical(f"Error running SIP making summary images: {e}")
             sys.exit(-1)'''
@@ -557,6 +558,7 @@ class SiPar(dict):
 
     def set_catalog(self, sofia_catalog_txt, sofia_catalog_xml, output_directory):
 
+
         existing_files = [file for file in [sofia_catalog_txt, sofia_catalog_xml] if file.exists()]
         if existing_files:
             logger.info(
@@ -567,7 +569,7 @@ class SiPar(dict):
         else:
             logger.warning(
                 f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory "
-                "from previous runs."
+                f"from previous runs. Catalogs searched: \n {sofia_catalog_txt} \n {sofia_catalog_xml}"
             )
             #Si no hay en sip_args.yaml y no hay sargs
             if self.catalog_file is None and not self.sargs:
