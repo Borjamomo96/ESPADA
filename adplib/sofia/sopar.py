@@ -256,6 +256,7 @@ class SoPar(dict):
             
             script_dir = Path(__file__).parent
             sofia_file_path = script_dir/'sofia_default.par'
+            self.sofia_file_path = sofia_file_path
 
             if Path(sofia_file_path).exists():
                 self.read_sofia_par_file(sofia_file_path)
@@ -850,7 +851,7 @@ class SoPar(dict):
             pass
         else:
             logger.warning(
-                "2D-Mask file from SoFia not found in {self.ouput.directory}."            
+                f"2D-Mask file from SoFia not found in {self.output_directory}."            
             )
             logger.info(" Aborting the quality assesment...")
             return

@@ -66,6 +66,7 @@ class SiPar(dict):
         if sip_file_path is None:
             script_dir = Path(__file__).parent
             sip_file_path = script_dir / "sip_args.yaml"
+            self.sip_file_path = sip_file_path
 
             if not sip_file_path.exists():
                 error_msg = (
@@ -115,7 +116,7 @@ class SiPar(dict):
         expected_types = {
             'source_id': int | list | None,
             'output_image_file_type': str | None,
-            'spec_full_range': str | None,
+            'spec_full_range': bool | str | None,
             'syn_beam_dimensions': list | None,
             'channel_width': float | None,
             'min_size': int | float | None,
@@ -527,6 +528,36 @@ class SiPar(dict):
                 else:
                     cmd.append(shortcut[0])  
                     cmd.append(str(attr_value))  
+            
+            elif attr_name == "spec_full_range" and getattr(self, attr_name) is not None:
+                attr_value =  getattr(self, attr_name)
+
+                if self.adpalmap_config.enable_sofia or self.adpalmap_config.enable_tap_service: 
+                    
+                    if isinstance(attr_value, bool) and attr_value:
+                        cmd.append(shortcut[0])
+                        cmd.append(str(self.input_data))
+                    elif isinstance(attr_value, str):
+                        cmd.append(shortcut[0]) 
+                        cmd.append(str(attr_value))  
+                    else:
+                        continue
+                else:
+                    
+                    if isinstance(attr_value, bool) and attr_value:
+                        logger.warning(
+                            f"'spec_full_range' parameter in {self.sip_file_path} "
+                            "cannot be set to True while the 'enable_sofia' and 'enable_tap' "
+                            f"parameters in the {self.adpalmap_config.config_path}. file parameter "
+                            " are set to False."
+                        )
+                    elif isinstance(attr_value, str):
+                        cmd.append(shortcut[0]) 
+                        cmd.append(str(attr_value))  
+                    else: 
+                        continue
+
+
 
             elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  
@@ -569,7 +600,7 @@ class SiPar(dict):
         else:
             logger.warning(
                 f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory "
-                f"from previous runs. Catalogs searched: \n {sofia_catalog_txt} \n {sofia_catalog_xml}"
+                f"from previous runs. Catalogs searched: {sofia_catalog_txt} || {sofia_catalog_xml}"
             )
             #Si no hay en sip_args.yaml y no hay sargs
             if self.catalog_file is None and not self.sargs:

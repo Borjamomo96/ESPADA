@@ -122,7 +122,7 @@ class datap(dict):
         if download_path is None:
             script_dir = Path(__file__).parent
             download_path = script_dir / "download_par.yaml"
-
+            self.download_path = download_path
 
             if not download_path.exists():
                 raise FileNotFoundError(
