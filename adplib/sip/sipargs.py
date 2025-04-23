@@ -525,8 +525,7 @@ class SiPar(dict):
                 if isinstance(attr_value, list):
                     for value in attr_value:
                         cmd.append(str(value))
-                else:
-                    cmd.append(shortcut[0])  
+                else: 
                     cmd.append(str(attr_value))  
             
             elif attr_name == "spec_full_range" and getattr(self, attr_name) is not None:
