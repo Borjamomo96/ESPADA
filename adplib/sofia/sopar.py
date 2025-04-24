@@ -354,7 +354,8 @@ class SoPar(dict):
         #El parámetro input.data se gestiona antes en la función principal.
         if hasattr(self, 'input_data') and getattr(self, 'input_data') is not None:
             logger.warning(
-                f"Ignoring parameter 'input.data' provided in the parameter file. If you want to "
+                f"Ignoring parameter 'input.data' provided in the parameter file " 
+                f"{self.sofia_file_path}. If you want to "
                 "change this, specify it in the input_data_set or input_data_file parameter in "
                 "the configuration file."
             )
@@ -425,12 +426,12 @@ class SoPar(dict):
             self.input_invert = 'false'
 
         #--------------------input.primaryBeam--------------------#
-        if not primary_beam:      
+        if primary_beam:      
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
                     and sop_par['input.primaryBeam'] is not None):
                 logger.warning(
-                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the  'input.primaryBeam "
+                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam "
                     "parameter provided in vía '-sop' comand."
                 )
             if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
@@ -445,10 +446,17 @@ class SoPar(dict):
         else:
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
-                    and sop_par['input.primaryBeam'] is not None):
-                self.input_primaryBeam = sop_par['input.primaryBeam']
+                    and sop_par['input.primaryBeam'] is not None
+            ):
+                #self.input_primaryBeam = sop_par['input.primaryBeam']
+                logger.warning(
+                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam "
+                    "parameter provided in vía '-sop' comand."
+                )
 
-            if self.input_primaryBeam is not None:
+            if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
+               is not None and self.input_primaryBeam != ""
+            ):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
