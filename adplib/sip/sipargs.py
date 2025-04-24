@@ -2,6 +2,7 @@ from pathlib import Path
 import yaml
 import subprocess
 import sys
+import os
 from traceback import format_exc
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 
@@ -64,6 +65,7 @@ class SiPar(dict):
         
         
         if sip_file_path is None:
+
             script_dir = Path(__file__).parent
             sip_file_path = script_dir / "sip_args.yaml"
             self.sip_file_path = sip_file_path
@@ -79,8 +81,9 @@ class SiPar(dict):
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
-        elif sip_file_path is not None:
-            sip_file_path = Path(sip_file_path)
+        else:
+            sip_file_path = Path(os.path.expanduser(sip_file_path))
+            self.sip_file_path = sip_file_path
 
             if not sip_file_path.exists():
                 error_msg = f"Sip arguments file {sip_file_path} not found."
@@ -89,12 +92,6 @@ class SiPar(dict):
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
-        else:
-            error_msg = (
-                f"Critial error. Something with the Sip file path or the Sip file went wrong"
-            )
-            Logger.log_to_file(logging.ERROR, error_msg)
-            raise FileNotFoundError(error_msg)
             
         with open(sip_file_path, 'r') as f:
             sip_args_dict = yaml.safe_load(f)

@@ -273,8 +273,18 @@ class SoPar(dict):
                 raise FileNotFoundError(error_msg)
             
         else:
+            sofia_file_path = Path(os.path.expanduser(sofia_file_path))
+            self.sofia_file_path = sofia_file_path
+
+            if not sofia_file_path.exists():
+                error_msg = f"Parameter file '{sofia_file_path}' not found."
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise FileNotFoundError(error_msg)
+            else:
+                logger.info(f"The file in '{sofia_file_path}' have been loaded successfully")
+
             self.read_sofia_par_file(sofia_file_path)
-            self.sofia_file_path = Path(sofia_file_path)
+
     
 
     def read_sofia_par_file(self, sofia_file_path):

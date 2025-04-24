@@ -5,7 +5,7 @@
 ###############
 
 quality_assesment: True
-verbose: True
+verbose: False
 num_cores: 12
 
 ################
@@ -20,8 +20,8 @@ log_file: log_dir/adpalmap.log
 ##################
 
 input_data_set: #/home/usuario/ALMA_ADPPipeline/test_directories/test253_spw3.fits
-    1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
-    2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
+    #1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
+    #2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
     #3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
     #4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
 
@@ -31,8 +31,8 @@ input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False
-download_par_file: 
+enable_tap_service: True
+download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
 
 #################
 #     SOFIA     #
@@ -42,15 +42,15 @@ enable_sofia : True
 run_mode: 'both' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False
-sofia_abs_file : /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_abs_default.par
-sofia_emi_file :  /home/usuario/ALMA_ADPPipeline/adp-alma-pipeline/adplib/sofia/sofia_emi_default.par
+sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par
+sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par
 
 #################
 #      SIP      #
 #################
 
 enable_sip : True
-sip_par_file : 
+sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml
 
 
 

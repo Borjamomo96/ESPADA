@@ -120,6 +120,7 @@ class datap(dict):
         # se usa. REMOVE
 
         if download_path is None:
+            
             script_dir = Path(__file__).parent
             download_path = script_dir / "download_par.yaml"
             self.download_path = download_path
@@ -133,18 +134,15 @@ class datap(dict):
             else:
                 logger.info(f"The file in '{download_path}' have been loaded successfully")
 
-        elif download_path is not None:
-            download_path = Path(download_path)
+        else:
+            download_path = Path(os.path.expanduser(download_path))
+            self.download_path = download_path
 
             if not download_path.exists():
                 raise FileNotFoundError(f"Download file '{download_path}' not found.")
             else:
                 logger.info(f"The file in '{download_path}' have been loaded successfully")
 
-        else:
-            raise FileNotFoundError(
-                f"Something with the Download file path or the download file went wrong"
-            )
             
         with open(download_path, 'r') as f:
             download_dict = yaml.safe_load(f)
