@@ -91,7 +91,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 ###  **GENERAL**:
   - `quality_assessment`: If `True`, a quick and simple quality assessment of the data obtained with SoFiA will be performed. Type `<bool>`.
   - `capture_outputs`: If `True`, it will capture all outputs from the external programs SoFiA and SIP. Type `<bool>`. It is generally recommended to leave this as `False`.
-  - `num_cores`: Number of cores to use when running ADPALMAP. If none or more cores are specified, all available cores on the device are used. Type <int>. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified. See section below.
+  - `num_cores`: Number of cores to use when running ADPALMAP. By default, all available cores will be used. If none or more cores than available on the device are specified, the maximum available cores will be used. Type <int>. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified. See section below.
 
     #### Core allocation rules
     | Condition                      | Formula                                  |

@@ -248,10 +248,10 @@ class Config(dict):
             if hasattr(self, param):
                 value = getattr(self, param)
                 if not isinstance(value, expected_type):
-                    
+                    print(type(value), value)
                     raise ValueError(
-                        f"Parameter '{param}' must be of type {expected_type.__name__}, "
-                        f"but got {type(value).__name__}, '{value}'."
+                        f"The parameter '{param}' in the sip_args.yaml file must be of "
+                        f"type {expected_type}, but is of type {type(value)}."
                     )
                     
         #Compruebo especificamente los valores de run_mode
