@@ -203,6 +203,7 @@ def process_data(number,
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
+                                                       mask=mask,
                                                        mode=adpalmap_config.run_mode,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -233,6 +234,7 @@ def process_data(number,
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
+                                                       mask=mask,
                                                        mode=adpalmap_config.run_mode,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -267,6 +269,7 @@ def process_data(number,
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
+                                                       mask=mask,
                                                        mode=adpalmap_config.run_mode,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -274,6 +277,7 @@ def process_data(number,
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
+                                                       mask=mask,
                                                        mode=adpalmap_config.run_mode, 
                                                        run=0,
                                                        sofia_threads=sofia_threads

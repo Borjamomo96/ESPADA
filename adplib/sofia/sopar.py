@@ -341,7 +341,9 @@ class SoPar(dict):
 
 
     def update_input_parameters(
-            self, sop_par, input_data, primary_beam=None, mode=None, run=-1, sofia_threads=1
+            self, sop_par, 
+            input_data, primary_beam=None, mask=None,
+            mode=None, run=-1, sofia_threads=1
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
@@ -441,7 +443,7 @@ class SoPar(dict):
                     and 'input.primaryBeam' in sop_par 
                     and sop_par['input.primaryBeam'] is not None):
                 logger.warning(
-                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam "
+                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
                     "parameter provided in vía '-sop' comand."
                 )
             if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
@@ -460,7 +462,7 @@ class SoPar(dict):
             ):
                 #self.input_primaryBeam = sop_par['input.primaryBeam']
                 logger.warning(
-                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam "
+                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
                     "parameter provided in vía '-sop' comand."
                 )
 
@@ -470,7 +472,44 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
-        
+
+        #-----------------------input.mask-----------------------#
+        if mask:      
+            if (sop_par is not None 
+                    and 'input.mask' in sop_par 
+                    and sop_par['input.mask'] is not None):
+                logger.warning(
+                    f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if(hasattr(self, "input_mask") and getattr(self, "input_mask") 
+               is not None and self.mask != ""
+            ):
+                logger.warning(
+                    f"Ignoring value '{self.mask}' provided in {self.sofia_file_path}."
+                )
+                       
+            self.input_mask = mask
+
+        else:
+            if (sop_par is not None 
+                    and 'input.mask' in sop_par 
+                    and sop_par['input.mask'] is not None
+            ):
+                #self.input_mask = sop_par['input.mask']
+                logger.warning(
+                    f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask "
+                    "parameter provided in vía '-sop' comand."
+                )
+
+            if(hasattr(self, "input_mask") and getattr(self, "input_mask") 
+               is not None and self.input_mask != ""
+            ):
+                logger.warning(
+                    f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
+                )
+
+        #---------------------------------------------------------#
 
         if sop_par is not None:
 
