@@ -171,6 +171,9 @@ def calculate_workers(data_pack_list, max_cores):
     
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
     max_workers = min(max_cores, max_workers_mem, total_files)
+
+    if max_workers < 1:
+        max_workers = 1
     
     return max_workers
 
