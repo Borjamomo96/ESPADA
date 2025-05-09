@@ -483,10 +483,10 @@ class SoPar(dict):
                     "parameter provided in vía '-sop' comand."
                 )
             if(hasattr(self, "input_mask") and getattr(self, "input_mask") 
-               is not None and self.mask != ""
+               is not None and self.input_mask != ""
             ):
                 logger.warning(
-                    f"Ignoring value '{self.mask}' provided in {self.sofia_file_path}."
+                    f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
                 )
                        
             self.input_mask = mask
