@@ -460,13 +460,12 @@ class datap(dict):
         # Run query
         # for large queries add maxrec=1000000
         pyvo_TAP_results = self._service.search(query_str, maxrec=1000000)  
-
+        
         # transform output into astropy table first, then to a pandas DataFrame
         TAP_df = pyvo_TAP_results.to_table().to_pandas()
 
         # the column publication_year must be in 'object' type because it contains numbers and NaNs
         TAP_df['publication_year'] = TAP_df['publication_year'].astype('object')
-
 
         return TAP_df
 
@@ -1030,19 +1029,20 @@ class datap(dict):
 
         # Put together the entire query with 'AND' logic between different keywords
         full_query = (
-            f"SELECT * FROM ivoa.obscore WHERE {' AND '.join(full_query_list)}" 
+            f"SELECT * FROM ivoa.obscore WHERE {' AND '.join(full_query_list)} " 
             "ORDER BY proposal_id"
         )
         if self.query_par['print_query']:
             logger.info("Your query is: {}".format(full_query))
         TAP_df = self.run_query(full_query)
+        
         # Filter whether the user wants published data, unpublished data, or both (default)
         if self.query_par['published']:  # case pf published = True
             TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
         # case pf published = False
         elif not self.query_par['published'] and self.query_par['published'] is not None:  
             TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
-        
+    
         #CHANGE. filter_result, esta función esta pero aún no esta implementada. 
         return TAP_df
 
@@ -1077,6 +1077,14 @@ class datap(dict):
             'free':       ['query_str'],
         }
 
+        expected_common_types = {  
+            'point': bool, 
+            'public': bool, 
+            'published': bool,
+            'print_targets': bool, 
+            'print_query': bool
+        }
+
         # Expected types for specific parameters
         expected_types = {
             'proposal_id': str,
@@ -1088,8 +1096,22 @@ class datap(dict):
             'query_str': str,
         }
 
-        # Common parameters to ignore during validation
+        # Common parameters to ignore in active params check
         common_params = ['point', 'public', 'published', 'print_targets', 'print_query']
+        # Check common params
+        for param, expected_type in expected_common_types.items():
+            if param in self.query_par:
+                value = self.query_par[param]
+                if not isinstance(value, expected_type):
+                    raise ValueError(
+                        f"The parameter '{param}' in the download_par.yaml file must be of "
+                        f"type {expected_type}, but is of type {type(value)}."
+                    )
+            else:
+                raise ValueError (
+                    f"The required parameter '{param}' is not defined in the"
+                    " download_par.yaml file."
+                )        
 
         # Get the valid parameters for the current query type
         valid_params = expected_params.get(self.query_type, None)

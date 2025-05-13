@@ -643,11 +643,7 @@ class SoPar(dict):
 
             self.output_directory = Path(f'{self.output_directory}_absorption')
 
-            if not os.path.exists(self.output_directory):
-                os.makedirs(Path(self.output_directory))
-            else:
-                logger.warning(f"The {Path(self.output_directory)} directory already exists."
-                               " The SoFia outputs will be stored in this directory") 
+            os.makedirs(self.output_directory, exist_ok=True)
             
             temp_file_path = self.create_tempfile()
             try:
@@ -677,12 +673,8 @@ class SoPar(dict):
         elif (mode is not None and mode=='emission'):
 
             self.output_directory = Path(f'{self.output_directory}_emission')
-            if not os.path.exists(Path(self.output_directory)):
-                os.makedirs(Path(self.output_directory))
-            else:
-                logger.warning(f"The {Path(self.output_directory)} directory already exists."
-                               " The SoFia outputs will be stored in this directory") 
-
+            os.makedirs(self.output_directory, exist_ok=True)
+            
             temp_file_path = self.create_tempfile()
             try:
                 Logger.raw("================================")
@@ -715,10 +707,7 @@ class SoPar(dict):
             if run!=0:
                 #Corre en modo absorción, indicado en el main()
                 self.output_directory = Path(f'{self.output_directory}_absorption')
-                if not os.path.exists(self.output_directory):
-                    os.makedirs(Path(self.output_directory))
-                else:
-                    logger.warning(f"The {Path(self.output_directory)} directory already exists. The SoFia outputs will be stored in this directory") 
+                os.makedirs(self.output_directory, exist_ok=True)
 
                 temp_file_path = self.create_tempfile()
                 try:
@@ -767,7 +756,7 @@ class SoPar(dict):
 
                 self.output_directory = Path(f'{self.output_directory}_emission')
                 if not os.path.exists(Path(self.output_directory)):
-                    os.makedirs(Path(self.output_directory))
+                    os.makedirs(Path(self.output_directory, exits_ok))
                 else:
                     logger.warning(f"The {Path(self.output_directory)} directory already exists."
                                    " The SoFia outputs will be stored in this directory") 
