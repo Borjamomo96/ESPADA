@@ -755,13 +755,8 @@ class SoPar(dict):
                                 f"Mode: {self.sopar_mode}.")
 
                 self.output_directory = Path(f'{self.output_directory}_emission')
-                if not os.path.exists(Path(self.output_directory)):
-                    os.makedirs(Path(self.output_directory, exits_ok))
-                else:
-                    logger.warning(f"The {Path(self.output_directory)} directory already exists."
-                                   " The SoFia outputs will be stored in this directory") 
-
-
+                os.makedirs(Path(self.output_directory, exist_ok=True))
+                
                 temp_file_path = self.create_tempfile()
                 try:
                     Logger.raw("================================")
