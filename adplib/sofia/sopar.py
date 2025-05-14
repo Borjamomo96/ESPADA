@@ -755,7 +755,7 @@ class SoPar(dict):
                                 f"Mode: {self.sopar_mode}.")
 
                 self.output_directory = Path(f'{self.output_directory}_emission')
-                os.makedirs(Path(self.output_directory, exist_ok=True))
+                os.makedirs(self.output_directory, exist_ok=True)
                 
                 temp_file_path = self.create_tempfile()
                 try:
