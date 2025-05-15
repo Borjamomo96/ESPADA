@@ -642,15 +642,26 @@ class SoPar(dict):
         if (mode is not None and mode=='absorption'):
 
             self.output_directory = Path(f'{self.output_directory}_absorption')
-
             os.makedirs(self.output_directory, exist_ok=True)
+
+            sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+            sopar_log_record = {
+                "PID": self.pid,
+                "input_data": self.input_data.stem,
+                "mode": self.sopar_mode,  
+                "log_path": self.output_directory / sopar_log_name
+            }
             
             temp_file_path = self.create_tempfile()
             try:
-                Logger.raw("================================")
-                logger.info(f"SoFia start. Mode: {self.sopar_mode}")
-                Logger.raw("================================")
                 self.log_parameters()
+                Logger.raw("================================")
+                logger.info(
+                    f"SoFia start. Mode: {self.sopar_mode}. Input data: "
+                    f"{Path(self.input_data).stem}"
+                )
+                print()
+                Logger.raw("================================")
 
                 cmd = ["sofia", f"{temp_file_path}"]
                 subprocess.run(
@@ -669,18 +680,27 @@ class SoPar(dict):
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
+                return sopar_log_record
             
         elif (mode is not None and mode=='emission'):
 
             self.output_directory = Path(f'{self.output_directory}_emission')
             os.makedirs(self.output_directory, exist_ok=True)
             
+            sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+            sopar_log_record = {
+                "PID": self.pid,
+                "input_data": self.input_data.stem,
+                "mode": self.sopar_mode,  
+                "log_path": self.output_directory / sopar_log_name
+            }
+
             temp_file_path = self.create_tempfile()
             try:
+                self.log_parameters()
                 Logger.raw("================================")
                 logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
-                self.log_parameters()
                 
                 cmd = ["sofia", f"{temp_file_path}"]
                 subprocess.run(
@@ -700,7 +720,7 @@ class SoPar(dict):
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
-                    
+                return sopar_log_record    
                     
         
         elif mode == 'both':
@@ -709,12 +729,20 @@ class SoPar(dict):
                 self.output_directory = Path(f'{self.output_directory}_absorption')
                 os.makedirs(self.output_directory, exist_ok=True)
 
+                sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+                sopar_log_record = {
+                    "PID": self.pid,
+                    "input_data": self.input_data.stem,
+                    "mode": self.sopar_mode,  
+                    "log_path": self.output_directory / sopar_log_name
+                }
+
                 temp_file_path = self.create_tempfile()
                 try:
+                    self.log_parameters()
                     Logger.raw("================================")
                     logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
-                    self.log_parameters()
 
                     cmd = ["sofia", f"{temp_file_path}"]
                     subprocess.run(
@@ -733,7 +761,8 @@ class SoPar(dict):
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
-                    
+                    return sopar_log_record 
+
             elif run==0:
                 
                 #Por defecto, el directorio de absorción será el self.output_directory_absorption. 
@@ -757,12 +786,20 @@ class SoPar(dict):
                 self.output_directory = Path(f'{self.output_directory}_emission')
                 os.makedirs(self.output_directory, exist_ok=True)
                 
+                sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+                sopar_log_record = {
+                    "PID": self.pid,
+                    "input_data": self.input_data.stem,
+                    "mode": self.sopar_mode,  
+                    "log_path": self.output_directory / sopar_log_name
+                }
+
                 temp_file_path = self.create_tempfile()
                 try:
+                    self.log_parameters()
                     Logger.raw("================================")
                     logger.info(f"SoFia start. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
-                    self.log_parameters()
 
                     cmd = ["sofia", f"{temp_file_path}"]
                     subprocess.run(
@@ -782,7 +819,8 @@ class SoPar(dict):
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
-
+                    return sopar_log_record 
+                
 
     def create_tempfile(self):
         """

@@ -92,7 +92,7 @@ def sipargs_to_dict(args_list):
     return args_dict
 
 
-def reorganize_log(log_path):
+def reorganize_log(log_path, worker_results):
     
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -108,26 +108,29 @@ def reorganize_log(log_path):
 
         for i, line in enumerate(lines):
             
-                      
             pid_match = (pid_pattern.search(line))
-
+            #Es una línea sin PID. Hay algunas
             if pid_match is None:
                 continue
 
             current_pid = pid_match.group(1)
-
             if current_pid not in pid_groups:
                 if not main_pid:
                     main_pid = current_pid
                 pid_groups[current_pid] = []
 
+
+
             if "ADPALMAP successfully ended" in line:
                 main_final.append(line)
                 final_block = True
-
             else:    
                 if final_block == False:
-                    pid_groups[current_pid].append(line)
+                    #Linea antes de incluir el log
+                    if "SoFia start" in line:
+                        pid_groups[current_pid].append(line)
+                    else:
+                        pid_groups[current_pid].append(line)   
                 else:
                     main_final.append(line)
 
@@ -213,7 +216,8 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sopar_log_record = adpalmap_sopar_emi.run_sofia(adpalmap_config, 
+                                                            mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
@@ -244,7 +248,8 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sopar_log_record = adpalmap_sopar_abs.run_sofia(adpalmap_config, 
+                                                            mode=adpalmap_config.run_mode)
 
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
@@ -257,6 +262,8 @@ def process_data(number,
                     adpalmap_sopar_abs.quality_assesment(mask)
 
         elif adpalmap_config.run_mode == 'both':
+            
+            sopar_log_record = []
 
             adpalmap_sopar_abs = SoPar(
                 sofia_file_path=adpalmap_config.sofia_abs_file,
@@ -289,7 +296,9 @@ def process_data(number,
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
 
-            adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
+                                                            mode=adpalmap_config.run_mode)
+            )
 
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
@@ -299,8 +308,11 @@ def process_data(number,
                                    "performed in the QA.")
                     adpalmap_sopar_abs.quality_assesment(mask)
 
-            adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
-
+            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
+                                                            mode=adpalmap_config.run_mode, 
+                                                            run=0)
+            )
+            
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
                     adpalmap_sopar_emi.quality_assesment(mask)
@@ -362,6 +374,8 @@ def process_data(number,
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
+    logs_dict = [f"El PID de este worker es: {os.getpid()}"]
+    return logs_dict 
 
 def main():
     try:
@@ -527,6 +541,10 @@ def main():
 
         sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
+        logger.info(
+            f"The worker number has been set to {max_workers}"
+        )
+
         #--------------------------------------------------------------------------------------------#
         
         #--------------------------------------------------------------------------------------------#
@@ -574,7 +592,8 @@ def main():
                     )
                     raise 
         
-
+        for result in results:
+            print(f"Toma results: {result}")
         #--------------------------------------------------------------------------------------------#
 
         logger.info("ADPALMAP successfully ended")
@@ -584,7 +603,7 @@ def main():
 
     finally:
         log_path = Logger.get_log_filename()
-        reorganize_log(log_path)
+        reorganize_log(log_path, results)
 
 # Run the main functions
 if __name__ == '__main__':
