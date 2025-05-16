@@ -647,7 +647,7 @@ class SoPar(dict):
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
             sopar_log_record = {
                 "PID": self.pid,
-                "input_data": self.input_data.stem,
+                "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name
             }
@@ -660,7 +660,6 @@ class SoPar(dict):
                     f"SoFia start. Mode: {self.sopar_mode}. Input data: "
                     f"{Path(self.input_data).stem}"
                 )
-                print()
                 Logger.raw("================================")
 
                 cmd = ["sofia", f"{temp_file_path}"]
@@ -690,7 +689,7 @@ class SoPar(dict):
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
             sopar_log_record = {
                 "PID": self.pid,
-                "input_data": self.input_data.stem,
+                "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name
             }
@@ -699,7 +698,10 @@ class SoPar(dict):
             try:
                 self.log_parameters()
                 Logger.raw("================================")
-                logger.info(f"SoFia start. Mode: {self.sopar_mode}")
+                logger.info(
+                    f"SoFia start. Mode: {self.sopar_mode}. Input data: "
+                    f"{Path(self.input_data).stem}"
+                )
                 Logger.raw("================================")
                 
                 cmd = ["sofia", f"{temp_file_path}"]
@@ -732,7 +734,7 @@ class SoPar(dict):
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
                 sopar_log_record = {
                     "PID": self.pid,
-                    "input_data": self.input_data.stem,
+                    "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name
                 }
@@ -741,7 +743,10 @@ class SoPar(dict):
                 try:
                     self.log_parameters()
                     Logger.raw("================================")
-                    logger.info(f"SoFia start. Mode: {self.sopar_mode}")
+                    logger.info(
+                        f"SoFia start. Mode: {self.sopar_mode}. Input data: "
+                        f"{Path(self.input_data).stem}"
+                    )
                     Logger.raw("================================")
 
                     cmd = ["sofia", f"{temp_file_path}"]
@@ -789,7 +794,7 @@ class SoPar(dict):
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
                 sopar_log_record = {
                     "PID": self.pid,
-                    "input_data": self.input_data.stem,
+                    "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name
                 }
@@ -798,7 +803,10 @@ class SoPar(dict):
                 try:
                     self.log_parameters()
                     Logger.raw("================================")
-                    logger.info(f"SoFia start. Mode: {self.sopar_mode}")
+                    logger.info(
+                        f"SoFia start. Mode: {self.sopar_mode}. Input data: "
+                        f"{Path(self.input_data).stem}"
+                    )
                     Logger.raw("================================")
 
                     cmd = ["sofia", f"{temp_file_path}"]

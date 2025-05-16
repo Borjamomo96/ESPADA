@@ -19,11 +19,11 @@ log_file: log_dir/adpalmap.log
 #   INPUT DATA   #
 ##################
 
-input_data_set: #/home/usuario/ALMA_ADPPipeline/test_directories/test253_spw3.fits
-    #1: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test.fits
-    #2: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_1.fits  
-    #3: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_2.fits
-    #4: /home/usuario/ALMA_ADPPipeline/test_directories/KH2016_test_3.fits
+input_data_set: 
+    #1: 
+    #2:  
+    #3: 
+    #4: 
 
 input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
 
@@ -39,7 +39,7 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
 #################
 
 enable_sofia : True
-run_mode: 'both' #'both', 'absorption'
+run_mode: 'emission' #'both', 'absorption'
 abs_flag_cube: True
 auto_setup: False
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par

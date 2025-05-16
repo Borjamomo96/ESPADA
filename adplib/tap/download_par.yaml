@@ -25,7 +25,7 @@ stored_credentials: False # <bool>
 #( By default the query type is set to 'Proposal ID')
 #THIS PART MAY SUFFER FUTURE STRUCTE CHANGES. 
 
-query_type: 'keysearch'
+query_type: 'proposal'
 
 #The query type options available are:
 # 'conesearch' 
@@ -36,7 +36,7 @@ query_type: 'keysearch'
 ##Specific parameters for the query indicated in 'query_type':
 query_par:
 #-----------------query type = proposal---------------------#
-  #proposal_id: '2022.1.00738.S' 
+  proposal_id: 
 #----------------query type = conesearch--------------------#
   #ra: 1
   #dec: 1
@@ -45,7 +45,7 @@ query_par:
   #sources: ['NGC4418']
   #search_radius: 2.
 #-----------------query type = keysearch--------------------#
-  search_dict: {'target_name':['NGC4418'], 'proposal_id': ['2022.1.00738.S']}
+  #search_dict: {'target_name':['NGC4418'], 'proposal_id': ['2022.1.00738.S']}
 #-------------------query type = free-----------------------#
   #query_str: "SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"
 

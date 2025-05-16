@@ -106,6 +106,10 @@ def reorganize_log(log_path, worker_results):
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
 
+        sofia_start_pattern = re.compile(
+            r"\[PID:(\d+)\].*SoFia start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
+        )
+
         for i, line in enumerate(lines):
             
             pid_match = (pid_pattern.search(line))
@@ -126,11 +130,32 @@ def reorganize_log(log_path, worker_results):
                 final_block = True
             else:    
                 if final_block == False:
-                    #Linea antes de incluir el log
-                    if "SoFia start" in line:
-                        pid_groups[current_pid].append(line)
-                    else:
-                        pid_groups[current_pid].append(line)   
+
+                    pid_groups[current_pid].append(line)
+                    sofia_match = sofia_start_pattern.search(line)
+                    if sofia_match:
+                        pid, mode, input_name = sofia_match.groups()
+                        # Buscar el log_path correspondiente en worker_results
+                        log_found = False
+                        for worker in worker_results:
+                            for run in worker:
+                                if (str(run['PID']) == pid and
+                                    run['mode'] == mode and
+                                    run['input_name'] == input_name):
+                                    log_path_sofia = run['log_path']
+                                    if log_path_sofia and Path(log_path_sofia).exists():
+                                        with open(
+                                            log_path_sofia, 'r', encoding='utf-8'
+                                            ) as sofia_log:
+                                            sofia_lines = sofia_log.readlines()
+                                        # Opcional: indentar o marcar las líneas del log de SoFia
+                                        pid_groups[current_pid].extend(
+                                            [f"    {l}" for l in sofia_lines]
+                                        )
+                                        log_found = True
+                                        break
+                            if log_found:
+                                break
                 else:
                     main_final.append(line)
 
@@ -198,6 +223,8 @@ def process_data(number,
 
     if adpalmap_config.enable_sofia == True:
 
+        sopar_log_record = []
+
         if adpalmap_config.run_mode == 'emission':
             
             adpalmap_sopar_emi = SoPar(
@@ -216,8 +243,9 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            sopar_log_record = adpalmap_sopar_emi.run_sofia(adpalmap_config, 
+            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
                                                             mode=adpalmap_config.run_mode)
+            )
 
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
@@ -248,8 +276,9 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            sopar_log_record = adpalmap_sopar_abs.run_sofia(adpalmap_config, 
+            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
                                                             mode=adpalmap_config.run_mode)
+            )
 
             if adpalmap_config.quality_assesment == True:
                 if mask is not None:
@@ -262,8 +291,6 @@ def process_data(number,
                     adpalmap_sopar_abs.quality_assesment(mask)
 
         elif adpalmap_config.run_mode == 'both':
-            
-            sopar_log_record = []
 
             adpalmap_sopar_abs = SoPar(
                 sofia_file_path=adpalmap_config.sofia_abs_file,
@@ -374,10 +401,14 @@ def process_data(number,
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    logs_dict = [f"El PID de este worker es: {os.getpid()}"]
-    return logs_dict 
+    return sopar_log_record  
+
 
 def main():
+
+    worker_results = []
+    worker_exceptions = []
+
     try:
         # Parse args:
 
@@ -562,38 +593,35 @@ def main():
                 for i, (data, primary_beam, mask) in enumerate(data_pack_list)
             ]
             
-            results = []
-            exceptions = []
+
             for future in as_completed(futures):  
                 try:
                     result = future.result()
-                    results.append(result)
+                    worker_results.append(result)
                 #Este primero porque python lee Excepciones de arriba a abajo
                 #Errores salvables. El resto de procesos sigue corriendo
                 except RecoverableError as e:  
-                    exceptions.append(e)
+                    worker_exceptions.append(e)
                     #Quitando esta línea eliminamos el traceback
                     Logger.raw(format_exc())
                 #Errores criticos
                 except (ValueError, FileNotFoundError) as e:
-                    exceptions.append(e)
+                    worker_exceptions.append(e)
                     raise 
                 except SystemExit as e:
-                    exceptions.append(e)
+                    worker_exceptions.append(e)
                 except RuntimeError as e:
-                    exceptions.append(e)
+                    worker_exceptions.append(e)
                     raise 
                 except Exception as e:
-                    exceptions.append(e)
+                    worker_exceptions.append(e)
                     logger.critical(
                         f"Unexpected error. Please open an issue on GitHub "
                          "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                          "case."
                     )
                     raise 
-        
-        for result in results:
-            print(f"Toma results: {result}")
+
         #--------------------------------------------------------------------------------------------#
 
         logger.info("ADPALMAP successfully ended")
@@ -603,7 +631,8 @@ def main():
 
     finally:
         log_path = Logger.get_log_filename()
-        reorganize_log(log_path, results)
+        reorganize_log(log_path, worker_results)
+
 
 # Run the main functions
 if __name__ == '__main__':
