@@ -199,9 +199,6 @@ def calculate_workers(data_pack_list, max_cores):
     
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
     max_workers = min(max_cores, max_workers_mem, total_files)
-
-    if max_workers < 1:
-        max_workers = 1
     
     return max_workers
 
@@ -569,6 +566,14 @@ def main():
         available_cores = max_cores - reserved_cores 
 
         max_workers = calculate_workers(data_pack_list, available_cores)
+
+        if max_workers < 1:
+            logger.warning(
+                "The worker number is lower than 1. One or more of the datasets are too large"
+                " for the available RAM. The minimum worker count is set to 1, but keep in "
+                "mind that unexpected errors may occur."
+            )
+            max_workers = 1
 
         sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
