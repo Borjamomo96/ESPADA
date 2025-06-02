@@ -90,7 +90,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 
 ###  **GENERAL**:
   - `quality_assessment`: If `True`, a quick and simple quality assessment of the data obtained with SoFiA will be performed. Type `<bool>`.
-  - `capture_outputs`: If `True`, it will capture all outputs from the external programs SoFiA and SIP. Type `<bool>`. It is generally recommended to leave this as `False`.
+  - `verbose`: If `True`, it will capture all outputs from the external programs SoFiA and SIP. Type `<bool>`. It is generally recommended to leave this as `True`.
   - `num_cores`: Number of cores to use when running ADPALMAP. By default, all available cores will be used. If none or more cores than available on the device are specified, the maximum available cores will be used. Type <int>. The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum cores specified. See section below.
 
     #### Core allocation rules
@@ -111,7 +111,7 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 
 ###  **INPUT DATA**:
   - `input_data_set`: Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline will run. Available types are `<list>`, `<str>` or `<dict>`. 
-  **Note**: Do not confuse the '||' symbol as part of the input, this is simply a separator
+  **Note**: Do not confuse the '||' symbol as part of the input, this is simply a separator in the examples.
     + As a `<list>`:   
       `input_data_set`: [data.fits, pb.fits, mask.fits] || [data.fits, "", mask.fits] || [data.fits, pb.fits] || [data.fits] || [data.fits, "", ""].
     + As a `<str>`:  
@@ -194,8 +194,8 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   - 'NRAO' North America (`https://almascience.nrao.edu`)
   - 'NAOJ' East Asia (`https://almascience.nao.ac.jp`)
 
-- `'credentials'`: If `True`, allows you to log in to ALMA's TAP service with your credentials. Type `<bool>`.
-- `'stored_credentials'`: If `True`, saves credentials in cache memory for subsequent pipeline runs, so re-entering credentials won't be necessary. Type `<bool>`.
+- `'credentials'`: If set to `True` enable login to ALMA's TAP service using your own credentials. Type `<bool>`.
+- `'stored_credentials'`: If set to `True` save credentials in cache memory for subsequent pipeline runs, so re-entering credentials won't be necessary. Type `<bool>`.
 
 ---
 
@@ -282,11 +282,11 @@ query_par:
 - `'download_par'`:
   - **fitsonly**: If `True`, download individual FITS files only. This option will not download raw data. Type `<bool>`.
   - **include_pb**: If `True`, download all `.pb.` files (i.e., all primary beam cubes) without distinction among science cubes. Type `<bool>`.
-  - **remove_uncompress_file**: If `True`, removes uncompressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
+  - **delete_compressed_file**: If `True`,  delete compressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
   - **dryrun**: If `True`, allows users to perform a test run to check file size and number before downloading data. Type `<bool>`.
   - **print_urls**: If `True`, writes a list of URLs to be downloaded from the archive to the terminal. Type `<bool>`.
   - **filename_must_include**: A list of strings that must be included in the URL filename. Useful for filtering downloads further, such as data corrected for primary beams ('.pbcor') or specific science targets or calibrators (by including their names). Choices depend on reduction type and cycle. Example:  *['A001_X133d_X4226.COSMOS-1189669_sci.spw25.cube']*.  
-    Type `<str>`.
+    Type `<list>`.
 
   - **data_dir**: Path of the directory where downloaded data should be placed. Type `<str>`.
 

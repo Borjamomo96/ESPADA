@@ -1,0 +1,444 @@
+file:
+  config.yaml: |
+    **Main configuration file**
+
+    ADPAlmAP is designed in a modular manner, so this file includes the data sets to be 
+    processed, the names of the files that control each of the modules (TAP, SoFiA-2, and SIP), 
+    and various global configuration parameters.
+
+    - **Format**: YAML — Each parameter is specified as `parameter: value`
+
+    - **Parameters**:
+
+      **GENERAL**
+      - quality_assesment
+      - verbose
+      - num_cores
+
+      **LOGGER**
+      - clear_logs
+      - log_file
+
+      **INPUT DATA**
+      - input_data_set
+      - input_file
+
+      **TAP SERVICE**
+      - enable_tap_service
+      - download_par_file
+
+      **SOFIA**
+      - enable_sofia
+      - run_mode
+      - abs_flag_cube
+      - auto_setup
+      - sofia_abs_file 
+      - sofia_emi_file
+
+      **SIP**
+      - enable_sip 
+      - sip_par_file 
+
+    - **Additional help**:  
+      If you want more detailed information about a specific parameter,  
+      use the argument *-i parameter=parameter_name*
+
+  download_par.yaml: |
+    **Download configuration file**
+
+    ADPAlmAP allows you to process data by downloading it directly from the ALMA archive.
+    This is done using the TAP service and code adapted from the ALMA Archive Mining & Visualization Toolkit (ALminer).
+
+    - **Format**: YAML — Each parameter is specified as *parameter: value*
+
+    - **Parameters**:
+
+      **SERVER**
+      - server_address
+      - credentials
+      - stored_credentials
+
+      **QUERY**
+      - query_type:
+      - query_par:
+
+        **If query_type = proposal**
+        - proposal_id
+
+        **If query_type = conesearch**
+          - ra
+          - dec
+          - search_radius
+
+        **If query_type = target**
+          - sources
+          - search_radius
+
+        **If query_type = keysearch**
+          - search_dict
+
+        **If query_type = free**
+          - query_str
+
+        **Common parameters for all query type**
+        - point: false 
+        - public: true
+        - published: false
+        - print_targets: true 
+        - print_query: true
+
+      **EXTRA**
+      - download_par:
+        - fitsonly
+        - include_pb
+        - remove_uncompress_filedryrun   
+        - print_urls
+        - filename_must_include
+        - data_dir
+
+    - **Additional help**:  
+      If you want more detailed information about a specific parameter,  
+      use the argument *-i parameter=parameter_name*
+
+
+parameter:
+
+  server_address: |
+    **server_address** (in download_par.yaml)
+
+    - **Description:** URL of the server website to query the data.
+    - **Type:** string
+    - **Accepted values:**
+      - 'https://almascience.eso.org'
+      - 'https://almascience.nrao.edu'
+      - 'https://almascience.nao.ac.jp'
+    - **NOTE:** ADPAlmaP has been optimized for ALMA archive; others may not support full functionality.
+
+  credentials: |
+    **credentials** (in download_par.yaml)
+
+    - **Description:** If true, enables login to ALMA TAP service with user credentials.
+    - **Type:** boolean
+
+  stored_credentials: |
+    **stored_credentials** (in download_par.yaml)
+ 
+    - **Description:** If true, stores credentials in memory cache for future use.
+    - **Type:** boolean
+
+  query_type: |
+    **query_type** (in download_par.yaml)
+
+    - **Description:** Type of query to perform on the ALMA archive.
+    - **Type:** string
+    - **Accepted values:**
+      - proposal
+      - conesearch
+      - target
+      - keysearch
+      - free  
+
+  query_par: |
+    **query_type** (in download_par.yaml)**
+    
+    - **Description:** Contains both specific and common parameters for all query types
+    - **Type:** Blank. Container for other parameters. It remains unspecified and the 
+    parameters it contains are tabulated relative to it.
+
+    **Example - proposal** 
+
+      - query_par: 
+        - proposal_id: '2016.1.00778.S'   
+        - point: False   
+        - public: True  
+        - published: None  
+        - print_targets: True   
+        - print_query: True  
+      
+      
+
+      **Example - target** 
+
+      - query_par:
+        - sources: ['V605 Aql']
+        - search_radius: 2.
+        - point: False   
+        - public: True  
+        - published: None  
+        - print_targets: True   
+        - print_query: True 
+
+      
+
+      **Example - keysearch** 
+
+      - query_par:
+        - search_dict: {'target_name':['G31.41'], 'proposal_id': ['2018']}
+        - point: False   
+        - public: True  
+        - published: None  
+        - print_targets: True   
+        - print_query: True 
+
+     
+
+      **Example - free** 
+
+      - query_par: 
+        - query_str: *"SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"*
+        - point: False   
+        - public: True  
+        - published: None  
+        - print_targets: True   
+        - print_query: True 
+
+      **NOTE:** In this case, the common parameters will not be taken into account but 
+      they must still be present to avoid errors.
+
+
+  download_par: |
+    **download_par** (in download_par.yaml)
+    - **Description:** Contains parameters to select files from those selected in 
+    the QUERY and download them
+    - **Type:** Container for other parameters. It remains unspecified and the 
+    parameters it contains are tabulated relative to it.
+  
+
+  fitsonly: |
+    **fitsonly** (in download_par.yaml)
+
+    - **Description:** If True, only download FITS files.
+    - **Type:** boolean
+
+  include_pb: |
+    **include_pb** (in download_par.yaml)
+
+    - **Description:** If True, download all the .pb. files (i.e. all the primary beam cubes) with no 
+    distinction among the science cubes. 
+    - **Type:** boolean
+
+  delete_compressed_file: |
+    **delete_compressed_file** (in download_par.yaml)
+
+    - **Description:** If True, delete compressed files. This is the case for primary beams cubes in 
+    the ALMA archive. 
+    - **Type:** boolean                               
+    
+  dryrun: |
+    **dryrun** (in download_par.yaml)
+
+    - **Description:** If True, allow the user to do a test run to check the size and number of 
+    files to download without actually
+    - **Type:** boolean
+
+  print_urls: |
+    **print_urls** (in download_par.yaml)
+
+    - **Description:** If True, write the list of urls to be downloaded from the archive to the 
+    terminal.
+    - **Type:** boolean  
+
+  filename_must_include: |
+    **filename_must_include** (in download_par.yaml)
+
+    - **Description:** A list of strings the user wants to be contained in the url filename. 
+    This is useful to restrict the download further, for example, to data that have been 
+    primary beam corrected ('.pbcor') or that have the science target or calibrators 
+    (by including their names). The choice is largely dependent on the cycle and type of 
+    reduction that was performed and data products that exist on the archive as a result. 
+    In most recent cycles, the science target can be filtered out with the flag '_sci' or 
+    its ALMA target name.
+    - **Type:** list   
+    
+  data_dir: |
+    **data_dir** (in download_par.yaml)
+
+    - **Description:** The path of the directory where the downloaded data should be placed.
+    - **Type:** string
+
+
+  quality_assesment: |
+    **quality_assesment** (in config.yaml)
+
+    - **Description:** If True, a quick and simple quality assessment of the data obtained with SoFiA will be performed.
+    - **Type:** boolean
+    
+
+  verbose: |
+    **verbose** (in config.yaml)
+
+    - **Description:** If True, it will display all outputs from the external programs SoFiA and SIP. Type `<bool>`. 
+    It is generally recommended to leave this as True.
+    - **Type:** boolean
+
+
+  num_cores: |
+    **num_cores** (in config.yaml)
+
+    - **Description:** Number of cores to use when running ADPALMAP. By default, all available cores will be used. 
+    If none or more cores than available on the device are specified, the maximum available cores will be used. 
+    The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum 
+    cores specified. It is recommended to review the full documentation for more details on the use of cores and the 
+    number of workers (parallelization).
+    - **Type:** integer
+
+  clear_logs: |
+    **clear_logs** (in config.yaml)
+
+    - **Description:** If True, clears the file where all logger entries will be written. This only works if the 
+    selected filename matches the name of the file from previous runs.
+    - **Type:** boolean
+
+
+  log_file: |
+    **log_file** (in config.yaml)
+
+    - **Description:** Name of the file where logger messages should be saved. 
+    - **Type:** string
+
+
+  input_data_set: |
+    **input_data_set** (in config.yaml)
+
+    - **Description:** Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline 
+    will run. Available types are list, string or dictionary.
+    - **Type:** Available types are list, string or dictionary.
+
+      **Example as a list:**   
+      *input_data_set*: [data.fits, pb.fits, mask.fits] || [data.fits, "", mask.fits] || [data.fits, pb.fits] ||
+      || [data.fits] || [data.fits, "", ""].
+
+      **NOTE**: Do not confuse the '||' symbol as part of the input, this is simply a separator in the examples.
+
+      **Example as a <str>:**  
+     *input_data_set*: data.fits pb.fits mask.fits|| data.fits, pb.fits, mask || data.fits, pb.fits mask ||
+     || data.fits, "" mask || data.fits, "", mask || data.fits "", mask.fits || data.fits, "" ""
+
+      **NOTE**: Do not confuse the '||' symbol as part of the input, this is simply a separator in the examples.
+
+      **Be careful**: -data.fits, , mask.fits- is valid but it will be interpreter as: [data.fits, mask.fits, ''].
+
+
+      **Examples as a <dict>:** , for multiple data sets. All the previous rules are applied.   
+      *input_data_set*:  
+        1 : [data.fits, pb.fits, mask.fits]  
+        2 : [data.fits, "", mask.fits]  
+        3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
+        4 : data.fits  
+
+        *input_data_set*: {   
+        1 : [data.fits, pb.fits, mask.fits]  
+        2 : [data.fits, "", mask.fits]  
+        3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
+        4 : data.fits  
+        }
+
+  input_file: |
+    **input_file** (in config.yaml)
+
+    - **Description:** Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of 
+    the data sets on which to run the pipeline.
+    - **Type:** string
+    - Example: 
+      1 : data.fits pb.fits mask.fits  
+      2 : data1.fits pb1.fits mask1.fits  
+      3 : data2.fits pb2.fits mask2.fits
+
+      **NOTE** The required format for each line within the file is the same as for *input_data_set*, 
+    with the exception of the use of '[ ]'. The latter is not allowed, since when reading the file, the 
+    pipeline will not identify it as a Python 'list' but rather as a character within the filename, which will 
+    generate an error. Example of how lines should be entered into the file:
+
+  enable_tap_service: |
+    **enable_tap_service** (in config.yaml)
+
+    - **Description:** If True, allows execution of the module *datap.py*, which downloads data from the 
+    ALMA archive based on parameters selected in the *download_par_file*
+    - **Type:** boolean
+
+  download_par_file: |
+    **download_par_file** (in config.yaml)
+
+    - **Description:** Path (including filename) to the file containing desired parameters for downloading data 
+    from ALMA's archive. This file is included by default in this repository under the name *download_par.yaml*.
+    - **Type:** string
+
+  enable_sofia: |
+    **enable_sofia** (in config.yaml)
+
+    - **Description:**  If True, allows execution of the module *sofia.py*, which uses external SoFiA software.
+    - **Type:** boolean
+
+  run_mode: |
+    **run_mode** (in config.yaml)
+
+    - **Description:** Indicates the type of emission that SoFiA should search for in the selected data cube. 
+    Available modes are 'emission', 'absorption', and 'both'. If 'both' is selected, SoFiA will first search for 
+    absorptions and then run again to search for emissions. See description of 'abs_flag_cube' parameter for more details.
+    - **Type:** string
+
+  abs_flag_cube: |
+    **abs_flag_cube** (in config.yaml)
+
+    - **Description:** If True, uses the mask obtained during SoFiA's first run in 'both' mode (i.e., absorptions) as a 
+    flag mask for emission searches.
+    - **Type:** boolean
+  
+  auto_setup: |
+    **auto_setup** (in config.yaml)
+
+    - **Description:** If True, adjusts certain SoFiA parameters based on specific keywords found in data cube headers.
+    - **Type:** boolean
+
+  sofia_abs_file: |
+    **sofia_abs_file** (in config.yaml)
+
+    - **Description:** Path (including filename) to a file containing parameters necessary for running SoFiA to search for absorptions.
+    - **Type:** string
+
+  sofia_emi_file: |
+    **sofia_emi_file** (in config.yaml)
+
+    - **Description:** Path (including filename) to a file containing parameters necessary for running SoFiA to search for emissions.
+    - **Type:** string
+
+  enable_sip: |
+    **enable_sip** (in config.yaml)
+
+    - **Description:** If True, allows the execution of the *sipar.py* module, which uses the external SIP software.
+    - **Type:** boolean
+    - **Additional information**: 
+
+      **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in 
+      sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both 
+      files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the 
+      specific process where SoFiA2 is running.
+
+      **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
+      - **'input.data'**: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded 
+      via 'download_par.yaml'. A warning will indicate that it is being ignored.
+      - **'input.invert'**: Ignored, with warnings displayed if there is a conflict between selected mode and value in parameter files 
+      or terminal input.
+      - **'input.primaryBeam'**: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if 
+      specified in 'download_par.yaml'. 
+
+  sip_par_file: |
+    **sip_par_file** (in config.yaml)
+
+    - **Description:** Path (including filename) to the file containing the parameters necessary to run SIP.
+    - **Type:**
+    - **Additional information**: 
+
+      **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in 
+      sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both 
+      files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the 
+      specific process where SoFiA2 is running.
+
+      **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
+      - *'input.data'*: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded 
+      via 'download_par.yaml'. A warning will indicate that it is being ignored.
+      - *'input.invert'*: Ignored, with warnings displayed if there is a conflict between selected mode and value in parameter files 
+      or terminal input.
+      - *'input.primaryBeam'*: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if 
+      specified in 'download_par.yaml'. 
+

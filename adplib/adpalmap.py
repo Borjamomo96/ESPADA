@@ -14,6 +14,10 @@ import argparse
 import numpy as np
 import psutil
 
+from rich.console import Console
+from rich.markdown import Markdown
+import yaml
+
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging.handlers import QueueListener
@@ -26,7 +30,55 @@ from traceback import format_exc
 
 import sys
 
+DESCRIPTION = """
+ADPALMAP: The ALMA Advanced Data Product Pipeline
+
+Overview:
+This pipeline automates ALMA data processing, including the SoFiA-2 and SIP softwares.
+It allows, download files from the ALMA archive, processing multiple datasets in parallel, performing QA and obtain 
+advance data products.
+
+Included programs:
+- SoFiA-2: Spectral cube processing (emission/absorption)
+- SIP: SoFia Imaging Pipeline
+- TAP: Automatic download from ALMA archive borrowing code from ALminer
+
+Main options:
+    -c, --config-file Main configuration file (YAML)
+    -sop, --sofia-parameters Parameters for SoFia in key=value format
+    -sarg, --sip-arguments Arguments for SIP
+
+For detailed help on a file or parameter, use:
+adpalmap help <file|parameter>
+"""
+
+
+
+
 # Functions 
+def show_info(topic):
+
+    DOC_FILE = Path(__file__).parent / "doc/info_docs.yaml"
+    console = Console()
+
+    with open(DOC_FILE, 'r', encoding='utf-8') as f:
+        docs = yaml.safe_load(f)
+
+    if topic.startswith('file='):
+        file_key = topic.split('=', 1)[1]
+        text = docs.get('file', {}).get(file_key)
+    elif topic.startswith('parameter='):
+        param_key = topic.split('=', 1)[1]
+        text = docs.get('parameter', {}).get(param_key)
+    else:
+        text = "# Invalid topic\nUse `-i file=name` or `-i parameter=name`"
+
+    if text:
+        console.print(Markdown(text))
+    else:
+        console.print(f"[red]No information found for '{topic}'[/red]")
+
+
 def parse_sofia_par(arg):
 
     """
@@ -403,6 +455,7 @@ def process_data(number,
 
 def main():
 
+    log_flag = False
     worker_results = []
     worker_exceptions = []
 
@@ -412,7 +465,7 @@ def main():
         parser = argparse.ArgumentParser(
                         prog='adpalmap',
                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                        description='The ALMA advance data product pipeline',
+                        description=DESCRIPTION,
                         epilog= __doc__) 
 
 
@@ -434,11 +487,20 @@ def main():
             "Imaging Pipeline (SIP). Do not add any other arguments after using -sarg."
             " If you add -sop ... or -c ... they will simply be ignored.."
         )
-        
+        parser.add_argument(
+            '-i', '--info', dest='info',  metavar='TOPIC',
+            type=str, default=None,
+            help="Displays detailed information about a file or parameter. Example: "
+            "-i file=config.yaml or -i parameter=fitsonly"
+        )
+
         args = parser.parse_args()
         
         if args.sofia_par: args.sofia_par = dict(args.sofia_par)
         if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
+        if args.info:
+            show_info(args.info)
+            sys.exit(-1)
 
         #--------------------------------------------------------------------------------------------#
 
@@ -468,6 +530,8 @@ def main():
 
         #--------------------------------------------------------------------------------------------# 
         logger.info("ADPALMAP start point")
+
+        log_flag = True
         start = time.perf_counter()
         #--------------------------------------------------------------------------------------------#
 
@@ -635,8 +699,9 @@ def main():
         queue_listener.stop() 
 
     finally:
-        log_path = Logger.get_log_filename()
-        reorganize_log(log_path, worker_results)
+        if log_flag:
+            log_path = Logger.get_log_filename()
+            reorganize_log(log_path, worker_results)
 
 
 # Run the main functions
