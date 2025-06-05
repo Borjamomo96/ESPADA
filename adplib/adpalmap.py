@@ -154,12 +154,18 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
+
+        sopar_workers, sip_workers = worker_results[0], worker_results[1]
         
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
 
         sofia_start_pattern = re.compile(
             r"\[PID:(\d+)\].*SoFia start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
+        )
+
+        sip_start_pattern = re.compile(
+            r"\[PID:(\d+)\].*SIP start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
         )
 
         for i, line in enumerate(lines):
@@ -185,11 +191,13 @@ def reorganize_log(log_path, worker_results):
 
                     pid_groups[current_pid].append(line)
                     sofia_match = sofia_start_pattern.search(line)
+                    sip_match = sip_start_pattern.search(line)
+
                     if sofia_match:
                         pid, mode, input_name = sofia_match.groups()
-                        # Buscar el log_path correspondiente en worker_results
+                        # Buscar el log_path correspondiente en sopar_worker_results
                         log_found = False
-                        for worker in worker_results:
+                        for worker in sopar_workers:
                             for run in worker:
                                 if (str(run['PID']) == pid and
                                     run['mode'] == mode and
@@ -203,6 +211,28 @@ def reorganize_log(log_path, worker_results):
                                         # Opcional: indentar o marcar las líneas del log de SoFia
                                         pid_groups[current_pid].extend(
                                             [f"    {l}" for l in sofia_lines]
+                                        )
+                                        log_found = True
+                                        break
+                            if log_found:
+                                break
+                    elif sip_match:
+                        pid, mode, input_name = sip_match.groups()
+                        log_found = False
+                        for worker in sip_workers:
+                            for run in worker:
+                                if (str(run['PID']) == pid and
+                                    run['mode'] == mode and
+                                    run['input_name'] == input_name):
+                                    log_path_sip = run['log_path']
+                                    if log_path_sofia and Path(log_path_sip).exists():
+                                        with open(
+                                            log_path_sip, 'r', encoding='utf-8'
+                                            ) as sip_log:
+                                            sip_lines = sip_log.readlines()
+                                        # Opcional: indentar o marcar las líneas del log de SoFia
+                                        pid_groups[current_pid].extend(
+                                            [f"    {l}" for l in sip_lines]
                                         )
                                         log_found = True
                                         break
@@ -408,13 +438,16 @@ def process_data(number,
 
     if adpalmap_config.enable_sip == True:
 
+        sip_log_record = []
+
         adpalmap_sipar = SiPar(
             sip_file_path = adpalmap_config.sip_par_file,
             adpalmap_config = adpalmap_config,
             input_data = input_data,
             sargs = args.sip_args,
             number_list = number_list,
-            number = number
+            number = number,
+            pid = os.getpid()
             )
         
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
@@ -423,34 +456,46 @@ def process_data(number,
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                )
 
             elif adpalmap_config.run_mode == 'absorption':
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                )
             elif adpalmap_config.run_mode == 'both':
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
-        
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                )
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
+                )
         elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
             if adpalmap_config.run_mode == 'emission':         
-                adpalmap_sipar.run_sip(adpalmap_config)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
             elif adpalmap_config.run_mode == 'absorption':
-                adpalmap_sipar.run_sip(adpalmap_config)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
             elif adpalmap_config.run_mode == 'both':
-                adpalmap_sipar.run_sip(adpalmap_config)
-                adpalmap_sipar.run_sip(adpalmap_config, run=0)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, run=0)
+                )
         else:
-            adpalmap_sipar.run_sip(adpalmap_config)
-
+            sip_log_record.append(
+                adpalmap_sipar.run_sip(adpalmap_config)
+            )
     else:
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    return sopar_log_record  
+    return sopar_log_record, sip_log_record  
 
 
 def main():
