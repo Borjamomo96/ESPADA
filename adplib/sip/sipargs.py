@@ -30,7 +30,7 @@ class SiPar(dict):
          "combo": ["-m", "--imagemagick"],
          "user_image": ["-ui", "--user-image"],
          "percentile_range": ["-ur", "--user-range"],
-         "spec_line": ["-l", "--spectral-line"]
+         "spec_line": ["-line", "--spectral-line"]
     }
 
 
@@ -412,11 +412,12 @@ class SiPar(dict):
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
                     sys.exit(-1)
 
+        
             sip_log_record = {
                         "PID": sopar.pid,
                         "input_name": sopar.input_data.stem,
                         "mode": sopar.sopar_mode,  
-                        "directory_path": sopar.output_directory 
+                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
                     }
 
         else:
@@ -429,7 +430,7 @@ class SiPar(dict):
                             "PID": self.pid,
                             "input_name": self.input_data.stem,
                             "mode": "absorption",  
-                            "directory_path": cwd_file / "adpalmap_outputs_absorption" 
+                            "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
                         }
                     else:
                         #En 1 guardo el catalago de emisiones
@@ -438,7 +439,7 @@ class SiPar(dict):
                                     "PID": self.pid,
                                     "input_name": self.input_data.stem,
                                     "mode": "emission",  
-                                    "directory_path": cwd_file / "adpalmap_outputs_emission" 
+                                    "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
                             }
                         
                 elif adpalmap_config.run_mode == "absorption":
@@ -447,7 +448,7 @@ class SiPar(dict):
                             "PID": self.pid,
                             "input_name": self.input_data.stem,
                             "mode": "absorption",  
-                            "directory_path": cwd_file / "adpalmap_outputs_absorption" 
+                            "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
                         }
                     
                 elif adpalmap_config.run_mode == "emission":
@@ -456,11 +457,10 @@ class SiPar(dict):
                                 "PID": self.pid,
                                 "input_name": self.input_data.stem,
                                 "mode": "emission",  
-                                "directory_path": cwd_file / "adpalmap_outputs_emission" 
+                                "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
                         }
 
         cmd = self.generate_command()
-        
 
         try:
             Logger.raw("================================")
@@ -626,6 +626,10 @@ class SiPar(dict):
             elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  
                 cmd.append(str(getattr(self, attr_name))) 
+
+        cmd.append("-log")
+        log__name = str(self.catalog_file.parent / f"{self.input_data.stem}_sip.log")
+        cmd.append(log__name)
 
         return cmd
 

@@ -154,8 +154,8 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
-
-        sopar_workers, sip_workers = worker_results[0], worker_results[1]
+        sopar_workers = [worker[0] for worker in worker_results]
+        sip_workers = [worker[1] for worker in worker_results]
         
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
@@ -264,7 +264,7 @@ def reorganize_log(log_path, worker_results):
             f.writelines(sorted_lines)
             
     except Exception as e:
-        print(f"Fatal error reorganizing log: {e}")
+        print(f"Fatal error reorganizing {log_path}. Error: {e}")
      
 
 def calculate_workers(data_pack_list, max_cores):
@@ -428,6 +428,7 @@ def process_data(number,
                     adpalmap_sopar_emi.quality_assesment(mask)
 
     else:
+        sopar_log_record = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -492,6 +493,7 @@ def process_data(number,
                 adpalmap_sipar.run_sip(adpalmap_config)
             )
     else:
+        sip_log_record = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
@@ -744,6 +746,7 @@ def main():
         queue_listener.stop() 
 
     finally:
+
         if log_flag:
             log_path = Logger.get_log_filename()
             reorganize_log(log_path, worker_results)
