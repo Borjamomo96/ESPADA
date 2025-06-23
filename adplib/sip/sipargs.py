@@ -30,7 +30,7 @@ class SiPar(dict):
          "combo": ["-m", "--imagemagick"],
          "user_image": ["-ui", "--user-image"],
          "percentile_range": ["-ur", "--user-range"],
-         "spec_line": ["-l", "--spectral-line"]
+         "spec_line": ["-line", "--spectral-line"]
     }
 
 
