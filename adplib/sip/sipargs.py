@@ -236,7 +236,7 @@ class SiPar(dict):
                         raise ValueError(error_msg)
                     
                     elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
-                        setattr(self, 'catalog_file', catalog_list[self.number])
+                        setattr(self, 'catalog_file', Path(catalog_list[self.number]))
                     else:
                         pass
                 else:
@@ -421,44 +421,52 @@ class SiPar(dict):
                     }
 
         else:
-            if adpalmap_config.enable_tap_service:
-                if adpalmap_config.run_mode == "both":             
-                    if run != 0:
-                        #En 0 guardo el catalago de absorciones
-                        self.catalog_file = self.catalog_file[0]
-                        sip_log_record = {
-                            "PID": self.pid,
-                            "input_name": self.input_data.stem,
-                            "mode": "absorption",  
-                            "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
-                        }
-                    else:
-                        #En 1 guardo el catalago de emisiones
-                        self.catalog_file = self.catalog_file[1]
-                        sip_log_record = {
-                                    "PID": self.pid,
-                                    "input_name": self.input_data.stem,
-                                    "mode": "emission",  
-                                    "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
-                            }
-                        
-                elif adpalmap_config.run_mode == "absorption":
-                    #The self.catalog_file already contains the correct file
+            if adpalmap_config.run_mode == "both":             
+                if run != 0:
+                    #En 0 guardo el catalago de absorciones
+                    self.catalog_file = self.catalog_file[0]
                     sip_log_record = {
-                            "PID": self.pid,
-                            "input_name": self.input_data.stem,
-                            "mode": "absorption",  
-                            "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
-                        }
-                    
-                elif adpalmap_config.run_mode == "emission":
-                    #The self.catalog_file already contains the correct file
+                        "PID": self.pid,
+                        "input_name": self.input_data.stem,
+                        "mode": "absorption",  
+                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                    }
+                else:
+                    #En 1 guardo el catalago de emisiones
+                    self.catalog_file = self.catalog_file[1]
                     sip_log_record = {
                                 "PID": self.pid,
                                 "input_name": self.input_data.stem,
                                 "mode": "emission",  
                                 "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
                         }
+                    
+            elif adpalmap_config.run_mode == "absorption":
+                #The self.catalog_file already contains the correct file
+                sip_log_record = {
+                        "PID": self.pid,
+                        "input_name": self.input_data.stem,
+                        "mode": "absorption",  
+                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                    }
+                
+            elif adpalmap_config.run_mode == "emission":
+                #The self.catalog_file already contains the correct file
+                sip_log_record = {
+                            "PID": self.pid,
+                            "input_name": self.input_data.stem,
+                            "mode": "emission",  
+                            "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
+                    }
+                    
+        if  sip_log_record["log_path"].exists():
+                try:
+                    sip_log_record["log_path"].unlink()
+                except:
+                    logger.warning(
+                        "Error trying to delete existing log file. The new log "
+                        "entries will be appended to it."
+                    )
 
         cmd = self.generate_command()
 

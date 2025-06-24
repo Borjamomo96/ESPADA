@@ -225,12 +225,13 @@ def reorganize_log(log_path, worker_results):
                                     run['mode'] == mode and
                                     run['input_name'] == input_name):
                                     log_path_sip = run['log_path']
-                                    if log_path_sofia and Path(log_path_sip).exists():
+                                    if log_path_sip and Path(log_path_sip).exists():
+                                        
                                         with open(
                                             log_path_sip, 'r', encoding='utf-8'
                                             ) as sip_log:
                                             sip_lines = sip_log.readlines()
-                                        # Opcional: indentar o marcar las líneas del log de SoFia
+                                        # Opcional: indentar o marcar las líneas del log de SIP
                                         pid_groups[current_pid].extend(
                                             [f"    {l}" for l in sip_lines]
                                         )
@@ -265,6 +266,8 @@ def reorganize_log(log_path, worker_results):
             
     except Exception as e:
         print(f"Fatal error reorganizing {log_path}. Error: {e}")
+        Logger.raw(format_exc())
+        
      
 
 def calculate_workers(data_pack_list, max_cores):
