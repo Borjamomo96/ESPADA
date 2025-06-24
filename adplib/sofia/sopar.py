@@ -651,6 +651,16 @@ class SoPar(dict):
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name
             }
+
+            if  sopar_log_record["log_path"].exists():
+                try:
+                    sopar_log_record["log_path"].unlink()
+                except:
+                    logger.warning(
+                        "Error trying to delete existing log file. The new log "
+                        "entries will be appended to it."
+                    )
+
             
             temp_file_path = self.create_tempfile()
             try:
@@ -693,6 +703,15 @@ class SoPar(dict):
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name
             }
+
+            if  sopar_log_record["log_path"].exists():
+                try:
+                    sopar_log_record["log_path"].unlink()
+                except:
+                    logger.warning(
+                        "Error trying to delete existing log file. The new log "
+                        "entries will be appended to it."
+                    )
 
             temp_file_path = self.create_tempfile()
             try:
@@ -738,6 +757,15 @@ class SoPar(dict):
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name
                 }
+
+                if  sopar_log_record["log_path"].exists():
+                    try:
+                        sopar_log_record["log_path"].unlink()
+                    except:
+                        logger.warning(
+                            "Error trying to delete existing log file. The new log "
+                            "entries will be appended to it."
+                        )
 
                 temp_file_path = self.create_tempfile()
                 try:
@@ -798,6 +826,15 @@ class SoPar(dict):
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name
                 }
+
+                if  sopar_log_record["log_path"].exists():
+                    try:
+                        sopar_log_record["log_path"].unlink()
+                    except:
+                        logger.warning(
+                            "Error trying to delete existing log file. The new log "
+                            "entries will be appended to it."
+                        )
 
                 temp_file_path = self.create_tempfile()
                 try:

@@ -236,7 +236,7 @@ class SiPar(dict):
                         raise ValueError(error_msg)
                     
                     elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
-                        setattr(self, 'catalog_file', catalog_list[self.number])
+                        setattr(self, 'catalog_file', Path(catalog_list[self.number]))
                     else:
                         pass
                 else:
@@ -381,6 +381,7 @@ class SiPar(dict):
 
         
         """
+        cwd_file = Path.cwd().resolve()
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
@@ -411,27 +412,85 @@ class SiPar(dict):
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
                     sys.exit(-1)
 
+        
+            sip_log_record = {
+                        "PID": sopar.pid,
+                        "input_name": sopar.input_data.stem,
+                        "mode": sopar.sopar_mode,  
+                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
+                    }
+
         else:
-            if adpalmap_config.enable_tap_service and adpalmap_config.run_mode == "both":             
+            if adpalmap_config.run_mode == "both":             
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
                     self.catalog_file = self.catalog_file[0]
+                    sip_log_record = {
+                        "PID": self.pid,
+                        "input_name": self.input_data.stem,
+                        "mode": "absorption",  
+                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                    }
                 else:
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.catalog_file[1]
+                    sip_log_record = {
+                                "PID": self.pid,
+                                "input_name": self.input_data.stem,
+                                "mode": "emission",  
+                                "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
+                        }
+                    
+            elif adpalmap_config.run_mode == "absorption":
+                #The self.catalog_file already contains the correct file
+                sip_log_record = {
+                        "PID": self.pid,
+                        "input_name": self.input_data.stem,
+                        "mode": "absorption",  
+                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                    }
+                
+            elif adpalmap_config.run_mode == "emission":
+                #The self.catalog_file already contains the correct file
+                sip_log_record = {
+                            "PID": self.pid,
+                            "input_name": self.input_data.stem,
+                            "mode": "emission",  
+                            "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
+                    }
+                    
+        if  sip_log_record["log_path"].exists():
+                try:
+                    sip_log_record["log_path"].unlink()
+                except:
+                    logger.warning(
+                        "Error trying to delete existing log file. The new log "
+                        "entries will be appended to it."
+                    )
 
-        
         cmd = self.generate_command()
-        
 
         try:
             Logger.raw("================================")
             if sopar:
-                logger.info(f"SIP start. Run: {sopar.sopar_mode}")
+                logger.info(
+                    f"SIP start. Mode: {sopar.sopar_mode}. Input data: "
+                    f"{input_file_name}"
+                    )
             else:
-                logger.info(f"SIP start.")
+                if adpalmap_config.run_mode == "both": 
+                    if run != 0:
+                        logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
+                    else:
+                        logger.info(f"SIP start. Mode: emission. Input data: {self.input_data.stem}")
+                elif adpalmap_config.run_mode == "absorption":
+                    logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
+                elif adpalmap_config.run_mode == "emission":
+                    logger.info(f"SIP start. Mode: emission. Input data: {self.input_data.stem}")
+                
             Logger.raw("================================")
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
+
 
             subprocess.run(
                 cmd, 
@@ -439,10 +498,11 @@ class SiPar(dict):
                 check=True, 
                 capture_output=not adpalmap_config.verbose
                 )  
+            
                         
             Logger.raw("================================")
             if sopar:
-                logger.info(f"SIP finished. Run: {sopar.sopar_mode}")
+                logger.info(f"SIP finished. Mode: {sopar.sopar_mode}")
             else:
                 logger.info(f"SIP finished.")
             Logger.raw("================================")
@@ -450,22 +510,38 @@ class SiPar(dict):
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
             if sopar:
-                logger.error(f"Error running SIP. Run: {sopar.sopar_mode}. Error: {e}")
+                logger.error(f"Error running SIP. Mode: {sopar.sopar_mode}. Error: {e}")
             else:
-                logger.error(f"Error running SIP. Error: {e}")
+                if adpalmap_config.run_mode == "both": 
+                    if run != 0:
+                        logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
+                    else: 
+                        logger.error(f"Error running SIP. Mode: emission. Error: {e}")
+                elif adpalmap_config.run_mode == "absorption":
+                    logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
+                elif adpalmap_config.run_mode == "emission":
+                    logger.error(f"Error running SIP. Mode: emission. Error: {e}")
+
 
             if adpalmap_config.run_mode == 'both' and run !=0:
                 if sopar:
-                    logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
+                    logger.info(f"Skipping running SIP. Mode: {sopar.sopar_mode}")
                     return
                 else:
-                    logger.info(f"Skipping running SIP.")
+                    logger.error(f"Skipping running SIP. Mode: absorption.")
+
             else:
                 if sopar:
-                    logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
+                    logger.info(f"Aborting process... Mode: {sopar.sopar_mode}")
                 else:
-                    logger.info(f"Aborting process...")
+                    if adpalmap_config.run_mode == 'absorption':
+                        logger.info(f"Aborting process... Mode: absorption")
+                    elif adpalmap_config.run_mode == 'emission':
+                        logger.info(f"Aborting process... Mode: emission")
                 sys.exit(-1)
+
+        finally:
+            return sip_log_record
         
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 
@@ -558,6 +634,10 @@ class SiPar(dict):
             elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  
                 cmd.append(str(getattr(self, attr_name))) 
+
+        cmd.append("-log")
+        log__name = str(self.catalog_file.parent / f"{self.input_data.stem}_sip.log")
+        cmd.append(log__name)
 
         return cmd
 

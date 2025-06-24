@@ -19,19 +19,19 @@ log_file: log_dir/adpalmap.log
 #   INPUT DATA   #
 ##################
 
-input_data_set: 
+input_data_set: /home/usuario/ADP-ALMA-Pipeline/adplib/sofia/sofia_test_datacube.fits
     #1: 
     #2:  
     #3: 
     #4: 
 
-input_file: #/home/usuario/ALMA_ADPPipeline/test_directories/data.txt
+input_file: 
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: True
+enable_tap_service: False
 download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
 
 #################

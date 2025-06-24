@@ -14,6 +14,10 @@ import argparse
 import numpy as np
 import psutil
 
+from rich.console import Console
+from rich.markdown import Markdown
+import yaml
+
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging.handlers import QueueListener
@@ -26,7 +30,55 @@ from traceback import format_exc
 
 import sys
 
+DESCRIPTION = """
+ADPALMAP: The ALMA Advanced Data Product Pipeline
+
+Overview:
+This pipeline automates ALMA data processing, including the SoFiA-2 and SIP softwares.
+It allows, download files from the ALMA archive, processing multiple datasets in parallel, performing QA and obtain 
+advance data products.
+
+Included programs:
+- SoFiA-2: Spectral cube processing (emission/absorption)
+- SIP: SoFia Imaging Pipeline
+- TAP: Automatic download from ALMA archive borrowing code from ALminer
+
+Main options:
+    -c, --config-file Main configuration file (YAML)
+    -sop, --sofia-parameters Parameters for SoFia in key=value format
+    -sarg, --sip-arguments Arguments for SIP
+
+For detailed help on a file or parameter, use:
+adpalmap help <file|parameter>
+"""
+
+
+
+
 # Functions 
+def show_info(topic):
+
+    DOC_FILE = Path(__file__).parent / "doc/info_docs.yaml"
+    console = Console()
+
+    with open(DOC_FILE, 'r', encoding='utf-8') as f:
+        docs = yaml.safe_load(f)
+
+    if topic.startswith('file='):
+        file_key = topic.split('=', 1)[1]
+        text = docs.get('file', {}).get(file_key)
+    elif topic.startswith('parameter='):
+        param_key = topic.split('=', 1)[1]
+        text = docs.get('parameter', {}).get(param_key)
+    else:
+        text = "# Invalid topic\nUse `-i file=name` or `-i parameter=name`"
+
+    if text:
+        console.print(Markdown(text))
+    else:
+        console.print(f"[red]No information found for '{topic}'[/red]")
+
+
 def parse_sofia_par(arg):
 
     """
@@ -102,12 +154,18 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
+        sopar_workers = [worker[0] for worker in worker_results]
+        sip_workers = [worker[1] for worker in worker_results]
         
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
 
         sofia_start_pattern = re.compile(
             r"\[PID:(\d+)\].*SoFia start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
+        )
+
+        sip_start_pattern = re.compile(
+            r"\[PID:(\d+)\].*SIP start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
         )
 
         for i, line in enumerate(lines):
@@ -133,11 +191,13 @@ def reorganize_log(log_path, worker_results):
 
                     pid_groups[current_pid].append(line)
                     sofia_match = sofia_start_pattern.search(line)
+                    sip_match = sip_start_pattern.search(line)
+
                     if sofia_match:
                         pid, mode, input_name = sofia_match.groups()
-                        # Buscar el log_path correspondiente en worker_results
+                        # Buscar el log_path correspondiente en sopar_worker_results
                         log_found = False
-                        for worker in worker_results:
+                        for worker in sopar_workers:
                             for run in worker:
                                 if (str(run['PID']) == pid and
                                     run['mode'] == mode and
@@ -151,6 +211,29 @@ def reorganize_log(log_path, worker_results):
                                         # Opcional: indentar o marcar las líneas del log de SoFia
                                         pid_groups[current_pid].extend(
                                             [f"    {l}" for l in sofia_lines]
+                                        )
+                                        log_found = True
+                                        break
+                            if log_found:
+                                break
+                    elif sip_match:
+                        pid, mode, input_name = sip_match.groups()
+                        log_found = False
+                        for worker in sip_workers:
+                            for run in worker:
+                                if (str(run['PID']) == pid and
+                                    run['mode'] == mode and
+                                    run['input_name'] == input_name):
+                                    log_path_sip = run['log_path']
+                                    if log_path_sip and Path(log_path_sip).exists():
+                                        
+                                        with open(
+                                            log_path_sip, 'r', encoding='utf-8'
+                                            ) as sip_log:
+                                            sip_lines = sip_log.readlines()
+                                        # Opcional: indentar o marcar las líneas del log de SIP
+                                        pid_groups[current_pid].extend(
+                                            [f"    {l}" for l in sip_lines]
                                         )
                                         log_found = True
                                         break
@@ -182,7 +265,9 @@ def reorganize_log(log_path, worker_results):
             f.writelines(sorted_lines)
             
     except Exception as e:
-        print(f"Fatal error reorganizing log: {e}")
+        print(f"Fatal error reorganizing {log_path}. Error: {e}")
+        Logger.raw(format_exc())
+        
      
 
 def calculate_workers(data_pack_list, max_cores):
@@ -199,9 +284,6 @@ def calculate_workers(data_pack_list, max_cores):
     
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
     max_workers = min(max_cores, max_workers_mem, total_files)
-
-    if max_workers < 1:
-        max_workers = 1
     
     return max_workers
 
@@ -349,6 +431,7 @@ def process_data(number,
                     adpalmap_sopar_emi.quality_assesment(mask)
 
     else:
+        sopar_log_record = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -359,13 +442,16 @@ def process_data(number,
 
     if adpalmap_config.enable_sip == True:
 
+        sip_log_record = []
+
         adpalmap_sipar = SiPar(
             sip_file_path = adpalmap_config.sip_par_file,
             adpalmap_config = adpalmap_config,
             input_data = input_data,
             sargs = args.sip_args,
             number_list = number_list,
-            number = number
+            number = number,
+            pid = os.getpid()
             )
         
         adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
@@ -374,38 +460,52 @@ def process_data(number,
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                )
 
             elif adpalmap_config.run_mode == 'absorption':
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                )
             elif adpalmap_config.run_mode == 'both':
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
-                adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
-        
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                )
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
+                )
         elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
             if adpalmap_config.run_mode == 'emission':         
-                adpalmap_sipar.run_sip(adpalmap_config)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
             elif adpalmap_config.run_mode == 'absorption':
-                adpalmap_sipar.run_sip(adpalmap_config)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
             elif adpalmap_config.run_mode == 'both':
-                adpalmap_sipar.run_sip(adpalmap_config)
-                adpalmap_sipar.run_sip(adpalmap_config, run=0)
-
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config)
+                )
+                sip_log_record.append(
+                    adpalmap_sipar.run_sip(adpalmap_config, run=0)
+                )
         else:
-            adpalmap_sipar.run_sip(adpalmap_config)
-
+            sip_log_record.append(
+                adpalmap_sipar.run_sip(adpalmap_config)
+            )
     else:
+        sip_log_record = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    return sopar_log_record  
+    return sopar_log_record, sip_log_record  
 
 
 def main():
 
+    log_flag = False
     worker_results = []
     worker_exceptions = []
 
@@ -415,7 +515,7 @@ def main():
         parser = argparse.ArgumentParser(
                         prog='adpalmap',
                         formatter_class=argparse.RawDescriptionHelpFormatter,
-                        description='The ALMA advance data product pipeline',
+                        description=DESCRIPTION,
                         epilog= __doc__) 
 
 
@@ -437,11 +537,20 @@ def main():
             "Imaging Pipeline (SIP). Do not add any other arguments after using -sarg."
             " If you add -sop ... or -c ... they will simply be ignored.."
         )
-        
+        parser.add_argument(
+            '-i', '--info', dest='info',  metavar='TOPIC',
+            type=str, default=None,
+            help="Displays detailed information about a file or parameter. Example: "
+            "-i file=config.yaml or -i parameter=fitsonly"
+        )
+
         args = parser.parse_args()
         
         if args.sofia_par: args.sofia_par = dict(args.sofia_par)
         if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
+        if args.info:
+            show_info(args.info)
+            sys.exit(-1)
 
         #--------------------------------------------------------------------------------------------#
 
@@ -471,6 +580,8 @@ def main():
 
         #--------------------------------------------------------------------------------------------# 
         logger.info("ADPALMAP start point")
+
+        log_flag = True
         start = time.perf_counter()
         #--------------------------------------------------------------------------------------------#
 
@@ -570,6 +681,14 @@ def main():
 
         max_workers = calculate_workers(data_pack_list, available_cores)
 
+        if max_workers < 1:
+            logger.warning(
+                "The worker number is lower than 1. One or more of the datasets are too large"
+                " for the available RAM. The minimum worker count is set to 1, but keep in "
+                "mind that unexpected errors may occur."
+            )
+            max_workers = 1
+
         sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
 
         logger.info(
@@ -630,8 +749,10 @@ def main():
         queue_listener.stop() 
 
     finally:
-        log_path = Logger.get_log_filename()
-        reorganize_log(log_path, worker_results)
+
+        if log_flag:
+            log_path = Logger.get_log_filename()
+            reorganize_log(log_path, worker_results)
 
 
 # Run the main functions
