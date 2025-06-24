@@ -334,9 +334,10 @@ class datap(dict):
 
             
             if self.download_par['print_urls']:
+                self.pid = os.getpid()
                 logger.info("File URLs to download: ")
                 for url in dl_link_list:
-                    Logger.raw(f"{url}") 
+                    Logger.raw(f"[{self.pid}] {url}") 
                 
         else:
             logger.warning("Nothing to download.")
@@ -558,7 +559,7 @@ class datap(dict):
                         )
                         decompressed_pb_files.append(extracted_file_path)
 
-                        if self.download_par['remove_uncompress_file']:
+                        if self.download_par['remove_compressed_file']:
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
                     else:
@@ -571,7 +572,7 @@ class datap(dict):
                                 f"Unzipped primary beam file: {extracted_file_path}"
                             )
 
-                            if self.download_par['remove_uncompressed_file']:
+                            if self.download_par['remove_compressed_file']:
                                 file.unlink()
                                 logger.info(f"Compressed file deleted: {file}")
 
@@ -604,7 +605,7 @@ class datap(dict):
         This method searches for mask files in the specified directory (`base_dir`) that match 
         the pattern `*cube.I.mask*`. It handles compressed `.gz` files by decompressing them 
         if necessary and optionally deleting the original compressed files based on the 
-        `self.download_par['remove_uncompressed_file']` setting. The most recently modified mask 
+        `self.download_par['remove_compressed_file']` setting. The most recently modified mask 
         file is selected and stored as an attribute (`self.data_loc_mask`).
 
         Args:
@@ -651,7 +652,7 @@ class datap(dict):
                     logger.info(f"The unzipped file already exists: {extracted_file_path}")
                     decompressed_mask_files.append(extracted_file_path)
 
-                    if self.download_par['remove_uncompressed_file']:
+                    if self.download_par['remove_compressed_file']:
                         file.unlink()
                         logger.info(f"Compressed file deleted: {file}")
                 else:
@@ -661,7 +662,7 @@ class datap(dict):
                                 shutil.copyfileobj(gz_in, extracted_out)
                         logger.info(f"Unzipped file: {extracted_file_path}")
 
-                        if self.download_par['remove_uncompressed_file']:
+                        if self.download_par['remove_compressed_file']:
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
 
@@ -1189,7 +1190,7 @@ class datap(dict):
             download_par_expected_types = {
                 'fitsonly': bool,
                 'include_pb': bool,
-                'remove_uncompressed_file': bool,
+                'remove_compressed_file': bool,
                 'dryrun': bool,
                 'print_urls': bool,
                 'filename_must_include': list,
