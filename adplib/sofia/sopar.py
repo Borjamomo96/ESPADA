@@ -934,7 +934,6 @@ class SoPar(dict):
                 Logger.raw_file(f"[{self.pid}]{par}= ")
 
 
-
     def quality_assesment(self, mask_file=None):
         """
         Perform a quality assessment by visualizing and comparing masks and moment images.

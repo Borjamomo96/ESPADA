@@ -64,7 +64,7 @@ download_par:
   fitsonly : True                                    # <bool> (Default value = True) Download individual fits files only. This option will not download the raw data
   include_pb: True                                  # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
   include_mask : False
-  remove_compressed_file: False                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
+  remove_zip_file: False                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
   dryrun : True                                    # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
                                                       # downloading the data (dryrun=True). To download the data, set testrun=False.
   print_urls : True                                 # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
