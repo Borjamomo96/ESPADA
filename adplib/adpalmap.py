@@ -274,7 +274,7 @@ def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
     
     #Estimación de memoria por proceso
-    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
+    total_size = sum(os.path.getsize(data) for data, _, _, _ in data_pack_list if data)
     avg_size = (total_size / total_files) if total_files > 0 else 0
     #Memoria disponible en GB
     mem_available = psutil.virtual_memory().available / 1024**3  
@@ -292,6 +292,7 @@ def process_data(number,
                  input_data, 
                  primary_beam, 
                  mask, 
+                 mask_qa,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
@@ -330,14 +331,14 @@ def process_data(number,
             )
 
             if adpalmap_config.quality_assesment == True:
-                if mask is not None:
-                    adpalmap_sopar_emi.quality_assesment(mask)
+                if mask_qa:
+                    adpalmap_sopar_emi.quality_assesment(mask_qa)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will not be "
                         "performed."
                     )
-                    adpalmap_sopar_emi.quality_assesment(mask)
+                    adpalmap_sopar_emi.quality_assesment()
 
 
         elif adpalmap_config.run_mode == 'absorption':
@@ -363,14 +364,14 @@ def process_data(number,
             )
 
             if adpalmap_config.quality_assesment == True:
-                if mask is not None:
-                    adpalmap_sopar_abs.quality_assesment(mask)
+                if mask_qa:
+                    adpalmap_sopar_abs.quality_assesment(mask_qa)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will"
                         " not be performed."
                     )
-                    adpalmap_sopar_abs.quality_assesment(mask)
+                    adpalmap_sopar_abs.quality_assesment()
 
         elif adpalmap_config.run_mode == 'both':
 
@@ -410,12 +411,12 @@ def process_data(number,
             )
 
             if adpalmap_config.quality_assesment == True:
-                if mask is not None:
-                    adpalmap_sopar_abs.quality_assesment(mask)
+                if mask_qa:
+                    adpalmap_sopar_abs.quality_assesment(mask_qa)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_abs.quality_assesment(mask)
+                    adpalmap_sopar_abs.quality_assesment()
 
             sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
                                                             mode=adpalmap_config.run_mode, 
@@ -423,12 +424,12 @@ def process_data(number,
             )
             
             if adpalmap_config.quality_assesment == True:
-                if mask is not None:
-                    adpalmap_sopar_emi.quality_assesment(mask)
+                if mask_qa:
+                    adpalmap_sopar_emi.quality_assesment(mask_qa)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_emi.quality_assesment(mask)
+                    adpalmap_sopar_emi.quality_assesment()
 
     else:
         sopar_log_record = []
@@ -619,16 +620,18 @@ def main():
         if adpalmap_config.enable_tap_service == True:
             
             data_pack_list = [
-                (data, pb, mask)
-                for data, pb, mask in zip(
+                (data, pb, mask, mask_qa)
+                for data, pb, mask, mask_qa in zip(
                     adpalmap_datap.data_list, 
                     adpalmap_datap.pb_list, 
-                    adpalmap_datap.mask_list
+                    adpalmap_datap.mask_list,
+                    adpalmap_datap.mask_qa_list
                 )
             ]
         #Datos ya descargados
         else: 
-            data_pack_list = adpalmap_config.input_data_set
+            data_pack_list = [dataset + ('',) for dataset in adpalmap_config.input_data_set]
+
 
         number_list = list(range(len(data_pack_list)))
         #--------------------------------------------------------------------------------------------#
@@ -704,12 +707,12 @@ def main():
             futures = [
                 pool.submit(
                     process_data, 
-                    i, data, primary_beam, mask, 
+                    i, data, primary_beam, mask, mask_qa,
                     adpalmap_config,
                     args, sofia_threads, number_list,
                     Logger.setup_child_logger(log_queue)
                     )
-                for i, (data, primary_beam, mask) in enumerate(data_pack_list)
+                for i, (data, primary_beam, mask, mask_qa) in enumerate(data_pack_list)
             ]
             
 

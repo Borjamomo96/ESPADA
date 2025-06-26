@@ -261,41 +261,30 @@ class datap(dict):
         
     
         #Fits only and phrase within the file to download
-        if self.download_par['fitsonly']:
-            
-            data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
-            
-            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings 
-            # provided by user in 'filename_must_include' parameter
-            
-            if self.download_par['include_pb']:
-                dl_table = data_table[
-                    [i for i, v in enumerate(data_table['access_url'])
-                    if ((v.endswith(".fits") or ".pb." in v) and
-                        all(fmi in v for fmi in self.download_par['filename_must_include']))]
-                ]
-            else:
-                dl_table = data_table[
-                    [i for i, v in enumerate(data_table['access_url'])
-                    if (v.endswith(".fits") and
-                        all(fmi in v for fmi in self.download_par['filename_must_include']))]
-                ]
+        data_table = self.alma.get_data_info(
+            uids_list, expand_tarfiles=self.download_par['fitsonly']
+        )
 
+        patterns = []
+        if self.download_par['fitsonly']:
+            patterns.append('.fits')
+        if self.download_par['include_pb']:
+            patterns.append('.pb.')
+        if self.download_par['include_mask']:
+            patterns.append('cube.I.mask')
+
+        if patterns:
+            dl_table = data_table[
+                [i for i, v in enumerate(data_table['access_url'])
+                if (any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in patterns)
+                    and all(fmi in v for fmi in self.download_par['filename_must_include']))]
+            ]
         else:
-            data_table = self.alma.get_data_info(uids_list, expand_tarfiles=False)
-            # filter the data_table and keep only rows with "fits" in 'access_url' and the strings 
-            # provided by user in 'filename_must_include' parameter
-            if self.download_par['include_pb']:
-                dl_table = data_table[
-                    [i for i, v in enumerate(data_table['access_url'])
-                    if (".pb." in v) and
-                    all(fmi in v for fmi in self.download_par['filename_must_include'])]
-                ]
-            else:
-                dl_table = data_table[
-                    [i for i, v in enumerate(data_table['access_url'])
-                    if all(fmi in v for fmi in self.download_par['filename_must_include'])]
-                ]
+            dl_table = data_table[
+                [i for i, v in enumerate(data_table['access_url'])
+                if all(fmi in v for fmi in self.download_par['filename_must_include'])]
+            ]
+
         
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
@@ -426,7 +415,7 @@ class datap(dict):
 
         try:
             Logger.raw("================================")
-            logger.info("Starting download masks. Please wait...")
+            logger.info("Starting download masks for QA. Please wait...")
             Logger.raw("================================")
             self.alma.download_files(dl_link_list, cache=True)
             
@@ -435,7 +424,7 @@ class datap(dict):
 
         self.get_downloaded_mask_path(Path(self.alma.cache_location), dl_link_list)
         Logger.raw("================================")
-        logger.info("Mask download ended.")
+        logger.info("Mask download for QA ended.")
         Logger.raw("================================")
 
     
@@ -502,7 +491,7 @@ class datap(dict):
                          "Files with data from ALMA cycle 2 must contain the string 'cube.I.pbcor'" 
                          "in their names. If the file you want to download is older please open an "
                          "issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with the "
-                         "specific case. You can still use the Alma Pipeline ADP if you download "
+                         "specific case. You can still use the ADP Alma Pipeline if you download "
                          "the file yourself and run it locally.")
             logger.info("Exiting pipeline")
             sys.exit(-1)
@@ -525,7 +514,7 @@ class datap(dict):
                 if not matched:
                     pb_files.append("") 
 
-            if  all(mask == "" for mask in pb_files):
+            if  all(pb == "" for pb in pb_files):
 
                 logger.warning(
                     "No primary beam was found in the downloaded dataset. Either it"
@@ -597,6 +586,95 @@ class datap(dict):
             self.pb_list = ["" for _ in dl_link_list]
 
 
+        if self.download_par['include_mask']:
+                
+            mask_files_aux = [download_dir / Path(Path(url).name) for url in dl_link_list 
+                            if "cube.I.mask." in Path(url).name]
+            
+            mask_files = []
+            for data_path in self.data_list:
+                data_segment = get_segment(str(data_path))  
+                matched = False
+                for mask_path in mask_files_aux:
+                    if data_segment == get_segment(str(mask_path)):
+                        mask_files.append(mask_path)  
+                        matched = True
+                        break  
+                if not matched:
+                    mask_files.append("") 
+
+            if  all(mask == "" for mask in mask_files):
+
+                logger.warning(
+                    "No mask was found in the downloaded dataset. Either it"
+                    " is not available in the archive, or the strings included in the "
+                    "'filename_must_include' parameter have been so restrictive that "
+                    "they exclude the mask file from the download. Avoid "
+                    "full names if you want to download the mask."
+                )
+                logger.warning(
+                    "Continued without taking into account any masks"
+                )
+                self.mask_list = mask_files
+                return
+            
+
+            decompressed_mask_files = []  
+
+            for file in mask_files:
+                if file == "":  # Ignoro entradas vacías
+                    decompressed_mask_files.append("")
+                    continue
+
+                if file.suffix == ".gz":
+                    extracted_file_path = file.with_suffix('')  
+
+                    # Compruebo si el archivo descomprimido ya existe
+                    if extracted_file_path.exists():
+                        logger.info(
+                            "The unzipped mask file already exists: "
+                            f"{extracted_file_path}"
+                        )
+                        decompressed_mask_files.append(extracted_file_path)
+
+                        if self.download_par['remove_compressed_file']:
+                            file.unlink()
+                            logger.info(f"Compressed file deleted: {file}")
+                    else:
+                        # Intento descomprimir el archivo
+                        try:
+                            with gzip.open(file, 'rb') as gz_in:
+                                with open(extracted_file_path, 'wb') as extracted_out:
+                                    shutil.copyfileobj(gz_in, extracted_out)
+                            logger.info(
+                                f"Unzipped mask file: {extracted_file_path}"
+                            )
+
+                            if self.download_par['remove_compressed_file']:
+                                file.unlink()
+                                logger.info(f"Compressed file deleted: {file}")
+
+                            decompressed_mask_files.append(extracted_file_path)
+                        except Exception as e:
+                            logger.error(f"Error trying to unzip {file}: {e}")
+                else:
+                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                    decompressed_mask_files.append(file)
+    
+            if decompressed_mask_files:
+                self.mask_list = decompressed_mask_files
+            else:
+                logger.critical(
+                "No valid mask files were successfully processed. Fatal error. "
+                "Please open an issue on GitLab "
+                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                )
+                sys.exit(-1)
+
+        else:
+            self.mask_list = ["" for _ in dl_link_list]
+
+
     def get_downloaded_mask_path(self, download_dir, dl_link_list):
 
         """
@@ -633,7 +711,7 @@ class datap(dict):
         
         if all(mask == "" for mask in mask_files):
             logger.warning("No mask files found in the download data set selected.")
-            self.mask_list = mask_files
+            self.mask_qa_list = mask_files
             return
 
         decompressed_mask_files = []  #Almaceno archivos descomprimidos o existentes
@@ -674,7 +752,7 @@ class datap(dict):
 
         # Selecciona el archivo más reciente basado en su fecha de modificación
         if decompressed_mask_files:
-            self.mask_list = decompressed_mask_files
+            self.mask_qa_list = decompressed_mask_files
             #logger.info(f"Most recent file selected: {most_recent_maskfile}")
         else:
             logger.critical(
