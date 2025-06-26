@@ -395,6 +395,13 @@ class SiPar(dict):
             else:
                 sofia_catalog_txt = None
                 sofia_catalog_xml = None
+
+            sip_log_record = {
+                        "PID": sopar.pid,
+                        "input_name": sopar.input_data.stem,
+                        "mode": sopar.sopar_mode,  
+                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
+                    }
     
             if sofia_catalog_txt and sofia_catalog_xml:
                 self.catalog_file = sofia_catalog_txt
@@ -407,18 +414,14 @@ class SiPar(dict):
                                 f" {sopar.output_directory} directory.")
                 if adpalmap_config.run_mode == 'both' and run!=0:
                     logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
-                    return
+                    
+                    return sip_log_record
                 else:
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
-                    sys.exit(-1)
+                    
+                    return sip_log_record
 
         
-            sip_log_record = {
-                        "PID": sopar.pid,
-                        "input_name": sopar.input_data.stem,
-                        "mode": sopar.sopar_mode,  
-                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
-                    }
 
         else:
             if adpalmap_config.run_mode == "both":             

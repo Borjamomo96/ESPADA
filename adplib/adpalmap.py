@@ -219,6 +219,7 @@ def reorganize_log(log_path, worker_results):
                     elif sip_match:
                         pid, mode, input_name = sip_match.groups()
                         log_found = False
+                        
                         for worker in sip_workers:
                             for run in worker:
                                 if (str(run['PID']) == pid and
@@ -750,6 +751,7 @@ def main():
         finish = time.perf_counter()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
+
 
     finally:
 
