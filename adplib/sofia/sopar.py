@@ -174,6 +174,7 @@ def moment8_ima(adpalmap_sopar):
             raise
 
         with fits.open(pb_path) as hdul:
+            
             pb_cube = hdul[0].data
 
         if pb_cube is None:
@@ -473,7 +474,7 @@ class SoPar(dict):
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
 
-        #-----------------------input.mask-----------------------#
+        #-----------------------input.mask------------------------#
         if mask:      
             if (sop_par is not None 
                     and 'input.mask' in sop_par 
@@ -508,6 +509,20 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
                 )
+
+        #---------------------------------------------------------#
+
+        #---------------------scfind.enable ----------------------#
+        if mask:
+            if (sop_par is not None 
+                    and 'scfind.enable' in sop_par 
+                    and sop_par['scfind.enable'] is not None
+            ):
+                logger.warning(
+                    f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+                self.scfind.enable = 'false'
 
         #---------------------------------------------------------#
 
