@@ -224,6 +224,33 @@ def run_and_log(command):
     Logger.raw_file("".join(output))
 
 
+def parse_parfile(file_path):
+    config = {}
+    with open(file_path, 'r') as f:
+        for line in f:     
+            line = line.strip() 
+            if not line or line.startswith('#'):
+                continue
+            if '=' in line:
+                key, value = map(str.strip, line.split('=', 1))
+                config[key] = value
+    return config
+
+
+def compare_parfiles(file_path, temp_file_path):
+
+    original = parse_parfile(file_path)
+    modified = parse_parfile(temp_file_path)
+
+    changes = {}
+    for key, new_value in modified.items():
+        old_value = original.get(key)
+        if old_value != new_value:
+            changes[key] = new_value
+
+    return changes
+
+
 class SoPar(dict): 
 
     def __init__(self, **kwargs):
@@ -661,6 +688,7 @@ class SoPar(dict):
 
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
             sopar_log_record = {
+                "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
@@ -678,6 +706,10 @@ class SoPar(dict):
 
             
             temp_file_path = self.create_tempfile()
+            sopar_log_record.update(
+                {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+            )
+            error = ''
             try:
                 self.log_parameters()
                 Logger.raw("================================")
@@ -698,14 +730,17 @@ class SoPar(dict):
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
+                error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
                 logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
+                sopar_log_record.update({"error": e})
                 return sopar_log_record
-            
+
+
         elif (mode is not None and mode=='emission'):
 
             self.output_directory = Path(f'{self.output_directory}_emission')
@@ -713,6 +748,7 @@ class SoPar(dict):
             
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
             sopar_log_record = {
+                "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
@@ -729,6 +765,10 @@ class SoPar(dict):
                     )
 
             temp_file_path = self.create_tempfile()
+            sopar_log_record.update(
+                {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+            )
+            error = ''
             try:
                 self.log_parameters()
                 Logger.raw("================================")
@@ -750,16 +790,18 @@ class SoPar(dict):
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
             except subprocess.CalledProcessError as e:
+                error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
                 logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
+                sopar_log_record.update({"error": error})
                 return sopar_log_record    
                     
         
-        elif mode == 'both':
+        elif (mode is not None and mode==mode == 'both'):
             if run!=0:
                 #Corre en modo absorción, indicado en el main()
                 self.output_directory = Path(f'{self.output_directory}_absorption')
@@ -767,6 +809,7 @@ class SoPar(dict):
 
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
                 sopar_log_record = {
+                    "software_id" :'SoFiA-2',
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
@@ -783,6 +826,10 @@ class SoPar(dict):
                         )
 
                 temp_file_path = self.create_tempfile()
+                sopar_log_record.update(
+                    {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+                )
+                error = ''
                 try:
                     self.log_parameters()
                     Logger.raw("================================")
@@ -804,11 +851,13 @@ class SoPar(dict):
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
                 except subprocess.CalledProcessError as e:
+                    error = str(e)
                     logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
                     logger.info(f"SoFiA will try to run again in mode: emission.")
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
+                    sopar_log_record.update({"error": error})
                     return sopar_log_record 
 
             elif run==0:
@@ -836,6 +885,7 @@ class SoPar(dict):
                 
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
                 sopar_log_record = {
+                    "software_id" :'SoFiA-2',
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
@@ -852,6 +902,10 @@ class SoPar(dict):
                         )
 
                 temp_file_path = self.create_tempfile()
+                sopar_log_record.update(
+                    {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+                )
+                error = ''
                 try:
                     self.log_parameters()
                     Logger.raw("================================")
@@ -873,12 +927,14 @@ class SoPar(dict):
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")            
                 except subprocess.CalledProcessError as e:
+                    error = str(e)
                     logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
                     logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                     sys.exit(-1)
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
+                    sopar_log_record.update({"error": error})
                     return sopar_log_record 
                 
 
@@ -1049,6 +1105,8 @@ class SoPar(dict):
             logger.info(f"Aborting quality assement. Mode: {self.sopar_mode}")
             return
             
+
+
 
 
 

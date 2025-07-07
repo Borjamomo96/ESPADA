@@ -397,6 +397,7 @@ class SiPar(dict):
                 sofia_catalog_xml = None
 
             sip_log_record = {
+                        "software_id" :'SIP',
                         "PID": sopar.pid,
                         "input_name": sopar.input_data.stem,
                         "mode": sopar.sopar_mode,  
@@ -414,14 +415,12 @@ class SiPar(dict):
                                 f" {sopar.output_directory} directory.")
                 if adpalmap_config.run_mode == 'both' and run!=0:
                     logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
-                    
+                    sip_log_record.update({'comand': '', 'error': ''})
                     return sip_log_record
                 else:
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
-                    
+                    sip_log_record.update({'comand': '', 'error': ''})
                     return sip_log_record
-
-        
 
         else:
             if adpalmap_config.run_mode == "both":             
@@ -429,6 +428,7 @@ class SiPar(dict):
                     #En 0 guardo el catalago de absorciones
                     self.catalog_file = self.catalog_file[0]
                     sip_log_record = {
+                        "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "absorption",  
@@ -438,6 +438,7 @@ class SiPar(dict):
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.catalog_file[1]
                     sip_log_record = {
+                                "software_id" :'SIP',
                                 "PID": self.pid,
                                 "input_name": self.input_data.stem,
                                 "mode": "emission",  
@@ -447,6 +448,7 @@ class SiPar(dict):
             elif adpalmap_config.run_mode == "absorption":
                 #The self.catalog_file already contains the correct file
                 sip_log_record = {
+                        "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "absorption",  
@@ -456,6 +458,7 @@ class SiPar(dict):
             elif adpalmap_config.run_mode == "emission":
                 #The self.catalog_file already contains the correct file
                 sip_log_record = {
+                            "software_id" :'SIP',
                             "PID": self.pid,
                             "input_name": self.input_data.stem,
                             "mode": "emission",  
@@ -472,7 +475,8 @@ class SiPar(dict):
                     )
 
         cmd = self.generate_command()
-
+        error = ''
+        sip_log_record.update({'comand':cmd})
         try:
             Logger.raw("================================")
             if sopar:
@@ -511,6 +515,7 @@ class SiPar(dict):
             Logger.raw("================================")
 
         except subprocess.CalledProcessError as e:
+            error = str(e)
             # In case of error this show the message and exit code of SIP
             if sopar:
                 logger.error(f"Error running SIP. Mode: {sopar.sopar_mode}. Error: {e}")
@@ -544,6 +549,7 @@ class SiPar(dict):
                 sys.exit(-1)
 
         finally:
+            sip_log_record.update({'error': error})
             return sip_log_record
         
         #DESCOMENTAR Cuando hable con Kelley

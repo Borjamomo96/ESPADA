@@ -301,6 +301,8 @@ def process_data(number,
                  logger
     ):
     
+    pid = os.getpid()
+
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
     from adplib.sofia.sopar import SoPar
@@ -310,13 +312,13 @@ def process_data(number,
         sopar_log_record = []
 
         if adpalmap_config.run_mode == 'emission':
-            
+
             adpalmap_sopar_emi = SoPar(
                 sofia_file_path=adpalmap_config.sofia_emi_file, 
-                sopar_mode="emission",
-                pid = os.getpid()
+                sopar_mode=adpalmap_config.run_mode,
+                pid = pid
                 )
-            #Update sofia abs file with the -sop parameters
+            
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
@@ -373,6 +375,7 @@ def process_data(number,
                         " not be performed."
                     )
                     adpalmap_sopar_abs.quality_assesment()
+
 
         elif adpalmap_config.run_mode == 'both':
 
@@ -434,6 +437,7 @@ def process_data(number,
 
     else:
         sopar_log_record = []
+        sofia_report = {'software_id' : 'SoFiA-2', 'state' : 'disable', 'log' : ''}}
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -498,11 +502,72 @@ def process_data(number,
                 adpalmap_sipar.run_sip(adpalmap_config)
             )
     else:
-        sip_log_record = []
+        sip_log_record = []}
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
     return sopar_log_record, sip_log_record  
+
+
+#Functions html report
+
+def get_html_dataset(dataset_list, html_report):
+    
+    html_report = [{'inputData_path' : data} for data, pb, mask, _ in dataset_list]
+
+    return html_report
+
+def transformar_report(report):
+    datasets = []
+    for idx, dataset in enumerate(report):
+        # Extraer el nombre del dataset del primer diccionario disponible
+        nombre = None
+        for sublist in dataset:
+            if sublist and isinstance(sublist[0], dict) and 'input_name' in sublist[0]:
+                nombre = sublist[0]['input_name']
+                break
+        if not nombre:
+            nombre = f"Dataset {idx+1}"
+
+        softwares = []
+        for sublist in dataset:
+            for entry in sublist:
+                # Extraer nombre del software
+                software_nombre = entry.get('software_id', 'Desconocido')
+                # Determinar estado según la clave 'error'
+                error = entry.get('error', '')
+                if error:
+                    estado = 'error'
+                else:
+                    estado = 'ok'
+                # Puedes personalizar el log según el software y el error
+                log = error if error else f"{software_nombre} ejecutado correctamente."
+                # Puedes añadir más campos si lo necesitas
+                software_dict = {
+                    'nombre': software_nombre,
+                    'estado': estado,
+                    'log': log
+                }
+                softwares.append(software_dict)
+
+        # Ejemplo: puedes extraer imágenes si tienes esa información en los diccionarios
+        imagenes = []
+        for sublist in dataset:
+            for entry in sublist:
+                # Si tienes paths de imágenes, agrégalas aquí
+                if 'imagenes' in entry:
+                    for img in entry['imagenes']:
+                        imagenes.append({
+                            'url': img.get('url', ''),
+                            'descripcion': img.get('descripcion', '')
+                        })
+        # Si no hay imágenes, puedes dejar la lista vacía o poner un ejemplo
+        datasets.append({
+            'nombre': nombre,
+            'softwares': softwares,
+            'imagenes': imagenes
+        })
+    return datasets
 
 
 def main():
@@ -510,6 +575,7 @@ def main():
     log_flag = False
     worker_results = []
     worker_exceptions = []
+    html_report = []
 
     try:
         # Parse args:
@@ -580,11 +646,14 @@ def main():
             queue=log_queue
         )
 
+
+
         #--------------------------------------------------------------------------------------------# 
         logger.info("ADPALMAP start point")
 
         log_flag = True
         start = time.perf_counter()
+
         #--------------------------------------------------------------------------------------------#
 
         #Optionally download data from ALMA archive
@@ -635,6 +704,9 @@ def main():
 
 
         number_list = list(range(len(data_pack_list)))
+
+        html_report = get_html_dataset(data_pack_list, html_report)
+
         #--------------------------------------------------------------------------------------------#
         
         #--------------------------------------------------------------------------------------------#
@@ -739,7 +811,8 @@ def main():
                 except Exception as e:
                     worker_exceptions.append(e)
                     logger.critical(
-                        f"Unexpected error. Please open an issue on GitHub "
+                        f"Unexpected error: {e}. "
+                         "Please open an issue on GitHub "
                          "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                          "case."
                     )
@@ -752,7 +825,8 @@ def main():
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
 
-
+        report = transformar_report(worker_results)
+        print(report)
     finally:
 
         if log_flag:
