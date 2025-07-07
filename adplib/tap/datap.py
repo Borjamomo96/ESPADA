@@ -75,7 +75,7 @@ def mask_float2int(file):
                 new_hdu.writeto(file, overwrite=True)
                 
     except Exception as e:
-        logger.error(f"Error convirtiendo máscara a entero: {e}")
+        logger.error(f"Mask conversion to integer failed: {e}")
 
     return
 

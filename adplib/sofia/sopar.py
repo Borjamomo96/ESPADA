@@ -464,7 +464,7 @@ class SoPar(dict):
                 #self.input_primaryBeam = sop_par['input.primaryBeam']
                 logger.warning(
                     f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided vía '-sop' comand."
                 )
 
             if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
