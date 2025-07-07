@@ -608,6 +608,10 @@ def main():
 
             if adpalmap_config.quality_assesment == True:
                 adpalmap_datap.download_mask(TAP_df)
+            else:
+                print(adpalmap_datap.data_list)
+                if not hasattr(adpalmap_datap, 'mask_qa_list'):
+                    adpalmap_datap.mask_qa_list = [""] * len(adpalmap_datap.data_list)
             
         else:
             adpalmap_datap = None
