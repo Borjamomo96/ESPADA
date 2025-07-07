@@ -554,11 +554,11 @@ class datap(dict):
                 return
             
 
-            unzip_pb_files = []  
+            decompress_pb_files = []  
 
             for file in pb_files:
                 if file == "":  # Ignoro entradas vacías
-                    unzip_pb_files.append("")
+                    decompress_pb_files.append("")
                     continue
 
                 if file.suffix == ".gz":
@@ -567,14 +567,14 @@ class datap(dict):
                     # Compruebo si el archivo descomprimido ya existe
                     if extracted_file_path.exists():
                         logger.info(
-                            "The unzipped primary beam file already exists: "
+                            "The decompressed primary beam file already exists: "
                             f"{extracted_file_path}"
                         )
-                        unzip_pb_files.append(extracted_file_path)
+                        decompress_pb_files.append(extracted_file_path)
 
-                        if self.download_par['remove_zip_file']:
+                        if self.download_par['remove_compressed_file']:
                             file.unlink()
-                            logger.info(f"Zip file deleted: {file}")
+                            logger.info(f"Compressed file deleted: {file}")
                     else:
                         # Intento descomprimir el archivo
                         try:
@@ -582,22 +582,22 @@ class datap(dict):
                                 with open(extracted_file_path, 'wb') as extracted_out:
                                     shutil.copyfileobj(gz_in, extracted_out)
                             logger.info(
-                                f"Unzipped primary beam file: {extracted_file_path}"
+                                f"Decompressed primary beam file: {extracted_file_path}"
                             )
 
-                            if self.download_par['remove_zip_file']:
+                            if self.download_par['remove_compressed_file']:
                                 file.unlink()
-                                logger.info(f"Zip file deleted: {file}")
+                                logger.info(f"Compressed file deleted: {file}")
 
-                            unzip_pb_files.append(extracted_file_path)
+                            decompress_pb_files.append(extracted_file_path)
                         except Exception as e:
-                            logger.error(f"Error trying to unzip {file}: {e}")
+                            logger.error(f"Error decompressing file '{file}': {e}")
                 else:
                     # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                    unzip_pb_files.append(file)
+                    decompress_pb_files.append(file)
     
-            if unzip_pb_files:
-                self.pb_list = unzip_pb_files
+            if decompress_pb_files:
+                self.pb_list = decompress_pb_files
             else:
                 logger.critical(
                 "No valid primary beam files were successfully processed. Fatal error. "
@@ -643,11 +643,11 @@ class datap(dict):
                 return
             
 
-            unzip_mask_files = []  
+            decompressed_mask_files = []  
 
             for file in mask_files:
                 if file == "":  # Ignoro entradas vacías
-                    unzip_mask_files.append("")
+                    decompressed_mask_files.append("")
                     continue
 
                 if file.suffix == ".gz":
@@ -656,16 +656,16 @@ class datap(dict):
                     # Compruebo si el archivo descomprimido ya existe
                     if extracted_file_path.exists():
                         logger.info(
-                            "The unzipped mask file already exists: "
+                            "The decompressed mask file already exists: "
                             f"{extracted_file_path}"
                         )
-                        unzip_mask_files.append(extracted_file_path)
+                        decompressed_mask_files.append(extracted_file_path)
                         #Turn mask float into mask int type
                         mask_float2int(extracted_file_path)
                         
-                        if self.download_par['remove_zip_file']:
+                        if self.download_par['remove_compressed_file']:
                             file.unlink()
-                            logger.info(f"Zip file deleted: {file}")
+                            logger.info(f"Compressed file deleted: {file}")
                     else:
                         # Intento descomprimir el archivo
                         try:
@@ -673,26 +673,26 @@ class datap(dict):
                                 with open(extracted_file_path, 'wb') as extracted_out:
                                     shutil.copyfileobj(gz_in, extracted_out)
                             logger.info(
-                                f"Unzipped mask file: {extracted_file_path}"
+                                f"Decompressed mask file: {extracted_file_path}"
                             )
 
-                            if self.download_par['remove_zip_file']:
+                            if self.download_par['remove_compressed_file']:
                                 file.unlink()
-                                logger.info(f"Zip file deleted: {file}")
+                                logger.info(f"Compressed file deleted: {file}")
 
-                            unzip_mask_files.append(extracted_file_path)
+                            decompressed_mask_files.append(extracted_file_path)
                             #Turn mask float into mask int type
                             mask_float2int(extracted_file_path)
                         except Exception as e:
-                            logger.error(f"Error trying to unzip {file}: {e}")
+                            logger.error(f"Error decompressing file '{file}': {e}")
                 else:
                     # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                    unzip_mask_files.append(file)
+                    decompressed_mask_files.append(file)
                     #Turn mask float into mask int type
                     mask_float2int(file)
     
-            if unzip_mask_files:
-                self.mask_list = unzip_mask_files
+            if decompressed_mask_files:
+                self.mask_list = decompressed_mask_files
             else:
                 logger.critical(
                 "No valid mask files were successfully processed. Fatal error. "
@@ -711,9 +711,9 @@ class datap(dict):
         Process and retrieve the most recent mask file from a given directory.
 
         This method searches for mask files in the specified directory (`base_dir`) that match 
-        the pattern `*cube.I.mask*`. It handles zip `.gz` files by unzip them 
-        if necessary and optionally deleting the original zip files based on the 
-        `self.download_par['remove_zip_file']` setting. The most recently modified mask 
+        the pattern `*cube.I.mask*`. It handles compressed `.gz` files by decompressed them 
+        if necessary and optionally deleting the original compressed files based on the 
+        `self.download_par['remove_compressed_file']` setting. The most recently modified mask 
         file is selected and stored as an attribute (`self.data_loc_mask`).
 
         Args:
@@ -744,12 +744,12 @@ class datap(dict):
             self.mask_qa_list = mask_files
             return
 
-        unzip_mask_files = []  #Almaceno archivos descomprimidos o existentes
+        decompress_mask_files = []  #Almaceno archivos descomprimidos o existentes
 
         for file in mask_files:
 
             if file == "":  # Ignoro entradas vacías
-                unzip_mask_files.append("")
+                decompress_mask_files.append("")
                 continue
             # Compruebo si esta comprimido (.gz)
             if file.suffix == ".gz":
@@ -757,39 +757,39 @@ class datap(dict):
 
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
-                    logger.info(f"The unzipped file already exists: {extracted_file_path}")
-                    unzip_mask_files.append(extracted_file_path)
+                    logger.info(f"The decompressed file already exists: {extracted_file_path}")
+                    decompress_mask_files.append(extracted_file_path)
                     #Turn mask float into mask int type
                     mask_float2int(extracted_file_path)
 
-                    if self.download_par['remove_zip_file']:
+                    if self.download_par['remove_compressed_file']:
                         file.unlink()
-                        logger.info(f"Zip file deleted: {file}")
+                        logger.info(f"Compressed file deleted: {file}")
                 else:
                     try:
                         with gzip.open(file, 'rb') as gz_in:
                             with open(extracted_file_path, 'wb') as extracted_out:
                                 shutil.copyfileobj(gz_in, extracted_out)
-                        logger.info(f"Unzipped file: {extracted_file_path}")
+                        logger.info(f"Decompressed file: {extracted_file_path}")
 
-                        if self.download_par['remove_zip_file']:
+                        if self.download_par['remove_compressed_file']:
                             file.unlink()
-                            logger.info(f"Zip file deleted: {file}")
+                            logger.info(f"Compressed file deleted: {file}")
 
-                        unzip_mask_files.append(extracted_file_path)
+                        decompress_mask_files.append(extracted_file_path)
                         #Turn mask float into mask int type
                         mask_float2int(extracted_file_path)
                     except Exception as e:
-                        logger.error(f"Error trying to unzip {file}: {e}")
+                        logger.error(f"Error decompressing file '{file}': {e}")
             else:
-                unzip_mask_files.append(file)
+                decompress_mask_files.append(file)
                 #Turn mask float into mask int type
                 mask_float2int(file)
 
 
         
-        if unzip_mask_files:
-            self.mask_qa_list = unzip_mask_files
+        if decompress_mask_files:
+            self.mask_qa_list = decompress_mask_files
  
         else:
             logger.critical(
@@ -1305,7 +1305,7 @@ class datap(dict):
             download_par_expected_types = {
                 'fitsonly': bool,
                 'include_pb': bool,
-                'remove_zip_file': bool,
+                'remove_compressed_file': bool,
                 'dryrun': bool,
                 'print_urls': bool,
                 'filename_must_include': list,
