@@ -493,22 +493,24 @@ class SiPar(dict):
                 
             Logger.raw("================================")
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
-
-
+            
             subprocess.run(
                 cmd, 
                 text=True, 
                 check=True, 
                 capture_output=not adpalmap_config.verbose
-                )  
-            
-                        
+                )       
+                               
             Logger.raw("================================")
             if sopar:
                 logger.info(f"SIP finished. Mode: {sopar.sopar_mode}")
             else:
                 logger.info(f"SIP finished.")
             Logger.raw("================================")
+
+        except FileNotFoundError as e:
+            logger.critical(f"Command not found: {cmd[0]}. Error: {e}")
+            raise
 
         except subprocess.CalledProcessError as e:
             # In case of error this show the message and exit code of SIP
