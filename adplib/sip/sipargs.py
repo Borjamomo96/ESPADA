@@ -134,7 +134,9 @@ class SiPar(dict):
         #Extra check en algunos parámetros
         valid_values = {
             'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-            'spec_line': ['HI', 'CO', 'OH'],
+            'spec_line': ['HI', 
+                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
+                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
         }
 
         # Valido tipos de datos
