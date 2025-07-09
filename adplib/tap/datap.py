@@ -51,33 +51,44 @@ def capture_output(input):
     output = f.getvalue()
     Logger.raw(output)
 
+
 def get_segment(path):
     # Busca 'spw' + dígitos + punto literal (\.)
     match = re.search(r'spw\d+\.', path)
     return path[:match.end()] if match else ''
 
-def mask_float2int(file):
+
+def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False):
+
+    file_path = Path(file_path)
+    new_file_path = file_path.with_name(file_path.stem + '_int' + file_path.suffix)
+    
+    if new_file_path.exists():
+        logger.info(f"Found cached mask integer file '{new_file_path}'")
+        if (remove_archive_mask and from_downloadmask):
+            file_path.unlink()
+            logger.info(f"Mask archive file deleted: '{file_path}'")
+        return new_file_path
 
     try:
-        with fits.open(file) as hdul:
+        with fits.open(file_path) as hdul:
             data = hdul[0].data
             header = hdul[0].header
-            
-            # Convertir float a int (redondeando valores)
+
             if data.dtype.kind == 'f':
                 int_data = np.round(data).astype(np.int16)
-                
-                # Actualizar el encabezado
-                header['BITPIX'] = 16  # Entero de 16 bits
-                
-                # Guardar el archivo convertido
+                header['BITPIX'] = 16
                 new_hdu = fits.PrimaryHDU(data=int_data, header=header)
-                new_hdu.writeto(file, overwrite=True)
-                
+                new_hdu.writeto(new_file_path, overwrite=True)
+                if (remove_archive_mask and from_downloadmask):
+                    file_path.unlink()
+                    logger.info(f"Mask archive file deleted: '{file_path}'")
+                return new_file_path
+            else:
+                return file_path
     except Exception as e:
-        logger.error(f"Mask conversion to integer failed: {e}")
-
-    return
+        logger.error(f"Mask conversion to integer failed. File: {file_path}. Error: {e}")
+        return ""
 
 
 class datap(dict): 
@@ -290,23 +301,34 @@ class datap(dict):
         )
 
         patterns = []
+        exclude_patterns = []
         if self.download_par['fitsonly']:
             patterns.append('.fits')
         if self.download_par['include_pb']:
             patterns.append('.pb.')
+        else:
+            exclude_patterns.append('.pb.')
         if self.download_par['include_mask']:
             patterns.append('cube.I.mask')
+        else:
+            exclude_patterns.append('cube.I.mask')
 
         if patterns:
             dl_table = data_table[
                 [i for i, v in enumerate(data_table['access_url'])
-                if (any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in patterns)
-                    and all(fmi in v for fmi in self.download_par['filename_must_include']))]
+                    if (
+                        any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in patterns)
+                        and all(fmi in v for fmi in self.download_par['filename_must_include'])
+                        and not any(ex_pat in v for ex_pat in exclude_patterns)
+                    )]
             ]
         else:
             dl_table = data_table[
                 [i for i, v in enumerate(data_table['access_url'])
-                if all(fmi in v for fmi in self.download_par['filename_must_include'])]
+                    if (
+                        all(fmi in v for fmi in self.download_par['filename_must_include'])
+                        and not any(ex_pat in v for ex_pat in exclude_patterns)
+                    )]
             ]
 
         
@@ -659,9 +681,10 @@ class datap(dict):
                             "The decompressed mask file already exists: "
                             f"{extracted_file_path}"
                         )
-                        decompressed_mask_files.append(extracted_file_path)
-                        #Turn mask float into mask int type
-                        mask_float2int(extracted_file_path)
+                        #Make a copy of the mask but with int values
+                        decompressed_mask_files.append(
+                            mask_float2int(extracted_file_path, self.download_par['remove_archive_mask'])
+                        )
                         
                         if self.download_par['remove_compressed_file']:
                             file.unlink()
@@ -679,17 +702,22 @@ class datap(dict):
                             if self.download_par['remove_compressed_file']:
                                 file.unlink()
                                 logger.info(f"Compressed file deleted: {file}")
-
-                            decompressed_mask_files.append(extracted_file_path)
-                            #Turn mask float into mask int type
-                            mask_float2int(extracted_file_path)
+                            #Make a copy of the mask but with int values
+                            decompressed_mask_files.append(
+                                mask_float2int(
+                                    extracted_file_path, 
+                                    self.download_par['remove_archive_mask']
+                                )
+                            )
+                            
                         except Exception as e:
                             logger.error(f"Error decompressing file '{file}': {e}")
                 else:
                     # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                    decompressed_mask_files.append(file)
-                    #Turn mask float into mask int type
-                    mask_float2int(file)
+                    #Make a copy of the mask but with int values
+                    decompressed_mask_files.append(
+                        mask_float2int(file, self.download_par['remove_archive_mask'])
+                    )
     
             if decompressed_mask_files:
                 self.mask_list = decompressed_mask_files
@@ -744,12 +772,12 @@ class datap(dict):
             self.mask_qa_list = mask_files
             return
 
-        decompress_mask_files = []  #Almaceno archivos descomprimidos o existentes
+        decompressed_mask_files = []  #Almaceno archivos descomprimidos o existentes
 
         for file in mask_files:
 
             if file == "":  # Ignoro entradas vacías
-                decompress_mask_files.append("")
+                decompressed_mask_files.append("")
                 continue
             # Compruebo si esta comprimido (.gz)
             if file.suffix == ".gz":
@@ -758,9 +786,14 @@ class datap(dict):
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
                     logger.info(f"The decompressed file already exists: {extracted_file_path}")
-                    decompress_mask_files.append(extracted_file_path)
-                    #Turn mask float into mask int type
-                    mask_float2int(extracted_file_path)
+                    #Make a copy of the mask but with int values
+                    decompressed_mask_files.append(
+                        mask_float2int(
+                            extracted_file_path, 
+                            self.download_par['remove_archive_mask'],
+                            from_downloadmask=True
+                        )
+                    )
 
                     if self.download_par['remove_compressed_file']:
                         file.unlink()
@@ -776,20 +809,30 @@ class datap(dict):
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
 
-                        decompress_mask_files.append(extracted_file_path)
-                        #Turn mask float into mask int type
-                        mask_float2int(extracted_file_path)
+                        #Make a copy of the mask but with int values
+                        decompressed_mask_files.append(
+                            mask_float2int(
+                                extracted_file_path, 
+                                self.download_par['remove_archive_mask'],
+                                from_downloadmask=True
+                            )
+                        )
                     except Exception as e:
                         logger.error(f"Error decompressing file '{file}': {e}")
             else:
-                decompress_mask_files.append(file)
-                #Turn mask float into mask int type
-                mask_float2int(file)
+                #Make a copy of the mask but with int values
+                decompressed_mask_files.append(
+                    mask_float2int(
+                        file, 
+                        self.download_par['remove_archive_mask'],
+                        from_downloadmask=True
+                    )
+                )
 
 
         
-        if decompress_mask_files:
-            self.mask_qa_list = decompress_mask_files
+        if decompressed_mask_files:
+            self.mask_qa_list = decompressed_mask_files
  
         else:
             logger.critical(
@@ -1306,6 +1349,7 @@ class datap(dict):
                 'fitsonly': bool,
                 'include_pb': bool,
                 'remove_compressed_file': bool,
+                'remove_archive_mask': bool,
                 'dryrun': bool,
                 'print_urls': bool,
                 'filename_must_include': list,
