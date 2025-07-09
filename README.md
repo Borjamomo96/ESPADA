@@ -285,7 +285,9 @@ query_par:
 - `'download_par'`:
   - **fitsonly**: If `True`, download individual FITS files only. This option will not download raw data. Type `<bool>`.
   - **include_pb**: If `True`, download all `.pb.` files (i.e., all primary beam cubes) without distinction among science cubes. Type `<bool>`.
+  - **include_mask**: If `True`, download all `cube.I.mask` files (i.e., all mask cubes). All the mask from the archive are float type which is not accepted as valid input for the `input.mask` parameter from SoFiA-2. A copies from those downloaded mask will be created with the suffix '_int' to be used by SoFiA-2. Type `<bool>`.
   - **delete_compressed_file**: If `True`,  delete compressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
+  - **delete_archive_mask**: If `True`,  delete the original mask files from the archive with float type. Type `<bool>`.
   - **dryrun**: If `True`, allows users to perform a test run to check file size and number before downloading data. Type `<bool>`.
   - **print_urls**: If `True`, writes a list of URLs to be downloaded from the archive to the terminal. Type `<bool>`.
   - **filename_must_include**: A list of strings that must be included in the URL filename. Useful for filtering downloads further, such as data corrected for primary beams ('.pbcor') or specific science targets or calibrators (by including their names). Choices depend on reduction type and cycle. Example:  *['A001_X133d_X4226.COSMOS-1189669_sci.spw25.cube']*.  
