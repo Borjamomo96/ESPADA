@@ -62,13 +62,14 @@ query_par:
 
 download_par:
   fitsonly : True                                    # <bool> (Default value = True) Download individual fits files only. This option will not download the raw data
-  include_pb: True                                  # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
+  include_pb: False                                  # <bool> (Default value = True). Download all the .pb. files (i.e. all the primary beam cubes) with no distinction among the science cubes. 
   include_mask : False
-  remove_compressed_file: False                      # <bool> (Default value = True). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
+  remove_compressed_file: False                      # <bool> (Default value = False). Remove uncompress_files. This is the case for primary beams cubes in the ALMA archive. 
+  remove_archive_mask: False                        # <bool> (Default value = False). Remove the original mask from the archive (float type).  
   dryrun : True                                    # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
                                                       # downloading the data (dryrun=True). To download the data, set testrun=False.
   print_urls : True                                 # bool, optional (Default value = False) Write the list of urls to be downloaded from the archive to the terminal.
-  filename_must_include : []  #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
+  filename_must_include : ['cube', 'spw25', '_11_']  #<list of str> A list of strings the user wants to be contained in the url filename. This is useful to restrict the
                                                       # download further, for example, to data that have been primary beam corrected ('.pbcor') or that have
                                                       #the science target or calibrators (by including their names). The choice is largely dependent on the
                                                       #cycle and type of reduction that was performed and data products that exist on the archive as a result.
