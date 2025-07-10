@@ -47,9 +47,10 @@ Main options:
     -c, --config-file Main configuration file (YAML)
     -sop, --sofia-parameters Parameters for SoFia in key=value format
     -sarg, --sip-arguments Arguments for SIP
+    -i, --info Information about a file or parameter
 
-For detailed help on a file or parameter, use:
-adpalmap help <file|parameter>
+For detailed help on a file or parameter, use the command '-i|--info':
+adpalmap -i <file|parameter>=<file_name|parameter_name>
 """
 
 
@@ -677,6 +678,10 @@ def main():
 
             if adpalmap_config.quality_assesment == True:
                 adpalmap_datap.download_mask(TAP_df)
+            else:
+                print(adpalmap_datap.data_list)
+                if not hasattr(adpalmap_datap, 'mask_qa_list'):
+                    adpalmap_datap.mask_qa_list = [""] * len(adpalmap_datap.data_list)
             
         else:
             adpalmap_datap = None

@@ -161,16 +161,19 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
   - `sofia_abs_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for absorptions. Type `<str>`.
   - `sofia_emi_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for emissions. Type `<str>`.
 
+    **NOTE**: If desired, parameters can be changed via the terminal using the command `-sop|--sofia-parameters <parameter>=<value>` in the same way as running SoFiA in isolation. As mentioned, the three parameters above will follow the explained logic and will be ignored as appropriate.
+
     **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the specific process where SoFiA2 is running.
 
+    **NOTE**: the name set in the 'output.directory' parameter will always be rewritten by adding '_emssion' or 'absorption' depending on the run mode.
+
     **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
-    - **'input.data'**: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded via 'download_par.yaml'. A warning will indicate that it is being ignored.
-    - **'input.invert'**: Ignored, with warnings displayed if there is a conflict between selected mode and value in parameter files or terminal input.
-    - **'input.primaryBeam'**: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if specified in 'download_par.yaml'. 
+    - **'input.data', 'input.primaryBeam' and 'input.mask'**: These parameters are always ignored when specified within the SoFiA parameter files. Instead, the pipeline uses the corresponding values defined in `config.yaml` or those retrieved via `download_par.yaml`. A warning message will notify the user that these parameters are being overridden.
+    - **'input.invert'**: This parameter is ignored. If there is a conflict between the selected run mode and the value defined either in the parameter files or provided through the -sop comand in the terminal, a warning will be issued. 
 
     **NOTE**: The parameter files for both absorption and emission available in the repository are "optimized" to work with most ALMA data cubes in band 3.
 
-    **NOTE**: If desired, parameters can be changed via the terminal using the command `-sop|--sofia-parameters <parameter>=<value>` in the same way as running SoFiA in isolation. As mentioned, the three parameters above will follow the explained logic and will be ignored as appropriate.
+
 
 
 ###  **SIP**:
@@ -282,7 +285,9 @@ query_par:
 - `'download_par'`:
   - **fitsonly**: If `True`, download individual FITS files only. This option will not download raw data. Type `<bool>`.
   - **include_pb**: If `True`, download all `.pb.` files (i.e., all primary beam cubes) without distinction among science cubes. Type `<bool>`.
+  - **include_mask**: If `True`, download all `cube.I.mask` files (i.e., all mask cubes). All the mask from the archive are float type which is not accepted as valid input for the `input.mask` parameter from SoFiA-2. A copies from those downloaded mask will be created with the suffix '_int' to be used by SoFiA-2. Type `<bool>`.
   - **delete_compressed_file**: If `True`,  delete compressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
+  - **delete_archive_mask**: If `True`,  delete the original mask files from the archive with float type. Type `<bool>`.
   - **dryrun**: If `True`, allows users to perform a test run to check file size and number before downloading data. Type `<bool>`.
   - **print_urls**: If `True`, writes a list of URLs to be downloaded from the archive to the terminal. Type `<bool>`.
   - **filename_must_include**: A list of strings that must be included in the URL filename. Useful for filtering downloads further, such as data corrected for primary beams ('.pbcor') or specific science targets or calibrators (by including their names). Choices depend on reduction type and cycle. Example:  *['A001_X133d_X4226.COSMOS-1189669_sci.spw25.cube']*.  

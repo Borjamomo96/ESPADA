@@ -125,6 +125,19 @@ class SiPar(dict):
             'spec_line': str | None,
         }
 
+        #Los parámetros obligatorios, hasta la fecha
+        required_params = list(expected_types.keys())
+
+        #Comprobamos los parámetros obligatorios
+        missing_params = [param for param in required_params if not hasattr(self, param)]
+        if missing_params:
+            param_list = ", ".join(missing_params)
+            plural = "s are" if len(missing_params) > 1 else " is"
+            raise ValueError(
+                f"The following required parameter{plural} missing in "
+                f"'{self.sip_file_path.name}': {param_list}"
+            )
+
         if (len(self.number_list)>1):
             expected_types['catalog_file'] =  list | None
         else:
@@ -134,7 +147,9 @@ class SiPar(dict):
         #Extra check en algunos parámetros
         valid_values = {
             'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-            'spec_line': ['HI', 'CO', 'OH'],
+            'spec_line': ['HI', 
+                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
+                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
         }
 
         # Valido tipos de datos
@@ -497,22 +512,24 @@ class SiPar(dict):
                 
             Logger.raw("================================")
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
-
-
+            
             subprocess.run(
                 cmd, 
                 text=True, 
                 check=True, 
                 capture_output=not adpalmap_config.verbose
-                )  
-            
-                        
+                )       
+                               
             Logger.raw("================================")
             if sopar:
                 logger.info(f"SIP finished. Mode: {sopar.sopar_mode}")
             else:
                 logger.info(f"SIP finished.")
             Logger.raw("================================")
+
+        except FileNotFoundError as e:
+            logger.critical(f"Command not found: {cmd[0]}. Error: {e}")
+            raise
 
         except subprocess.CalledProcessError as e:
             error = str(e)
