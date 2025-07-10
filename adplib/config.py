@@ -216,31 +216,16 @@ class Config(dict):
         }
 
         #Los parámetros obligatorios, hasta la fecha
-        required_params = [
-            'quality_assesment',
-            'verbose',
-            'num_cores',
-            'input_data_set',
-            'input_file', 
-            'clear_logs',
-            'log_file',
-            'enable_tap_service',
-            'download_par_file',
-            'enable_sofia',
-            'run_mode',
-            'abs_flag_cube',
-            'auto_setup',
-            'sofia_abs_file',
-            'sofia_emi_file',
-            'enable_sip',
-            'sip_par_file',
-        ]
+        required_params = list(expected_types.keys())
 
         #Comprobamos los parámetros obligatorios
         missing_params = [param for param in required_params if not hasattr(self, param)]
         if missing_params:
+            param_list = ", ".join(missing_params)
+            plural = "s are" if len(missing_params) > 1 else " is"
             raise ValueError(
-                f"The following required parameters are missing in config.yaml: {missing_params}"
+                f"The following required parameter{plural} missing in "
+                f"'{self.config_path.name}': {param_list}"
             )
 
         #Comprobamos el tipo
