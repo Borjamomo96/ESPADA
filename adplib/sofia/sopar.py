@@ -919,7 +919,7 @@ class SoPar(dict):
 
         logger.info(
             "Creating temporary SoFiA parameter file based on the parameter file "
-            f"{temp_file_path}."
+            f"{self.sofia_file_path}."
             )
         return str(temp_file_path)
                 
