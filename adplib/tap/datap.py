@@ -121,10 +121,10 @@ class datap(dict):
         self.__dict__ = self 
         self.configure(**kwargs)
 
+        #Chech the parameter in download_par.yaml except query_type:
+        self.check_download_par()
         #Check the parameter for the query type before continue:
         self.check_query_par()
-        #Chech the parameter in download_par expect query_type:
-        self.check_download_par()
 
         #Initialize Alma() instance. <Attribute>
         self.alma = Alma()
@@ -708,8 +708,7 @@ class datap(dict):
                                     extracted_file_path, 
                                     self.download_par['remove_archive_mask']
                                 )
-                            )
-                            
+                            )                            
                         except Exception as e:
                             logger.error(f"Error decompressing file '{file}': {e}")
                 else:
@@ -1224,8 +1223,11 @@ class datap(dict):
                     extra parameters are found, or parameter types are incorrect.
         """
 
-        if not self.query_type:
-            raise ValueError(f"The attribute 'query_type' is not defined in the YAML file.")
+        if not hasattr(self, 'query_type'):
+            raise ValueError(
+                f"The following required parameter is missing in '{self.download_path.name}': "
+                " 'query_type'"
+            )
 
         # Expected parameters for each query
         expected_params = {
@@ -1289,14 +1291,22 @@ class datap(dict):
         # Check missing params
         missing_params = [param for param in valid_params if param not in active_params]
         if missing_params:
-            raise ValueError("The next required 'query_par' for 'query_type' ="
-                             f" {self.query_type} are missing: {missing_params}")
+            param_list = ", ".join(missing_params)
+            plural_param = "parameter is" if len(missing_params) == 1 else "parameters are"
+            raise ValueError(
+                f"The following required {plural_param} missing in 'query_par' for the 'query_type' "
+                f"'{self.query_type}': {param_list}"
+            )
 
         # Check extra params
         extra_params = [param for param in active_params if param not in valid_params]
         if extra_params:
-            raise ValueError("Invalid parameters found for 'query_type = "
-                             f"{self.query_type}': {extra_params}.")
+            param_list = ", ".join(extra_params)
+            plural = "parameter was" if len(extra_params) == 1 else "parameters were"
+            raise ValueError(
+                f"The following invalid {plural} found in 'query_par' for "
+                f"'query_type = {self.query_type}': {param_list}"
+            )
 
         # Check that the number of parameters matches exactly
         if len(active_params) != len(valid_params):
@@ -1334,6 +1344,18 @@ class datap(dict):
             'download_par': dict,  # Se espera que sea un diccionario para validación más profunda
         }
 
+        required_params = list(expected_types.keys())
+
+        #Comprobamos los parámetros obligatorios
+        missing_params = [param for param in required_params if not hasattr(self, param)]
+        if missing_params:
+            param_list = ", ".join(missing_params)
+            plural = "s are" if len(missing_params) > 1 else " is"
+            raise ValueError(
+                f"The following required parameter{plural} missing in "
+                f"'{self.download_path.name}': {param_list}"
+            )
+
         for param, expected_type in expected_types.items():
             if hasattr(self, param):
                 value = getattr(self, param)
@@ -1356,7 +1378,21 @@ class datap(dict):
                 'data_dir': str | None
                 }
             
+            download_required_params = list(download_par_expected_types.keys())
 
+            download_missing_params = [
+                param for param in download_required_params if param not in list(self.download_par.keys())
+            ]
+
+
+            if download_missing_params:
+                param_list = ", ".join(download_missing_params)
+                plural = "s are" if len(download_missing_params) > 1 else " is"
+                raise ValueError(
+                    f"The following required parameter{plural} missing for 'download_par' in "
+                    f"'{self.download_path.name}': {param_list}"
+                )
+            
             for key, expected_type in download_par_expected_types.items():
                 if key in self.download_par:
                     value = self.download_par[key]

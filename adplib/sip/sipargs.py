@@ -125,6 +125,19 @@ class SiPar(dict):
             'spec_line': str | None,
         }
 
+        #Los parámetros obligatorios, hasta la fecha
+        required_params = list(expected_types.keys())
+
+        #Comprobamos los parámetros obligatorios
+        missing_params = [param for param in required_params if not hasattr(self, param)]
+        if missing_params:
+            param_list = ", ".join(missing_params)
+            plural = "s are" if len(missing_params) > 1 else " is"
+            raise ValueError(
+                f"The following required parameter{plural} missing in "
+                f"'{self.sip_file_path.name}': {param_list}"
+            )
+
         if (len(self.number_list)>1):
             expected_types['catalog_file'] =  list | None
         else:
