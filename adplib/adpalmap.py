@@ -47,9 +47,10 @@ Main options:
     -c, --config-file Main configuration file (YAML)
     -sop, --sofia-parameters Parameters for SoFia in key=value format
     -sarg, --sip-arguments Arguments for SIP
+    -i, --info Information about a file or parameter
 
-For detailed help on a file or parameter, use:
-adpalmap help <file|parameter>
+For detailed help on a file or parameter, use the command '-i|--info':
+adpalmap -i <file|parameter>=<file_name|parameter_name>
 """
 
 
