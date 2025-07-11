@@ -45,19 +45,23 @@ print(f"HTML generado correctamente en {output_file}")
 
 # Opcional: abre el archivo HTML en el navegador
 webbrowser.open('file://' + output_file)"""
-
+import sys
+import pprint
 import os
 import jinja2
 import webbrowser
 
 def calcular_estado_dataset(softwares):
-    estados = [sw['estado'] for sw in softwares]
-    if 'error' in estados:
+    errors = [sw.get('error', '') for sw in softwares]   
+    warnings = [True if sw.get('numero_de_warning', 0) > 4 else False for sw in softwares]
+
+    if errors:
         return 'error'
-    elif 'warning' in estados:
+    elif warnings:
         return 'warning'
     else:
         return 'ok'
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 templates_path = os.path.join(current_dir, 'templates')
@@ -65,32 +69,90 @@ templates_path = os.path.join(current_dir, 'templates')
 env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_path))
 template = env.get_template('report.html')
 
-datasets = [
-    {
-        'nombre': 'Dataset 1',
-        'softwares': [
-            {'nombre': 'ALminer', 'estado': 'ok', 'log': 'ALminer ejecutado correctamente.'},
-            {'nombre': 'SoFiA-2', 'estado': 'warning', 'log': 'SoFiA-2: Warning, algunos canales vacíos.'},
-            {'nombre': 'SIP', 'estado': 'error', 'log': 'SIP: Error fatal en la lectura del archivo.'}
-        ],
-        'imagenes': [
-            {'url': 'static/img1.png', 'descripcion': 'Mapa de momento 0'},
-            {'url': 'static/img2.png', 'descripcion': 'Mapa de momento 1'}
-        ]
-    },
-    {
-        'nombre': 'Dataset 2',
-        'softwares': [
-            {'nombre': 'ALminer', 'estado': 'ok', 'log': 'ALminer ejecutado correctamente.'},
-            {'nombre': 'SoFiA-2', 'estado': 'ok', 'log': 'SoFiA-2: Warning, algunos canales vacíos.'},
-            {'nombre': 'SIP', 'estado': 'ok', 'log': 'SIP: Error fatal en la lectura del archivo.'}
-        ],
-        'imagenes': [
-            {'url': 'static/img1.png', 'descripcion': 'Mapa de momento 0'},
-            {'url': 'static/img2.png', 'descripcion': 'Mapa de momento 1'}
-        ]
-    }
-]
+datasets = [{'input_data': 'archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw21.cube.I.pbcor.fits',
+  'softwares': [{'nombre': 'SoFiA-2',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw21.cube.I.pbcor_logfile.log',
+    'error': "Command '['sofia', '/home/usuario/ADP-ALMA-Pipeline/sofia_abs_default_tmp_PID10369.par']' returned non-zero exit status 8."},
+   {'nombre': 'SoFiA-2',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw21.cube.I.pbcor_logfile.log',
+    'error': "Command '['sofia', '/home/usuario/ADP-ALMA-Pipeline/sofia_emi_default_tmp_PID10369.par']' returned non-zero exit status 8."},
+   {'nombre': 'SIP',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw21.cube.I.pbcor_sip.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw21.cube.I.pbcor_sip.log',
+    'error': ''}]},
+ {'input_data': 'archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw23.cube.I.pbcor.fits',
+  'softwares': [{'nombre': 'SoFiA-2',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw23.cube.I.pbcor_logfile.log',
+    'error': ''},
+   {'nombre': 'SoFiA-2',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw23.cube.I.pbcor_logfile.log',
+    'error': "Command '['sofia', '/home/usuario/ADP-ALMA-Pipeline/sofia_emi_default_tmp_PID10370.par']' returned non-zero exit status 8."},
+   {'nombre': 'SIP',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw23.cube.I.pbcor_sip.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw23.cube.I.pbcor_sip.log',
+    'error': ''}]},
+ {'input_data': 'archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I.pbcor.fits',
+  'softwares': [{'nombre': 'SoFiA-2',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I.pbcor_logfile.log',
+    'error': "Command '['sofia', '/home/usuario/ADP-ALMA-Pipeline/sofia_abs_default_tmp_PID10368.par']' returned non-zero exit status 8."},
+   {'nombre': 'SoFiA-2',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I.pbcor_logfile.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I.pbcor_sip.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw19.cube.I.pbcor_sip.log',
+    'error': ''}]},
+ {'input_data': 'archive_data/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor.fits',
+  'softwares': [{'nombre': 'SoFiA-2',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor_logfile.log',
+    'error': "Command '['sofia', '/home/usuario/ADP-ALMA-Pipeline/sofia_abs_default_tmp_PID10369.par']' returned non-zero exit status 8."},
+   {'nombre': 'SoFiA-2',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor_logfile.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'absorption',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_absorption/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor_sip.log',
+    'error': ''},
+   {'nombre': 'SIP',
+    'modo': 'emission',
+    'numero_de_warning': 2,
+    'log_path': '/home/usuario/ADP-ALMA-Pipeline/adpalmap_outputs_emission/member.uid___A001_X88f_X6._J100054.83p023126.2__sci.spw25.cube.I.pbcor_sip.log',
+    'error': ''}]}]
 
 adp_log = """2025-07-02 11:04:36,213 | INFO | [PID:8051] adpalmap: - ADPALMAP start point
 2025-07-02 11:04:36,690 | INFO | [PID:8051] adpalmap: - 'enable_tap_service' set to False. Skipping data download
@@ -111,9 +173,13 @@ adp_log = """2025-07-02 11:04:36,213 | INFO | [PID:8051] adpalmap: - ADPALMAP st
 [8064]input.gain=
 """
 
+
 for dataset in datasets:
     dataset['estado'] = calcular_estado_dataset(dataset['softwares'])
+    
 
+pprint.pprint(datasets)
+sys.exit(-1)
 
 html = template.render(datasets=datasets, adp_log=adp_log)
 

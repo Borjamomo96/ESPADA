@@ -247,27 +247,34 @@
       <li><span class="red"></span> Crashed </li>
     </ul>
     <!-- Aquí van las pestañas desplegables por dataset -->
-    {% for dataset in datasets %}
 
-      <button type="button" class="collapsible {{ dataset.estado }}">{{ dataset.nombre }}</button>
-      <div class="content">
+    {% for dataset in datasets %}
+      <button type="button" class="collapsible {{ dataset.estado }}">{{ dataset.input_data }}</button>
+      <div class="content {{ dataset.estado }}">
         <div class="flex-row">
           <!-- Recuadro de Softwares -->
           <div class="softwares-box">
             <ul class="softwares-list">
               {% for sw in dataset.softwares %}
-                <li data-log="{{ sw.log }}">
+                <li 
+                  data-log="{{ sw.log_path }}"
+                  data-parfile="{{ sw.sofia_parfile }}"
+                  data-parchanges='{{ sw.sofia_par_changes | default({}) | tojson }}'>
                   <span class="sw-status {{ sw.estado }}"></span>
                   {{ sw.nombre }}
+                  <span style="margin-left:10px;">Modo: <em>{{ sw.modo }}</em></span>
+                  <span style="margin-left:10px;">Nº warnings: <em>{{ sw.numero_de_warning }}</em></span>
                   <button class="log-btn" onclick="showLog(this)">Log</button>
+                  <button class="par-btn" onclick="showPar(this)">Par</button>
                 </li>
               {% endfor %}
             </ul>
           </div>
-          <!-- Recuadro de Log -->
-          <div class="log-box" id="log-box-{{ loop.index0 }}"></div>
+          <!-- Recuadro de Log y Parámetros -->
+          <div class="log-box"></div>
+          <div class="par-box"></div>
         </div>
-        <!-- Galería de imágenes -->
+        <!-- Galería de imágenes (opcional) -->
         <div class="image-gallery">
           {% for img in dataset.imagenes %}
             <div class="img-container">
@@ -277,7 +284,6 @@
           {% endfor %}
         </div>
       </div>
-
     {% endfor %}
   </div>
 
