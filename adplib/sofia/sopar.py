@@ -251,6 +251,7 @@ def compare_parfiles(file_path, temp_file_path):
     return changes
 
 
+
 class SoPar(dict): 
 
     def __init__(self, **kwargs):
@@ -314,7 +315,6 @@ class SoPar(dict):
             self.read_sofia_par_file(sofia_file_path)
 
     
-
     def read_sofia_par_file(self, sofia_file_path):
         """
         Reads a Sofia parameter file and dynamically sets attributes on the class instance.
@@ -687,17 +687,18 @@ class SoPar(dict):
             os.makedirs(self.output_directory, exist_ok=True)
 
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
-            sopar_log_record = {
+            sopar_report = {
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
-                "log_path": self.output_directory / sopar_log_name
+                "log_path": self.output_directory / sopar_log_name,
+                "outputs" : {'images' : [], 'files': []}
             }
 
-            if  sopar_log_record["log_path"].exists():
+            if  sopar_report["log_path"].exists():
                 try:
-                    sopar_log_record["log_path"].unlink()
+                    sopar_report["log_path"].unlink()
                 except:
                     logger.warning(
                         "Error trying to delete existing log file. The new log "
@@ -706,7 +707,7 @@ class SoPar(dict):
 
             
             temp_file_path = self.create_tempfile()
-            sopar_log_record.update(
+            sopar_report.update(
                 {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
             )
             error = ''
@@ -729,16 +730,23 @@ class SoPar(dict):
                 Logger.raw("================================")
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
+                try:
+                    self.report_outputs(sopar_report)  
+                except Exception as e:
+                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
             except subprocess.CalledProcessError as e:
                 error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
                 logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
                 sys.exit(-1)
+
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
-                sopar_log_record.update({"error": e})
-                return sopar_log_record
+
+                sopar_report.update({"error": e})
+                return sopar_report
 
 
         elif (mode is not None and mode=='emission'):
@@ -747,17 +755,18 @@ class SoPar(dict):
             os.makedirs(self.output_directory, exist_ok=True)
             
             sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
-            sopar_log_record = {
+            sopar_report = {
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
-                "log_path": self.output_directory / sopar_log_name
+                "log_path": self.output_directory / sopar_log_name,
+                "outputs" : {'images' : [], 'files': []}
             }
 
-            if  sopar_log_record["log_path"].exists():
+            if  sopar_report["log_path"].exists():
                 try:
-                    sopar_log_record["log_path"].unlink()
+                    sopar_report["log_path"].unlink()
                 except:
                     logger.warning(
                         "Error trying to delete existing log file. The new log "
@@ -765,7 +774,7 @@ class SoPar(dict):
                     )
 
             temp_file_path = self.create_tempfile()
-            sopar_log_record.update(
+            sopar_report.update(
                 {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
             )
             error = ''
@@ -789,6 +798,11 @@ class SoPar(dict):
                 Logger.raw("================================")
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
+                try:
+                    self.report_outputs(sopar_report)  
+                except Exception as e:
+                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
             except subprocess.CalledProcessError as e:
                 error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
@@ -797,8 +811,8 @@ class SoPar(dict):
             finally:
                 if os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
-                sopar_log_record.update({"error": error})
-                return sopar_log_record    
+                sopar_report.update({"error": error})
+                return sopar_report    
                     
         
         elif (mode is not None and mode==mode == 'both'):
@@ -808,17 +822,18 @@ class SoPar(dict):
                 os.makedirs(self.output_directory, exist_ok=True)
 
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
-                sopar_log_record = {
+                sopar_report = {
                     "software_id" :'SoFiA-2',
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
-                    "log_path": self.output_directory / sopar_log_name
+                    "log_path": self.output_directory / sopar_log_name,
+                    "outputs" : {'images' : [], 'files': []}
                 }
 
-                if  sopar_log_record["log_path"].exists():
+                if  sopar_report["log_path"].exists():
                     try:
-                        sopar_log_record["log_path"].unlink()
+                        sopar_report["log_path"].unlink()
                     except:
                         logger.warning(
                             "Error trying to delete existing log file. The new log "
@@ -826,7 +841,7 @@ class SoPar(dict):
                         )
 
                 temp_file_path = self.create_tempfile()
-                sopar_log_record.update(
+                sopar_report.update(
                     {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
                 )
                 error = ''
@@ -850,6 +865,11 @@ class SoPar(dict):
                     Logger.raw("================================")
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
+                    try:
+                        self.report_outputs(sopar_report)  
+                    except Exception as e:
+                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
                 except subprocess.CalledProcessError as e:
                     error = str(e)
                     logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
@@ -857,8 +877,8 @@ class SoPar(dict):
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
-                    sopar_log_record.update({"error": error})
-                    return sopar_log_record 
+                    sopar_report.update({"error": error})
+                    return sopar_report 
 
             elif run==0:
                 
@@ -884,17 +904,18 @@ class SoPar(dict):
                 os.makedirs(self.output_directory, exist_ok=True)
                 
                 sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
-                sopar_log_record = {
+                sopar_report = {
                     "software_id" :'SoFiA-2',
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
-                    "log_path": self.output_directory / sopar_log_name
+                    "log_path": self.output_directory / sopar_log_name,
+                    "outputs" : {'images' : [], 'files': []}
                 }
 
-                if  sopar_log_record["log_path"].exists():
+                if  sopar_report["log_path"].exists():
                     try:
-                        sopar_log_record["log_path"].unlink()
+                        sopar_report["log_path"].unlink()
                     except:
                         logger.warning(
                             "Error trying to delete existing log file. The new log "
@@ -902,7 +923,7 @@ class SoPar(dict):
                         )
 
                 temp_file_path = self.create_tempfile()
-                sopar_log_record.update(
+                sopar_report.update(
                     {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
                 )
                 error = ''
@@ -925,7 +946,12 @@ class SoPar(dict):
 
                     Logger.raw("================================")
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
-                    Logger.raw("================================")            
+                    Logger.raw("================================")  
+                    try:
+                        self.report_outputs(sopar_report)  
+                    except Exception as e:
+                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
                 except subprocess.CalledProcessError as e:
                     error = str(e)
                     logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
@@ -934,8 +960,8 @@ class SoPar(dict):
                 finally:
                     if os.path.exists(temp_file_path):
                         os.remove(temp_file_path)
-                    sopar_log_record.update({"error": error})
-                    return sopar_log_record 
+                    sopar_report.update({"error": error})
+                    return sopar_report 
                 
 
     def create_tempfile(self):
@@ -1003,6 +1029,35 @@ class SoPar(dict):
                 Logger.raw_file(f"[{self.pid}]{par}={getattr(self, par_underscore)}")
             else:
                 Logger.raw_file(f"[{self.pid}]{par}= ")
+
+
+    def report_outputs(self, sopar_report):
+    
+        sopar_report['outputs']['images'].append({
+            "type": "rel",
+            "path": self.output_directory / self.input_data.stem / '_rel.eps',
+            "description": "Realibiliy Plot"
+        })
+        sopar_report['outputs']['images'].append({
+            "type": "skellman",
+            "path": self.output_directory / self.input_data.stem / '_skellman.eps',
+            "description": "Skellman Plot"
+        })
+        sopar_report['outputs']['files'].append({
+            "type": "par_file",
+            "path": self.sofia_file_path,
+            "format": ".par"
+        })    
+        sopar_report['outputs']['files'].append({
+            "type": "catalog_txt",
+            "path": self.output_directory / self.input_data.stem / '_cat.txt',
+            "format": "txt"
+        })
+        sopar_report['outputs']['files'].append({
+            "type": "catalog_xml",
+            "path": self.output_directory / self.input_data.stem / '_xlm.txt',
+            "format": "xlm"
+        })
 
 
     def quality_assesment(self, mask_file=None):
@@ -1107,8 +1162,51 @@ class SoPar(dict):
             
 
 
+'''
+    def add_outputs(self, sopar_report):
+    
+        """Añade outputs al reporte, manejando archivos faltantes."""
+        expected_outputs = {
+            "images": [
+                {
+                    "type": "rel",
+                    "path": self.output_directory / f"{self.input_data.stem}_rel.eps",
+                    "description": "Reliability Plot"
+                },
+                {
+                    "type": "skellam",
+                    "path": self.output_directory / f"{self.input_data.stem}_skellam.eps",
+                    "description": "Skellam Plot"
+                }
+            ],
+            "files": [
+                {
+                    "type": "catalog_txt",
+                    "path": self.output_directory / f"{self.input_data.stem}_cat.txt",
+                    "format": "txt"
+                },
+                {
+                    "type": "catalog_xml",
+                    "path": self.output_directory / f"{self.input_data.stem}_cat.xml",
+                    "format": "xml"
+                }
+            ]
+        }
 
-
+        registered_outputs = {"images": [], "files": []}
+        
+        for category, items in expected_outputs.items():
+            for item in items:
+                try:
+                    if item["path"].exists():
+                        registered_outputs[category].append(item)
+                    else:
+                        logger.debug(f"Output file not found: {item['path']}")
+                except Exception as e:
+                    logger.warning(f"Error checking output {item['path']}: {str(e)}")
+        
+        sopar_report["outputs"] = registered_outputs
+'''
 
         
         

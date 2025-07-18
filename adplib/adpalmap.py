@@ -271,7 +271,6 @@ def reorganize_log(log_path, worker_results):
         Logger.raw(format_exc())
         
      
-
 def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
     
@@ -310,7 +309,7 @@ def process_data(number,
 
     if adpalmap_config.enable_sofia == True:
 
-        sopar_log_record = []
+        sofia_report = []
 
         if adpalmap_config.run_mode == 'emission':
 
@@ -330,9 +329,9 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
+            emi_dic_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+
+            sofia_report.append(emi_dic_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
@@ -363,9 +362,9 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
+            abs_dic_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+
+            sofia_report.append(abs_dic_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
@@ -411,9 +410,8 @@ def process_data(number,
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
+            abs_dic_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sofia_report.append(abs_dic_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
@@ -423,10 +421,8 @@ def process_data(number,
                                    "performed in the QA.")
                     adpalmap_sopar_abs.quality_assesment()
 
-            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode, 
-                                                            run=0)
-            )
+            emi_dic_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
+            sofia_report.append(emi_dic_report)
             
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
@@ -437,8 +433,7 @@ def process_data(number,
                     adpalmap_sopar_emi.quality_assesment()
 
     else:
-        sopar_log_record = []
-        sofia_report = {'software_id' : 'SoFiA-2', 'state' : 'disable', 'log' : ''}}
+        sofia_report = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -449,7 +444,7 @@ def process_data(number,
 
     if adpalmap_config.enable_sip == True:
 
-        sip_log_record = []
+        sip_report = []
 
         adpalmap_sipar = SiPar(
             sip_file_path = adpalmap_config.sip_par_file,
@@ -467,47 +462,47 @@ def process_data(number,
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
                 )
 
             elif adpalmap_config.run_mode == 'absorption':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
                 )
             elif adpalmap_config.run_mode == 'both':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
                 )
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
                 )
         elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
             if adpalmap_config.run_mode == 'emission':         
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
             elif adpalmap_config.run_mode == 'absorption':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
             elif adpalmap_config.run_mode == 'both':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, run=0)
                 )
         else:
-            sip_log_record.append(
+            sip_report.append(
                 adpalmap_sipar.run_sip(adpalmap_config)
             )
     else:
-        sip_log_record = []}
+        sip_report = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    return sopar_log_record, sip_log_record  
+    return sofia_report, sip_report  
 
 
 #Functions html report
@@ -517,6 +512,7 @@ def get_html_dataset(dataset_list, html_report):
     html_report = [{'inputData_path' : data} for data, pb, mask, _ in dataset_list]
 
     return html_report
+
 
 def transformar_report(report):
     datasets = []
@@ -830,13 +826,15 @@ def main():
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
 
-        report = transformar_report(worker_results)
-        print(report)
+        
     finally:
 
         if log_flag:
             log_path = Logger.get_log_filename()
             reorganize_log(log_path, worker_results)
+
+        #if adpalmap_config.html_report:
+            
 
 
 # Run the main functions

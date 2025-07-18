@@ -3,21 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <title>ADP Alma Pipeline quality assurance</title>
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/dataset_tab.css">
-  <link rel="stylesheet" href="css/collapsible.css">
+  <link rel="stylesheet" href="resources/base.css">
+  <link rel="stylesheet" href="resources/collapsible.css">
+  <link rel="stylesheet" href="resources/collapsible_btn.css">
 </head>
 <body>
-  <div class="run-header">
-    <!-- Barra de pestañas superior -->
-    <div> 
-      <img src="images/Logo.png" width="40"/>
-      ADPALMAP report summary for the run X 
-    </div>
-    <div class="tabbar">
-      <button class="tablink active" onclick="openTab(event, 'dataset')">Dataset list</button>
-      <button class="tablink" onclick="openTab(event, 'log')">ADPAlmaP Log</button>
-    </div>
+  <div class="main-title">ADP Alma Pipeline Output for run XYZ</div>
+
+  <!-- Barra de pestañas superior -->
+  <div class="tabbar">
+    <button class="tablink active" onclick="openTab(event, 'dataset')">Dataset list</button>
+    <button class="tablink" onclick="openTab(event, 'log')">ADPAlmaP Log</button>
   </div>
 
   <!-- Contenido de cada pestaña -->
@@ -26,8 +22,8 @@
     <ul class="legend">
       <li><span class="green"></span> Module ran normally</li>
       <li><span class="orange"></span> Warnings excess</li>
-      <li><span class="purple"></span> Disabled </li>
-      <li><span class="red"></span> Errors </li>
+      <li><span class="pink"></span> Disabled </li>
+      <li><span class="red"></span> Erros </li>
     </ul>
     <!-- Aquí van las pestañas desplegables por dataset -->
 
@@ -43,17 +39,14 @@
                   data-log="{{ sw.log_path }}"
                   data-parfile="{{ sw.sofia_parfile }}"
                   data-parchanges='{{ sw.sofia_par_changes | default({}) | tojson }}'>
-
                   <span class="sw-square {{ sw.sw_estado }}"></span>
-
-                  <div class="sw-name">{{ sw.nombre }}</div>
-                  <div class="sw-mode">Mode: <em>{{ sw.modo }}</em></div>
-                  <div class="sw-warnings">Nº warnings: <em>{{ sw.numero_de_warning }}</em></div>
-
-                  <div class="btn-group">
+                  {{ sw.nombre }}
+                  <span style="margin-left:10px;">Modo: <em>{{ sw.modo }}</em></span>
+                  <span style="margin-left:10px;">Nº warnings: <em>{{ sw.numero_de_warning }}</em></span>
+                  <span class="btn-group">
                     <button class="log-btn" onclick="showLog(this)">Log</button>
                     <button class="par-btn" onclick="showPar(this)">Par</button>
-                  </div>
+                  </span>
                 </li>
               {% endfor %}
             </ul>
@@ -64,7 +57,7 @@
         </div>
         <!-- Galería de imágenes (opcional) -->
         <div class="image-gallery">
-          {% for img in dataset.images %}
+          {% for img in dataset.imagenes %}
             <div class="img-container">
               <img src="{{ img.url }}" alt="{{ img.descripcion }}">
               <div class="img-desc">{{ img.descripcion }}</div>

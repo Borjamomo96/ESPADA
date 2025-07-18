@@ -5,6 +5,7 @@ import sys
 import os
 from traceback import format_exc
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
+from astropy.io.votable import parse_single_table
 
 
 # Logger:
@@ -400,6 +401,7 @@ class SiPar(dict):
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
+            output_dir = Path(sopar.output_directory)
             input_file_name = Path(sopar.input_data).stem
                     
             sofia_catalog_txt = sofia_output_dir / f"{input_file_name}_cat.txt"
@@ -411,12 +413,16 @@ class SiPar(dict):
                 sofia_catalog_txt = None
                 sofia_catalog_xml = None
 
-            sip_log_record = {
+            sip_report = {
                         "software_id" :'SIP',
                         "PID": sopar.pid,
                         "input_name": sopar.input_data.stem,
                         "mode": sopar.sopar_mode,  
-                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
+                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log",
+                        "outputs": {
+                            "images": [],  
+                            "files": []
+                        }
                     }
     
             if sofia_catalog_txt and sofia_catalog_xml:
@@ -430,59 +436,79 @@ class SiPar(dict):
                                 f" {sopar.output_directory} directory.")
                 if adpalmap_config.run_mode == 'both' and run!=0:
                     logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
-                    sip_log_record.update({'comand': '', 'error': ''})
-                    return sip_log_record
+                    sip_report.update({'comand': '', 'error': ''})
+                    return sip_report
                 else:
                     logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
-                    sip_log_record.update({'comand': '', 'error': ''})
-                    return sip_log_record
+                    sip_report.update({'comand': '', 'error': ''})
+                    return sip_report
 
         else:
             if adpalmap_config.run_mode == "both":             
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
                     self.catalog_file = self.catalog_file[0]
-                    sip_log_record = {
+                    output_dir = cwd_file / "adpalmap_outputs_absorption"
+                    sip_report = {
                         "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "absorption",  
-                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "outputs": {
+                            "images": [],  
+                            "files": []
+                        }
                     }
                 else:
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.catalog_file[1]
-                    sip_log_record = {
-                                "software_id" :'SIP',
-                                "PID": self.pid,
-                                "input_name": self.input_data.stem,
-                                "mode": "emission",  
-                                "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
-                        }
-                    
-            elif adpalmap_config.run_mode == "absorption":
-                #The self.catalog_file already contains the correct file
-                sip_log_record = {
+                    output_dir = cwd_file / "adpalmap_outputs_emission"
+                    sip_report = {
                         "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
-                        "mode": "absorption",  
-                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
-                    }
-                
-            elif adpalmap_config.run_mode == "emission":
-                #The self.catalog_file already contains the correct file
-                sip_log_record = {
-                            "software_id" :'SIP',
-                            "PID": self.pid,
-                            "input_name": self.input_data.stem,
-                            "mode": "emission",  
-                            "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
+                        "mode": "emission",  
+                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "outputs": {
+                            "images": [],  
+                            "files": []
+                        }
                     }
                     
-        if  sip_log_record["log_path"].exists():
+            elif adpalmap_config.run_mode == "absorption":
+                output_dir = cwd_file / "adpalmap_outputs_absorption"
+                #The self.catalog_file already contains the correct file
+                sip_report = {
+                    "software_id" :'SIP',
+                    "PID": self.pid,
+                    "input_name": self.input_data.stem,
+                    "mode": "absorption",  
+                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "outputs": {
+                        "images": [],  
+                        "files": []
+                    }
+                }
+                
+            elif adpalmap_config.run_mode == "emission":
+                output_dir = cwd_file / "adpalmap_outputs_emission"
+                #The self.catalog_file already contains the correct file
+                sip_report = {
+                    "software_id" :'SIP',
+                    "PID": self.pid,
+                    "input_name": self.input_data.stem,
+                    "mode": "emission",  
+                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "outputs": {
+                        "images": [],  
+                        "files": []
+                    }
+                }
+                    
+        if  sip_report["log_path"].exists():
                 try:
-                    sip_log_record["log_path"].unlink()
+                    sip_report["log_path"].unlink()
                 except:
                     logger.warning(
                         "Error trying to delete existing log file. The new log "
@@ -491,7 +517,7 @@ class SiPar(dict):
 
         cmd = self.generate_command()
         error = ''
-        sip_log_record.update({'comand':cmd})
+        sip_report.update({'comand':cmd})
         try:
             Logger.raw("================================")
             if sopar:
@@ -526,6 +552,12 @@ class SiPar(dict):
             else:
                 logger.info(f"SIP finished.")
             Logger.raw("================================")
+
+            try:
+                self.report_outputs(sip_report)  
+            except Exception as e:
+                logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
 
         except FileNotFoundError as e:
             logger.critical(f"Command not found: {cmd[0]}. Error: {e}")
@@ -566,8 +598,8 @@ class SiPar(dict):
                 sys.exit(-1)
 
         finally:
-            sip_log_record.update({'error': error})
-            return sip_log_record
+            sip_report.update({'error': error})
+            return sip_report
         
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 
@@ -749,6 +781,93 @@ class SiPar(dict):
                     "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                 )
                 raise
+
+
+    def report_outputs(self, sip_report, output_dir):
+        
+        num_sources = self.detect_source_count() 
+    
+        for i in range(num_sources):
+            source_prefix = f"source_{i+1}"
+            sip_report['outputs']['images'].append({
+                "type": "mom0",
+                "path": output_dir / f"{source_prefix}_mom0.png",
+                "source_id": i+1,
+                "description": "Momment 0 image"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom1",
+                "path": output_dir / f"{source_prefix}_mom1.png",
+                "source_id": i+1,
+                "description": "Momment 1 image"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom2",
+                "path": output_dir / f"{source_prefix}_mom2.png",
+                "source_id": i+1,
+                "description": "Momment 2 image"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "spec",
+                "path": output_dir / f"{source_prefix}_spec.png",
+                "source_id": i+1,
+                "description": "Spectrum plot"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv",
+                "path": output_dir / f"{source_prefix}_pv.png",
+                "source_id": i+1,
+                "description": "Position-Velociy (major axis) plot"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv_min",
+                "path": output_dir / f"{source_prefix}_pv_min.png",
+                "source_id": i+1,
+                "description": "Position-Velociy (minoe axis) plot"
+            })
+        
+        sip_report['outputs']['files'].append({
+                "type": "par_file",
+                "path": self.sip_file_path,
+                "format": ".par"
+            })
+                    
+
+    def detect_source_count(self):
+
+        if not self.catalog_file:
+            return 0
+        
+        if self.catalog_file.with_suffix('.txt').exists():
+            try:
+                with open(self.catalog_file, 'r') as f:
+                    return sum(1 for line in f if line.strip().startswith('"'))
+            except Exception as e:
+                logger.warning(
+                    f"Error counting sources in {self.catalog_file}: {str(e)}. "
+                    ""
+                )
+                return 0
+        
+        elif self.catalog_file.with_suffix('.xml').exists():
+            try:
+                table = parse_single_table(self.catalog_file)
+                count = len(table.array)
+                logger.debug(f"Detected {count} sources in XML catalog: {self.catalog_file}")
+                return count
+            except Exception as e:
+                logger.warning(f"XML catalog parsing failed ({self.catalog_file}), "
+                               f"falling back to TXT: {str(e)}")
+        
+        else:
+            logger.warning(
+                f"Unexpected error: {e}. "
+                    "Please open an issue on GitHub "
+                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                    "case."
+            )
+            return 0
+        
         
 
     

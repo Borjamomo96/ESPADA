@@ -1,0 +1,88 @@
+.flex-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 8px;
+    height: 200px;
+}
+
+.softwares-box, .log-box {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    box-sizing: border-box;
+}
+.softwares-box {
+    overflow-y: auto;
+    width: 50%;
+}
+.softwares-list {
+    padding-left: 10px;
+    margin-top: 0px
+}
+.softwares-list li {
+  display: grid;
+  grid-template-columns: 16px 70px 130px 120px auto; /* Ajusta según necesidad */
+  align-items: center;
+  gap: 10px;
+  margin: 5px 0;
+}
+.sw-square {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    /*margin-right: 6px;*/
+    vertical-align: middle;
+}
+.sw-square.ok {background: #b6eab6; border: 1px solid #888;}
+.sw-square.warning {background: #ffa734; border: 1px solid #888;}
+.sw-square.error {background: #ffb3b3; border: 1px solid #888;}
+
+.btn-group {margin-left: auto; display: flex; gap: 6px;}
+.log-btn, .par-btn {
+    background: #ddeaff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95em;
+}
+
+.log-box {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    padding: 14px;
+    min-height: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    width: 50%;
+    font-family: monospace;
+    font-size: 0.97em;
+    color: #222;
+}
+
+.image-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+.img-container {
+    width: 180px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    text-align: center;
+}
+.img-container img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+}
+.img-desc {
+    font-size: 0.95em;
+    color: #333;
+    padding: 6px 0;
+}
