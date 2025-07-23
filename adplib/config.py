@@ -254,7 +254,7 @@ class Config(dict):
                         f"Value provided: '{value}'."
                     )
                 
-        # Detecto y manejar parámetros no esperados
+        # Detecto y manejo parámetros no esperados
         internal_attributes = ['config_path'] #Parámetros creados dentro de la clase
         all_params = set(self.__dict__.keys())  # Todos los atributos actuales de la instancia
         allowed_params = set(expected_types.keys())  # Parámetros esperados
