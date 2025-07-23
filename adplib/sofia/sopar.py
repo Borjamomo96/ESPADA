@@ -1035,28 +1035,33 @@ class SoPar(dict):
     
         sopar_report['outputs']['images'].append({
             "type": "rel",
-            "path": self.output_directory / self.input_data.stem / '_rel.eps',
-            "description": "Realibiliy Plot"
+            "path": self.output_directory / f"{self.input_data.stem }_rel.eps",
+            "description": "Realibiliy Plot",
+            "software-id": "sofia"
         })
         sopar_report['outputs']['images'].append({
             "type": "skellman",
-            "path": self.output_directory / self.input_data.stem / '_skellman.eps',
-            "description": "Skellman Plot"
+            "path": self.output_directory / f"{self.input_data.stem}_skellam.eps",
+            "description": "Skellman Plot",
+            "software-id": "sofia"
         })
         sopar_report['outputs']['files'].append({
             "type": "par_file",
             "path": self.sofia_file_path,
-            "format": ".par"
+            "format": ".par",
+            "software-id": "sofia"
         })    
         sopar_report['outputs']['files'].append({
             "type": "catalog_txt",
-            "path": self.output_directory / self.input_data.stem / '_cat.txt',
-            "format": "txt"
+            "path": self.output_directory / f"{self.input_data.stem}_cat.txt",
+            "format": "txt",
+            "software-id": "sofia"
         })
         sopar_report['outputs']['files'].append({
             "type": "catalog_xml",
-            "path": self.output_directory / self.input_data.stem / '_xlm.txt',
-            "format": "xlm"
+            "path": self.output_directory / f"{self.input_data.stem}_xlm.txt",
+            "format": "xlm",
+            "software-id": "sofia"
         })
 
 

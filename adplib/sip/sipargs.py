@@ -369,7 +369,6 @@ class SiPar(dict):
                     logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
         
 
-
     def run_sip(self, adpalmap_config, sopar=None, run=-1):
         """
         Run the SIP (Source Identification Pipeline) process with the specified configuration.
@@ -401,7 +400,7 @@ class SiPar(dict):
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
-            output_dir = Path(sopar.output_directory)
+            sip_output_dir = Path(sopar.output_directory) / f"{self.input_data.stem}_figures"
             input_file_name = Path(sopar.input_data).stem
                     
             sofia_catalog_txt = sofia_output_dir / f"{input_file_name}_cat.txt"
@@ -448,7 +447,9 @@ class SiPar(dict):
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
                     self.catalog_file = self.catalog_file[0]
-                    output_dir = cwd_file / "adpalmap_outputs_absorption"
+                    output_dir = (
+                        cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_figures"
+                    )
                     sip_report = {
                         "software_id" :'SIP',
                         "PID": self.pid,
@@ -463,7 +464,9 @@ class SiPar(dict):
                 else:
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.catalog_file[1]
-                    output_dir = cwd_file / "adpalmap_outputs_emission"
+                    output_dir = (
+                        cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_figures"
+                    )
                     sip_report = {
                         "software_id" :'SIP',
                         "PID": self.pid,
@@ -477,7 +480,9 @@ class SiPar(dict):
                     }
                     
             elif adpalmap_config.run_mode == "absorption":
-                output_dir = cwd_file / "adpalmap_outputs_absorption"
+                output_dir = (
+                    cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_figures"
+                )
                 #The self.catalog_file already contains the correct file
                 sip_report = {
                     "software_id" :'SIP',
@@ -492,7 +497,9 @@ class SiPar(dict):
                 }
                 
             elif adpalmap_config.run_mode == "emission":
-                output_dir = cwd_file / "adpalmap_outputs_emission"
+                output_dir = (
+                    cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_figures"
+                )
                 #The self.catalog_file already contains the correct file
                 sip_report = {
                     "software_id" :'SIP',
@@ -554,7 +561,7 @@ class SiPar(dict):
             Logger.raw("================================")
 
             try:
-                self.report_outputs(sip_report)  
+                self.report_outputs(sip_report, sip_output_dir)  
             except Exception as e:
                 logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
@@ -788,48 +795,55 @@ class SiPar(dict):
         num_sources = self.detect_source_count() 
     
         for i in range(num_sources):
-            source_prefix = f"source_{i+1}"
+            source_prefix = f"_{i+1}"
             sip_report['outputs']['images'].append({
                 "type": "mom0",
-                "path": output_dir / f"{source_prefix}_mom0.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom0.png",
                 "source_id": i+1,
-                "description": "Momment 0 image"
+                "description": "Momment 0 image",
+                "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "mom1",
-                "path": output_dir / f"{source_prefix}_mom1.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom1.png",
                 "source_id": i+1,
-                "description": "Momment 1 image"
+                "description": "Momment 1 image",
+                "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "mom2",
-                "path": output_dir / f"{source_prefix}_mom2.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom2.png",
                 "source_id": i+1,
-                "description": "Momment 2 image"
+                "description": "Momment 2 image",
+                "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "spec",
-                "path": output_dir / f"{source_prefix}_spec.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_spec.png",
                 "source_id": i+1,
-                "description": "Spectrum plot"
+                "description": "Spectrum plot",
+                "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "pv",
-                "path": output_dir / f"{source_prefix}_pv.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_pv.png",
                 "source_id": i+1,
-                "description": "Position-Velociy (major axis) plot"
+                "description": "Position-Velociy (major axis) plot",
+                "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "pv_min",
-                "path": output_dir / f"{source_prefix}_pv_min.png",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_pv_min.png",
                 "source_id": i+1,
-                "description": "Position-Velociy (minoe axis) plot"
+                "description": "Position-Velociy (minoe axis) plot",
+                "software-id": "sip"
             })
         
         sip_report['outputs']['files'].append({
                 "type": "par_file",
                 "path": self.sip_file_path,
-                "format": ".par"
+                "format": ".par",
+                "software-id": "sip"
             })
                     
 

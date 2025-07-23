@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <title>ADP Alma Pipeline quality assurance</title>
-  <link rel="stylesheet" href="css/base.css">
-  <link rel="stylesheet" href="css/dataset_tab.css">
-  <link rel="stylesheet" href="css/collapsible.css">
+  <link rel="stylesheet" href="resources/base.css">
+  <link rel="stylesheet" href="resources/dataset_tab.css">
+  <link rel="stylesheet" href="resources/collapsible.css">
 </head>
 <body>
   <div class="run-header">
@@ -63,13 +63,61 @@
           <div class="par-box"></div>
         </div>
         <!-- Galería de imágenes (opcional) -->
-        <div class="image-gallery">
-          {% for img in dataset.images %}
-            <div class="img-container">
-              <img src="{{ img.url }}" alt="{{ img.descripcion }}">
-              <div class="img-desc">{{ img.descripcion }}</div>
+        <div class="image-gallery-box">
+            <!-- Sección QA -->
+            {% if dataset.images_grouped.qa %}
+            <div class="gallery-section">
+                <h3 class="section-title">QA Images</h3>
+                <div class="image-gallery">
+                    {% for img in dataset.images_grouped.qa %}
+                    <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-          {% endfor %}
+            {% endif %}
+
+            <!-- Sección SoFiA-2 -->
+            <div class="gallery-section">
+                <h3 class="section-title">SoFiA-2 Outputs</h3>
+                <div class="image-gallery">
+                    {% for img in dataset.images_grouped.sofia %}
+                    <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                    </div>
+                    {% else %}
+                    <div class="placeholder">No SoFiA-2 images available</div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Sección SIP con fuentes desplegables -->
+            <div class="gallery-section">
+                <h3 class="section-title">SIP Outputs</h3>
+                
+                {% for source_id, images in dataset.images_grouped.sip.items()|sort %}
+                <div class="source-container">
+                    <button class="source-toggle" onclick="toggleSource(this)">
+                        Source {{ source_id }} ▼
+                    </button>
+                    <div class="source-images">
+                        <div class="image-gallery">
+                            {% for img in images %}
+                            <div class="img-container">
+                                <img src="{{ img.path }}" alt="{{ img.description }}">
+                                <div class="img-desc">{{ img.description }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="placeholder">No SIP sources detected</div>
+                {% endfor %}
+            </div>
         </div>
       </div>
     {% endfor %}
@@ -140,6 +188,18 @@
       // Muestra el log en el recuadro
       logBox.textContent = log || 'No log disponible.';
     }
+
+
+    function toggleSource(button) {
+    const container = button.nextElementSibling;
+    container.classList.toggle('active');
+    // Cambiar el icono del botón
+    if (container.classList.contains('active')) {
+        button.innerHTML = button.innerHTML.replace('▼', '▲');
+    } else {
+        button.innerHTML = button.innerHTML.replace('▲', '▼');
+    }
+}
   </script>
 </body>
 </html>

@@ -265,12 +265,21 @@ def reorganize_log(log_path, worker_results):
 
         with open(sorted_log_path, 'w', encoding='utf-8') as f:
             f.writelines(sorted_lines)
+        
+        return sorted_log_path
             
     except Exception as e:
         print(f"Fatal error reorganizing {log_path}. Error: {e}")
         Logger.raw(format_exc())
+
+        sorted_log = log_path.name.replace("raw_", "", 1)
+        sorted_log_path = log_path.with_name(sorted_log)
+        with open(sorted_log_path, 'w', encoding='utf-8') as f:
+            f.writelines(f"Fatal error reorganizing {log_path}. Error: {e}")
         
-     
+        return sorted_log_path
+        
+
 def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
     
@@ -505,74 +514,13 @@ def process_data(number,
     return sofia_report, sip_report  
 
 
-#Functions html report
-
-def get_html_dataset(dataset_list, html_report):
-    
-    html_report = [{'inputData_path' : data} for data, pb, mask, _ in dataset_list]
-
-    return html_report
-
-
-def transformar_report(report):
-    datasets = []
-    for idx, dataset in enumerate(report):
-        # Extraer el nombre del dataset del primer diccionario disponible
-        nombre = None
-        for sublist in dataset:
-            if sublist and isinstance(sublist[0], dict) and 'input_name' in sublist[0]:
-                nombre = sublist[0]['input_name']
-                break
-        if not nombre:
-            nombre = f"Dataset {idx+1}"
-
-        softwares = []
-        for sublist in dataset:
-            for entry in sublist:
-                # Extraer nombre del software
-                software_nombre = entry.get('software_id', 'Desconocido')
-                # Determinar estado según la clave 'error'
-                error = entry.get('error', '')
-                if error:
-                    estado = 'error'
-                else:
-                    estado = 'ok'
-                # Puedes personalizar el log según el software y el error
-                log = error if error else f"{software_nombre} ejecutado correctamente."
-                # Puedes añadir más campos si lo necesitas
-                software_dict = {
-                    'nombre': software_nombre,
-                    'estado': estado,
-                    'log': log
-                }
-                softwares.append(software_dict)
-
-        # Ejemplo: puedes extraer imágenes si tienes esa información en los diccionarios
-        imagenes = []
-        for sublist in dataset:
-            for entry in sublist:
-                # Si tienes paths de imágenes, agrégalas aquí
-                if 'imagenes' in entry:
-                    for img in entry['imagenes']:
-                        imagenes.append({
-                            'url': img.get('url', ''),
-                            'descripcion': img.get('descripcion', '')
-                        })
-        # Si no hay imágenes, puedes dejar la lista vacía o poner un ejemplo
-        datasets.append({
-            'nombre': nombre,
-            'softwares': softwares,
-            'imagenes': imagenes
-        })
-    return datasets
-
 
 def main():
 
     log_flag = False
     worker_results = []
     worker_exceptions = []
-    html_report = []
+    adpalmap_config = None
 
     try:
         # Parse args:
@@ -706,8 +654,6 @@ def main():
 
         number_list = list(range(len(data_pack_list)))
 
-        html_report = get_html_dataset(data_pack_list, html_report)
-
         #--------------------------------------------------------------------------------------------#
         
         #--------------------------------------------------------------------------------------------#
@@ -831,11 +777,18 @@ def main():
 
         if log_flag:
             log_path = Logger.get_log_filename()
-            reorganize_log(log_path, worker_results)
+            adp_log = reorganize_log(log_path, worker_results)
 
-        #if adpalmap_config.html_report:
+        if adpalmap_config is not None and adpalmap_config.html_report:
+            from adpweb.report import Report
             
+            base_dir = Path(__file__).parent.parent  
+            template = base_dir / "adpweb" / "templates" / "report.html"
 
+            adpalmap_report = Report(worker_results, template, adp_log)
+            
+            adpalmap_report.generate_html()
+            
 
 # Run the main functions
 if __name__ == '__main__':

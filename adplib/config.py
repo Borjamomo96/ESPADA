@@ -197,6 +197,7 @@ class Config(dict):
         #Tipos esperados en los parámetros
         expected_types = {
             'quality_assesment': bool,
+            'html_report': bool,
             'verbose': bool,
             'num_cores': int | None,
             'input_data_set': str | list | dict | None,
@@ -262,10 +263,10 @@ class Config(dict):
         unexpected_params = all_params - allowed_params  # Parámetros inesperados
 
         for param in unexpected_params:
-            logger.warning(
+            raise ValueError(
                 f"Unexpected parameter '{param}' found in config.yaml. It will be ignored."
             )
-            delattr(self, param)         
+            #delattr(self, param)         
 
 
     def input_logic(self):
