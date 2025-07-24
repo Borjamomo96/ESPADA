@@ -145,15 +145,7 @@ class SiPar(dict):
             expected_types['catalog_file'] =  str | list | None
 
 
-        #Extra check en algunos parámetros
-        valid_values = {
-            'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-            'spec_line': ['HI', 
-                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
-                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
-        }
-
-        # Valido tipos de datos
+       # Valido tipos de datos
         for param, expected_type in expected_types.items():
             if hasattr(self, param):
                 value = getattr(self, param)
@@ -264,19 +256,32 @@ class SiPar(dict):
                     raise
         #--------------------------------------------------# 
 
+        # Valido valores permitidos en ciertos parámetros
+        valid_values = {
+            'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
+            'spec_line': ['HI', 
+                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
+                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
+        }
 
-        # Valido valores permitidos
         for param, valid_values_list in valid_values.items():
             if hasattr(self, param):
                 value = getattr(self, param)
                 
                 if value not in valid_values_list:
-                    error_msg = (
-                        f"The parameter '{param}' must have one of the following values:"
-                        f" {valid_values_list}. Value provided: '{value}'."
-                    )
-                    Logger.log_to_file(logging.ERROR, error_msg)
-                    raise ValueError(error_msg)
+                    if param == 'spec_line':
+                        logger.warning(
+                            f"The value '{value}' is not valid for parameter '{param}'. " 
+                            "It will be set as 'Unknown'"
+                        )
+                        self.spec_line = 'Unknown'
+                    else:
+                        error_msg = (
+                            f"The parameter '{param}' must have one of the following values:"
+                            f" {valid_values_list}. Value provided: '{value}'."
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
 
         # Valido parámetros que solo admiten listas con una cierta longitud
         if hasattr(self, 'snr_range') and getattr(self, 'snr_range') is not None:

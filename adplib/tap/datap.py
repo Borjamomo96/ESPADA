@@ -80,6 +80,10 @@ def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False
                 header['BITPIX'] = 16
                 new_hdu = fits.PrimaryHDU(data=int_data, header=header)
                 new_hdu.writeto(new_file_path, overwrite=True)
+                logger.info(
+                    f"Integer-type version of the mask '{file_path}' has been created: "
+                    f"{new_file_path}"
+                )
                 if (remove_archive_mask and from_downloadmask):
                     file_path.unlink()
                     logger.info(f"Mask archive file deleted: '{file_path}'")

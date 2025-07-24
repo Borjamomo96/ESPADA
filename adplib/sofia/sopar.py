@@ -251,6 +251,37 @@ def compare_parfiles(file_path, temp_file_path):
     return changes
 
 
+def mask_float2int(file_path):
+
+    file_path = Path(file_path)
+    new_file_path = file_path.with_name(file_path.stem + '_int' + file_path.suffix)
+    
+    if new_file_path.exists():
+        logger.info(f"Found cached mask integer file '{new_file_path}'")
+        return new_file_path
+
+    try:
+        with fits.open(file_path) as hdul:
+            data = hdul[0].data
+            header = hdul[0].header
+
+            if data.dtype.kind == 'f':
+                int_data = np.round(data).astype(np.int16)
+                header['BITPIX'] = 16
+                new_hdu = fits.PrimaryHDU(data=int_data, header=header)
+                new_hdu.writeto(new_file_path, overwrite=True)
+                logger.info(
+                    f"Integer-type version of the mask '{file_path}' has been created: "
+                    f"{new_file_path}"
+                )
+                return new_file_path
+            else:
+                return file_path
+            
+    except Exception as e:
+        logger.error(f"Mask conversion to integer failed. File: {file_path}. Error: {e}")
+        return ""
+
 
 class SoPar(dict): 
 
@@ -371,7 +402,7 @@ class SoPar(dict):
     def update_input_parameters(
             self, sop_par, 
             input_data, primary_beam=None, mask=None,
-            mode=None, run=-1, sofia_threads=1
+            mode=None, tap=None, run=-1, sofia_threads=1
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
@@ -516,8 +547,12 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
                 )
-                       
-            self.input_mask = mask
+            
+            #Comprueba si la máscara es descargada o no. Si no compruebo que sea tipo int()
+            if tap:
+                self.input_mask = mask
+            else:
+                self.input_mask = mask_float2int(mask)
 
         else:
             if (sop_par is not None 
@@ -549,7 +584,7 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
                     "parameter provided in vía '-sop' comand."
                 )
-                self.scfind.enable = 'false'
+            self.scfind_enable = 'false'
 
         #---------------------------------------------------------#
 
