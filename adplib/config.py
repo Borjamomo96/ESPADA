@@ -346,6 +346,7 @@ class Config(dict):
             raise ValueError(
                 f"Not valid format: {self.input_data_set} (type {type(data_type)})"
             )
+  
     
     def parse_input_file(self):
         

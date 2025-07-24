@@ -323,6 +323,7 @@ def process_data(number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
             if adpalmap_config.auto_setup == True:
@@ -356,6 +357,7 @@ def process_data(number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
             if adpalmap_config.auto_setup == True:
@@ -393,6 +395,7 @@ def process_data(number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
             #Update sofia emi file with the -sop parameters
@@ -401,6 +404,7 @@ def process_data(number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode, 
+                                                       tap=adpalmap_config.enable_tap_service,
                                                        run=0,
                                                        sofia_threads=sofia_threads
                                                        )   
