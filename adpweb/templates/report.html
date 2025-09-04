@@ -22,7 +22,7 @@
 
   <!-- Contenido de cada pestaña -->
   <div id="dataset" class="tab-content active">
-    <!-- Leyenda de estado -->
+    <!-- Leyenda de status -->
     <ul class="legend">
       <li><span class="green"></span> Module ran normally</li>
       <li><span class="orange"></span> Warnings excess</li>
@@ -32,27 +32,27 @@
     <!-- Aquí van las pestañas desplegables por dataset -->
 
     {% for dataset in datasets %}
-      <button type="button" class="collapsible {{ dataset.estado }}">{{ dataset.input_data }}</button>
-      <div class="content {{ dataset.estado }}">
+      <button type="button" class="collapsible {{ dataset.status }}">{{ dataset.input_data }}</button>
+      <div class="content {{ dataset.status }}">
         <div class="flex-row">
           <!-- Recuadro de Softwares -->
           <div class="softwares-box">
             <ul class="softwares-list">
               {% for sw in dataset.softwares %}
                 <li 
-                  data-log="{{ sw.log_path }}"
-                  data-parfile="{{ sw.sofia_parfile }}"
-                  data-parchanges='{{ sw.sofia_par_changes | default({}) | tojson }}'>
+                  data-log="{{ sw.log_content | e }}"
+                  data-parfile="{{ sw.sofia_parfile | e }}"
+                  data-command="{{ sw.command | e }}">
 
-                  <span class="sw-square {{ sw.sw_estado }}"></span>
+                  <span class="sw-square {{ sw.sw_status }}"></span>
 
-                  <div class="sw-name">{{ sw.nombre }}</div>
-                  <div class="sw-mode">Mode: <em>{{ sw.modo }}</em></div>
-                  <div class="sw-warnings">Nº warnings: <em>{{ sw.numero_de_warning }}</em></div>
+                  <div class="sw-name">{{ sw.software_id }}</div>
+                  <div class="sw-mode">Mode: <em>{{ sw.mode }}</em></div>
+                  <div class="sw-warnings">Nº warnings: <em>{{ sw.warning_number }}</em></div>
 
                   <div class="btn-group">
                     <button class="log-btn" onclick="showLog(this)">Log</button>
-                    <button class="par-btn" onclick="showPar(this)">Par</button>
+                    <button class="par-btn" onclick="showPar(this)">Par/Comand</button>
                   </div>
                 </li>
               {% endfor %}
@@ -60,74 +60,140 @@
           </div>
           <!-- Recuadro de Log y Parámetros -->
           <div class="log-box"></div>
-          <div class="par-box"></div>
+          <div class="par-box" style="display: none;"></div>
         </div>
         <!-- Galería de imágenes (opcional) -->
         <div class="image-gallery-box">
             <!-- Sección QA -->
-            {% if dataset.images_grouped.qa %}
             <div class="gallery-section">
                 <h3 class="section-title">QA Images</h3>
-                <div class="image-gallery">
+                <div class="image-gallery-qa">
                     {% for img in dataset.images_grouped.qa %}
                     <div class="img-container">
                         <img src="{{ img.path }}" alt="{{ img.description }}">
                         <div class="img-desc">{{ img.description }}</div>
                     </div>
+                    {% else %}
+                    <div class="placeholder">No QA images available</div>
                     {% endfor %}
                 </div>
             </div>
-            {% endif %}
+
 
             <!-- Sección SoFiA-2 -->
             <div class="gallery-section">
-                <h3 class="section-title">SoFiA-2 Outputs</h3>
-                <div class="image-gallery">
-                    {% for img in dataset.images_grouped.sofia %}
-                    <div class="img-container">
-                        <img src="{{ img.path }}" alt="{{ img.description }}">
-                        <div class="img-desc">{{ img.description }}</div>
+                <h3 class="section-title">SoFiA-2 Outputs</h3>                
+                <!-- Absorption Mode -->
+                {% if dataset.images_grouped.sofia.absorption %}
+                <div class="mode-container">
+                    <h4 class="mode-title">Absorption Mode</h4>
+                    <div class="image-gallery">
+                        {% for img in dataset.images_grouped.sofia.absorption %}
+                        <div class="img-container">
+                          <img src="{{ img.path }}" alt="{{ img.description }}">
+                          <div class="img-desc">{{ img.description }}</div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% else %}
-                    <div class="placeholder">No SoFiA-2 images available</div>
-                    {% endfor %}
                 </div>
+                {% endif %}
+                <!-- Emission Mode -->
+                {% if dataset.images_grouped.sofia.emission %}
+                <div class="mode-container">
+                    <h4 class="mode-title">Emisiion Mode</h4>
+                    <div class="image-gallery">
+                        {% for img in dataset.images_grouped.sofia.emission %}
+                        <div class="img-container">
+                          <img src="{{ img.path }}" alt="{{ img.description }}">
+                          <div class="img-desc">{{ img.description }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <!-- Placeholder for no images -->
+                {% if not dataset.images_grouped.sofia.absorption and not dataset.images_grouped.sofia.emission %}
+                <div class="image-gallery">
+                    <div class="placeholder">No SoFiA-2 images available</div>
+                </div>
+                {% endif %}
             </div>
+            
 
-            <!-- Sección SIP con fuentes desplegables -->
+
+            <!-- Sección SIP con fuentes desplegables por modo -->
             <div class="gallery-section">
                 <h3 class="section-title">SIP Outputs</h3>
-                
-                {% for source_id, images in dataset.images_grouped.sip.items()|sort %}
-                <div class="source-container">
-                    <button class="source-toggle" onclick="toggleSource(this)">
-                        Source {{ source_id }} ▼
-                    </button>
-                    <div class="source-images">
-                        <div class="image-gallery">
-                            {% for img in images %}
-                            <div class="img-container">
-                                <img src="{{ img.path }}" alt="{{ img.description }}">
-                                <div class="img-desc">{{ img.description }}</div>
-                            </div>
-                            {% endfor %}
+                <!-- Absorption Mode -->
+                {% if dataset.images_grouped.sip.absorption %}
+                <div class="mode-container">
+                    <h4 class="mode-title">Absorption Mode</h4>
+                    {% for source_id, images in dataset.images_grouped.sip.absorption.items()|sort %}
+                    <div class="source-container">
+                        <button class="source-toggle" onclick="toggleSource(this)">
+                            Source {{ source_id }} (Absorption) ▼
+                        </button>
+                        <div class="source-images">
+                            <div class="image-gallery">
+                                {% for img in images %}
+                                <div class="img-container">
+                                    <img src="{{ img.path }}" alt="{{ img.description }}">
+                                    <div class="img-desc">{{ img.description }}</div>
+                                </div>
+                                {% else %}
+                                <div class="placeholder">No images for this source</div>
+                                {% endfor %}
+                              </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% else %}
-                <div class="placeholder">No SIP sources detected</div>
-                {% endfor %}
+                {% endif %}
+
+                <!-- Emission Mode -->
+                {% if dataset.images_grouped.sip.emission %}
+                <div class="mode-container">
+                    <h4 class="mode-title">Emission Mode</h4>
+                    {% for source_id, images in dataset.images_grouped.sip.emission.items()|sort %}
+                    <div class="source-container">
+                        <button class="source-toggle" onclick="toggleSource(this)">
+                            Source {{ source_id }} (Emission) ▼
+                        </button>
+                        <div class="source-images">
+                            <div class="image-gallery">
+                                {% for img in images %}
+                                <div class="img-container">
+                                    <img src="{{ img.path }}" alt="{{ img.description }}">
+                                    <div class="img-desc">{{ img.description }}</div>
+                                </div>
+                                {% else %}
+                                <div class="placeholder">No images for this source</div>
+                                {% endfor %}
+                              </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Placeholder for no images -->
+                {% if not dataset.images_grouped.sip.absorption and not dataset.images_grouped.sip.emission %}
+                <div class="image-gallery">
+                    <div class="placeholder">No SIP sources available</div>
+                </div>
+                {% endif %}
             </div>
+
         </div>
       </div>
     {% endfor %}
   </div>
 
   <div id="log" class="tab-content">
-    <div class="log-box">
-      {{ adp_log }}
-    </div>
+    <pre class="full_log-box">{{ adp_log_content | e }}</pre>
   </div>
+
+
 
   <script>
     // Tabs superiores
@@ -177,16 +243,54 @@
       }
     });
     
-    // Log desplegables
-    function showLog(btn, idx) {
+    // Función para mostrar log
+    function showLog(btn) {
       // Encuentra el li al que pertenece el botón
       var li = btn.closest('li');
-      // Busca el texto del log en un atributo data-log
-      var log = li.getAttribute('data-log');
-      // Encuentra el recuadro log-box correspondiente
+      // Obtiene el contenido del log desde el atributo data-log
+      var logContent = li.getAttribute('data-log');
+      // Encuentra los recuadros
       var logBox = btn.closest('.flex-row').querySelector('.log-box');
-      // Muestra el log en el recuadro
-      logBox.textContent = log || 'No log disponible.';
+      var parBox = btn.closest('.flex-row').querySelector('.par-box');
+      
+      // Muestra log, oculta parámetros
+      logBox.style.display = 'block';
+      parBox.style.display = 'none';
+      
+      // Crear un elemento pre para mostrar el contenido con formato
+      var preElement = document.createElement('pre');
+      preElement.textContent = logContent;
+      preElement.className = 'log-content';
+      
+      // Limpiar y mostrar el contenido
+      logBox.innerHTML = '';
+      logBox.appendChild(preElement);
+    }
+
+
+    function showPar(btn) {
+      var li = btn.closest('li');
+      var softwareId = li.querySelector('.sw-name').textContent;
+      var formattedParfile = li.getAttribute('data-parfile') || '';
+      var command = li.getAttribute('data-command') || '';
+      
+      var logBox = btn.closest('.flex-row').querySelector('.log-box');
+      var parBox = btn.closest('.flex-row').querySelector('.par-box');
+      
+      logBox.style.display = 'none';
+      parBox.style.display = 'block';
+      parBox.innerHTML = '';
+      
+      var preElement = document.createElement('pre');
+      preElement.style.whiteSpace = 'pre-wrap';
+      
+      if (softwareId === 'SoFiA-2') {
+        preElement.textContent = formattedParfile;
+      } else {
+        preElement.textContent = command;
+      }
+      
+      parBox.appendChild(preElement);
     }
 
 

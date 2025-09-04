@@ -10,8 +10,8 @@ pipeline.threads           =  0
 
 # Input
 
-#input.data                 =  sofia_test_datacube.test
-#input.primaryBeam          =  
+input.data                 =  sofia_test_datacube.test
+input.primaryBeam          =  
 input.region               =  
 input.gain                 =  
 input.noise                =  

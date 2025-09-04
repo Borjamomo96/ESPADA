@@ -5,6 +5,7 @@
 ###############
 
 quality_assesment: True
+html_report: True
 verbose: False
 num_cores: 12
 

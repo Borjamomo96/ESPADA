@@ -145,7 +145,7 @@ def moment8_ima(adpalmap_sopar):
     if data_cube is None:
         error_msg = (
             f"The FITS file '{data_cube}' does not contain data in the primary HDU." 
-            "Aborting quality assement..."
+            "Quality assement aborted."
         )
         logger.error(error_msg)
         raise RecoverableValueError(error_msg)
@@ -155,7 +155,7 @@ def moment8_ima(adpalmap_sopar):
     elif data_cube.ndim > 4:
         error_msg = (
             "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-            "Aborting quality assesment... "
+            "Quality assesment aborted. "
             "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
             "with your specific case.")
         logger.error(error_msg)
@@ -180,7 +180,7 @@ def moment8_ima(adpalmap_sopar):
         if pb_cube is None:
             error_msg = (
                 f"The FITS file '{pb_cube}' does not contain data in the primary HDU." 
-                "Aborting quality assement..."
+                "Quality assement aborted."
             )
             logger.error(error_msg)
             raise RecoverableValueError(error_msg)
@@ -190,7 +190,7 @@ def moment8_ima(adpalmap_sopar):
         elif pb_cube.ndim > 4:
             error_msg = (
                 "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-                "Aborting quality assesment... "
+                " Quality assesment aborted. "
                 "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
                 "with your specific case.")
             logger.error(error_msg)
@@ -728,6 +728,7 @@ class SoPar(dict):
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name,
+                "sofia_parfile" : self.sofia_file_path,
                 "outputs" : {'images' : [], 'files': []}
             }
 
@@ -765,15 +766,17 @@ class SoPar(dict):
                 Logger.raw("================================")
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
-                try:
-                    self.report_outputs(sopar_report)  
-                except Exception as e:
-                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
+                if self.adpalmap_config.html_report:
+                    try:
+                        self.report_outputs(sopar_report)  
+                    except Exception as e:
+                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
             except subprocess.CalledProcessError as e:
                 error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
+                logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
                 sys.exit(-1)
 
             finally:
@@ -796,6 +799,7 @@ class SoPar(dict):
                 "input_name": self.input_data.stem,
                 "mode": self.sopar_mode,  
                 "log_path": self.output_directory / sopar_log_name,
+                "sofia_parfile" : self.sofia_file_path,
                 "outputs" : {'images' : [], 'files': []}
             }
 
@@ -833,15 +837,17 @@ class SoPar(dict):
                 Logger.raw("================================")
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
-                try:
-                    self.report_outputs(sopar_report)  
-                except Exception as e:
-                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+                
+                if adpalmap_config.html_report:
+                    try:
+                        self.report_outputs(sopar_report)  
+                    except Exception as e:
+                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
             except subprocess.CalledProcessError as e:
                 error = str(e)
                 logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
+                logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
                 sys.exit(-1)
             finally:
                 if os.path.exists(temp_file_path):
@@ -863,6 +869,7 @@ class SoPar(dict):
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name,
+                    "sofia_parfile" : self.sofia_file_path,
                     "outputs" : {'images' : [], 'files': []}
                 }
 
@@ -945,6 +952,7 @@ class SoPar(dict):
                     "input_name": self.input_data.stem,
                     "mode": self.sopar_mode,  
                     "log_path": self.output_directory / sopar_log_name,
+                    "sofia_parfile" : self.sofia_file_path,
                     "outputs" : {'images' : [], 'files': []}
                 }
 
@@ -990,7 +998,7 @@ class SoPar(dict):
                 except subprocess.CalledProcessError as e:
                     error = str(e)
                     logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                    logger.info(f"Aborting process... Mode: {self.sopar_mode}.")
+                    logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
                     sys.exit(-1)
                 finally:
                     if os.path.exists(temp_file_path):
@@ -1128,6 +1136,17 @@ class SoPar(dict):
 
         logger.info(f"Quality assesment start. Mode: {self.sopar_mode}.")
 
+        # At the moment there is just one singles images but do it in this way allows add
+        # additional images easly in the future
+        qa_report = {
+                "software_id" :'QA',
+                "PID": self.pid,
+                "input_name": self.input_data.stem,
+                "mode": self.sopar_mode,  
+                "log_path": "",
+                "outputs" : {'images' : [], 'files': []}
+            }
+
         #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
         mom8_ima = moment8_ima(self)
 
@@ -1142,8 +1161,8 @@ class SoPar(dict):
             logger.warning(
                 f"2D-Mask file from SoFia not found in {self.output_directory}."            
             )
-            logger.info(" Aborting the quality assesment...")
-            return
+            logger.info("Quality assesment aborted.")
+            return qa_report
         
         if mask_file:
             with fits.open(mask_file) as hdul:
@@ -1187,7 +1206,8 @@ class SoPar(dict):
 
         qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
         qa_output_dir.mkdir(parents=True, exist_ok=True)  
-        qa_output_file = f"{qa_output_dir / Path(self.input_data).stem}_QA.png"
+        qa_output_file = Path(f"{qa_output_dir / Path(self.input_data).stem}_QA.png")
+
 
         try:
             plt.savefig(qa_output_file, bbox_inches='tight')
@@ -1195,10 +1215,18 @@ class SoPar(dict):
                 f"QA file saved in {qa_output_dir}. Quality assesment completed "
                 f"successfully. Mode: {self.sopar_mode}"
                 )
+            
+            qa_report['outputs']['images'].append({
+            "type": "mom8",
+            "path": qa_output_file,
+            "description": "Moment 8 image",
+            "software-id": "qa"
+            })
+            return qa_report
         except Exception as e:
             logger.warning(f"Something went wrong while saving QA file: {e}")
-            logger.info(f"Aborting quality assement. Mode: {self.sopar_mode}")
-            return
+            logger.info(f"Quality assement aborted . Mode: {self.sopar_mode}")
+            return qa_report
             
 
 

@@ -319,6 +319,7 @@ def process_data(number,
     if adpalmap_config.enable_sofia == True:
 
         sofia_report = []
+        qa_report = []
 
         if adpalmap_config.run_mode == 'emission':
 
@@ -339,19 +340,21 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            emi_dic_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
-            sofia_report.append(emi_dic_report)
+            sofia_report.append(emi_sofia_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    qa_report.append(emi_qa_report)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will not be "
                         "performed."
                     )
-                    adpalmap_sopar_emi.quality_assesment()
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                    qa_report.append(emi_qa_report)
 
 
         elif adpalmap_config.run_mode == 'absorption':
@@ -373,19 +376,21 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            abs_dic_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
 
-            sofia_report.append(abs_dic_report)
+            sofia_report.append(abs_sofia_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    qa_report.append(abs_qa_report)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will"
                         " not be performed."
                     )
-                    adpalmap_sopar_abs.quality_assesment()
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                    qa_report.append(abs_qa_report)
 
 
         elif adpalmap_config.run_mode == 'both':
@@ -423,30 +428,34 @@ def process_data(number,
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
 
-            abs_dic_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
-            sofia_report.append(abs_dic_report)
 
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sofia_report.append(abs_sofia_report)
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    qa_report.append(abs_qa_report)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_abs.quality_assesment()
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                    qa_report.append(abs_qa_report)
 
-            emi_dic_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
-            sofia_report.append(emi_dic_report)
-            
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
+            sofia_report.append(emi_sofia_report)
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    qa_report.append(emi_qa_report)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_emi.quality_assesment()
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                    qa_report.append(emi_qa_report)
 
     else:
         sofia_report = []
+        qa_report = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -515,7 +524,7 @@ def process_data(number,
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    return sofia_report, sip_report  
+    return sofia_report, sip_report, qa_report
 
 
 
@@ -627,7 +636,6 @@ def main():
             if adpalmap_config.quality_assesment == True:
                 adpalmap_datap.download_mask(TAP_df)
             else:
-                print(adpalmap_datap.data_list)
                 if not hasattr(adpalmap_datap, 'mask_qa_list'):
                     adpalmap_datap.mask_qa_list = [""] * len(adpalmap_datap.data_list)
             
@@ -776,7 +784,7 @@ def main():
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
 
-        
+
     finally:
 
         if log_flag:
