@@ -5,6 +5,7 @@ import sys
 import os
 from traceback import format_exc
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
+from astropy.io.votable import parse_single_table
 
 
 # Logger:
@@ -12,6 +13,14 @@ import logging
 from adplib.logger import Logger
 logger = Logger.get_logger()
 
+class CatalogResult:
+    def __init__(self, catalog_path=None, error_msg=None):
+        self.catalog_path = catalog_path
+        self.error_msg = error_msg
+        self.success = catalog_path is not None
+    
+    def __bool__(self):
+        return self.success
 
 
 class SiPar(dict): 
@@ -36,7 +45,7 @@ class SiPar(dict):
 
     def __init__(self, **kwargs):
         """
-        Reads the SIP optional parameters|comand file and creates a SiPar object.
+        Reads the SIP optional parameters|command file and creates a SiPar object.
         
         Parameters
         ----------
@@ -49,7 +58,7 @@ class SiPar(dict):
 
         Attributes
         ----------
-        All the optional parameters|comand that could be enter into the terminal while running SIP 
+        All the optional parameters|command that could be enter into the terminal while running SIP 
         """
 
         super(SiPar, self).__init__(**kwargs)
@@ -177,39 +186,70 @@ class SiPar(dict):
             if self.adpalmap_config.enable_tap_service:
                 input_name = self.input_data.stem
                 cwd_file = Path.cwd().resolve()
-                if self.adpalmap_config.run_mode == "emission":
-                    sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
-                    sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"
-                    self.catalog_file = self.set_catalog(
-                        sofia_catalog_txt, 
-                        sofia_catalog_xml,
-                        cwd_file / "adpalmap_outputs_emission" 
-                    )
 
-                elif self.adpalmap_config.run_mode == "absorption":
+
+                if self.adpalmap_config.run_mode == "absorption":
                     sofia_catalog_txt = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.txt"
                     sofia_catalog_xml = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.xml"
-                    self.catalog_file = self.set_catalog(
+                    abs_cat_file = self.set_catalog(
                         sofia_catalog_txt, 
                         sofia_catalog_xml,
                         cwd_file / "adpalmap_outputs_absorption" 
                     )
+                    if not abs_cat_file:
+                        logger.error(abs_cat_file.error_msg)
+                        raise RecoverableFileNotFoundError(abs_cat_file.error_msg)
+                    self.catalog_file = abs_cat_file.catalog_path
+
+
+                elif self.adpalmap_config.run_mode == "emission":
+                    sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
+                    sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"              
+                    emi_cat_file = self.set_catalog(
+                        sofia_catalog_txt, 
+                        sofia_catalog_xml,
+                        cwd_file / "adpalmap_outputs_emission" 
+                    )
+                    if not emi_cat_file:
+                        logger.error(emi_cat_file.error_msg)
+                        raise RecoverableFileNotFoundError(emi_cat_file.error_msg)
+                    self.catalog_file = emi_cat_file.catalog_path  
+   
 
                 elif self.adpalmap_config.run_mode == "both":
-                    
                     emi_sofia_catalog_txt = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.txt"
                     emi_sofia_catalog_xml = cwd_file / "adpalmap_outputs_emission" / f"{input_name}_cat.xml"
                     abs_sofia_catalog_txt = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.txt"
                     abs_sofia_catalog_xml = cwd_file / "adpalmap_outputs_absorption" / f"{input_name}_cat.xml"
-                    #Guardo ambos, si los hubiera 
-                    self.catalog_file = [
-                        self.set_catalog(abs_sofia_catalog_txt, abs_sofia_catalog_xml, 
-                                    cwd_file/ "adpalmap_outputs_absorption"
-                        ),
-                        self.set_catalog(emi_sofia_catalog_txt, emi_sofia_catalog_xml,
-                                    cwd_file / "adpalmap_outputs_emission"
-                        )
-                    ]
+                    
+            
+                    # Check before set any value to self.catalogue. Otherwise the second set_catalog
+                    # will show wrong errors. (Check if within set_catalog for more information)
+                    abs_cat_file = self.set_catalog(
+                        abs_sofia_catalog_txt, 
+                        abs_sofia_catalog_xml, 
+                        cwd_file/ "adpalmap_outputs_absorption"
+                    )
+                    if not abs_cat_file:
+                        logger.warning(abs_cat_file.error_msg)
+
+                    emi_cat_file = self.set_catalog(
+                        emi_sofia_catalog_txt, 
+                        emi_sofia_catalog_xml,
+                        cwd_file / "adpalmap_outputs_emission"
+                    )
+                    if not emi_cat_file:
+                        logger.warning(emi_cat_file.error_msg)
+
+                    self.catalog_file = []
+                    self.catalog_file.append(abs_cat_file.catalog_path)
+                    self.catalog_file.append(emi_cat_file.catalog_path)
+                    
+                    if all(cat is None for cat in self.catalog_file):
+                        error_msg = "No valid catalogs found for any mode"
+                        logger.error(error_msg)
+                        raise RecoverableFileNotFoundError(error_msg)
+        
             else:
                 #Si no hay en sip_args.yaml y no hay sargs
                 if self.catalog_file is None and not self.sargs:
@@ -373,7 +413,6 @@ class SiPar(dict):
                     logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
         
 
-
     def run_sip(self, adpalmap_config, sopar=None, run=-1):
         """
         Run the SIP (Source Identification Pipeline) process with the specified configuration.
@@ -405,6 +444,7 @@ class SiPar(dict):
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
+            sip_output_dir = Path(sopar.output_directory) / f"{self.input_data.stem}_figures"
             input_file_name = Path(sopar.input_data).stem
                     
             sofia_catalog_txt = sofia_output_dir / f"{input_file_name}_cat.txt"
@@ -416,11 +456,13 @@ class SiPar(dict):
                 sofia_catalog_txt = None
                 sofia_catalog_xml = None
 
-            sip_log_record = {
+            sip_report = {
+                        "software_id" :'SIP',
                         "PID": sopar.pid,
                         "input_name": sopar.input_data.stem,
                         "mode": sopar.sopar_mode,  
-                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log"
+                        "log_path": sopar.output_directory / f"{self.input_data.stem}_sip.log",
+                        "outputs": {"images": [],  "files": []}
                     }
     
             if sofia_catalog_txt and sofia_catalog_xml:
@@ -430,69 +472,107 @@ class SiPar(dict):
             elif sofia_catalog_xml: 
                 self.catalog_file = sofia_catalog_xml
             else:
-                logger.error(f"No valid .txt or .xml catalog for SIP found within the"
-                                f" {sopar.output_directory} directory.")
+                error_msg = (
+                    f"No valid .txt or .xml catalog for SIP found within the  {sopar.output_directory} "
+                    " directory."
+                )
+                logger.error(error_msg)
                 if adpalmap_config.run_mode == 'both' and run!=0:
-                    logger.info(f"Skipping running SIP. Run: {sopar.sopar_mode}")
-                    
-                    return sip_log_record
+                    logger.info(f"SIP execution skipped. Run: {sopar.sopar_mode}")
+                    sip_report.update({'command': '', 'error': error_msg})
+                    return sip_report
                 else:
-                    logger.info(f"Aborting process... Run: {sopar.sopar_mode}.")
-                    
-                    return sip_log_record
+                    logger.info(f"SIP execution aborted. Run: {sopar.sopar_mode}.")
+                    sip_report.update({'command': '', 'error': error_msg})
+                    return sip_report
 
-        
 
         else:
             if adpalmap_config.run_mode == "both":             
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
-                    self.catalog_file = self.catalog_file[0]
-                    sip_log_record = {
+                    self.aux_catalog_file = self.catalog_file
+                    self.catalog_file = self.catalog_file[0]                
+                    output_dir = (
+                        cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_figures"
+                    )
+                    sip_report = {
+                        "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "absorption",  
-                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "outputs": {"images": [], "files": []}
                     }
+                    if self.catalog_file is None:
+                        logger.info("SIP execution skipped. Mode: absorption")
+                        sip_report.update({'command': '', 'error': ''})
+                        return sip_report
+                    
                 else:
                     #En 1 guardo el catalago de emisiones
+                    self.catalog_file = self.aux_catalog_file
                     self.catalog_file = self.catalog_file[1]
-                    sip_log_record = {
-                                "PID": self.pid,
-                                "input_name": self.input_data.stem,
-                                "mode": "emission",  
-                                "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
-                        }
-                    
-            elif adpalmap_config.run_mode == "absorption":
-                #The self.catalog_file already contains the correct file
-                sip_log_record = {
+                    output_dir = (
+                        cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_figures"
+                    )
+                    sip_report = {
+                        "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
-                        "mode": "absorption",  
-                        "log_path": cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_sip.log"
+                        "mode": "emission",  
+                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "outputs": {"images": [],  "files": []}
                     }
+                    if self.catalog_file is None:
+                        logger.info("SIP execution skipped. Mode: emission")
+                        sip_report.update({'command': '', 'error': ''})
+                        return sip_report
+                    
+            elif adpalmap_config.run_mode == "absorption":
+                output_dir = (
+                    cwd_file / "adpalmap_outputs_absorption" / f"{self.input_data.stem}_figures"
+                )
+                #The self.catalog_file already contains the correct file
+                sip_report = {
+                    "software_id" :'SIP',
+                    "PID": self.pid,
+                    "input_name": self.input_data.stem,
+                    "mode": "absorption",  
+                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "outputs": {"images": [], "files": []}
+                }
                 
             elif adpalmap_config.run_mode == "emission":
+                output_dir = (
+                    cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_figures"
+                )
                 #The self.catalog_file already contains the correct file
-                sip_log_record = {
-                            "PID": self.pid,
-                            "input_name": self.input_data.stem,
-                            "mode": "emission",  
-                            "log_path": cwd_file / "adpalmap_outputs_emission" / f"{self.input_data.stem}_sip.log"
-                    }
+                sip_report = {
+                    "software_id" :'SIP',
+                    "PID": self.pid,
+                    "input_name": self.input_data.stem,
+                    "mode": "emission",  
+                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "outputs": {"images": [], "files": []}
+                }
+
+            # At the end of this case it needs to save output_dir as sip_output_dir for the 
+            # html outputs
+            sip_output_dir = output_dir
                     
-        if  sip_log_record["log_path"].exists():
-                try:
-                    sip_log_record["log_path"].unlink()
-                except:
-                    logger.warning(
-                        "Error trying to delete existing log file. The new log "
-                        "entries will be appended to it."
-                    )
-
-        cmd = self.generate_command()
-
+        if  sip_report["log_path"].exists():
+            try:
+                sip_report["log_path"].unlink()
+            except:
+                logger.warning(
+                    "Error trying to delete existing log file. The new log "
+                    "entries will be appended to it."
+                )
+            
+        cmd = self.generate_command(exclude=["aux_catalog_file"])
+        error = ''
+        sip_report.update({'command':cmd})
         try:
             Logger.raw("================================")
             if sopar:
@@ -527,12 +607,33 @@ class SiPar(dict):
             else:
                 logger.info(f"SIP finished.")
             Logger.raw("================================")
+            
+            #Intentamos correr una segunda vez SIP para generar el plot resumen por fuente
+            """try:
+                cmd = self.make_summary(cmd)
+                subprocess.run(
+                    cmd, 
+                    text=True, 
+                    check=True, 
+                    capture_output= not adpalmap_config.verbose
+                )  
+            except subprocess.CalledProcessError as e:
+                logger.critical(f"Error running SIP making summary images: {e}")"""
+
+            #Añadimos los outputs al report
+            if self.adpalmap_config.html_report:
+                try:
+                    self.report_outputs(sip_report, sip_output_dir)  
+                except Exception as e:
+                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
 
         except FileNotFoundError as e:
             logger.critical(f"Command not found: {cmd[0]}. Error: {e}")
             raise
 
         except subprocess.CalledProcessError as e:
+            error = str(e)
             # In case of error this show the message and exit code of SIP
             if sopar:
                 logger.error(f"Error running SIP. Mode: {sopar.sopar_mode}. Error: {e}")
@@ -550,23 +651,24 @@ class SiPar(dict):
 
             if adpalmap_config.run_mode == 'both' and run !=0:
                 if sopar:
-                    logger.info(f"Skipping running SIP. Mode: {sopar.sopar_mode}")
+                    logger.info(f"SIP execution skipped. Mode: {sopar.sopar_mode}")
                     return
                 else:
-                    logger.error(f"Skipping running SIP. Mode: absorption.")
+                    logger.error(f"SIP execution skipped. Mode: absorption.")
 
             else:
                 if sopar:
-                    logger.info(f"Aborting process... Mode: {sopar.sopar_mode}")
+                    logger.info(f"SIP execution aborted. Mode: {sopar.sopar_mode}")
                 else:
                     if adpalmap_config.run_mode == 'absorption':
-                        logger.info(f"Aborting process... Mode: absorption")
+                        logger.info(f"SIP execution aborted. Mode: absorption")
                     elif adpalmap_config.run_mode == 'emission':
-                        logger.info(f"Aborting process... Mode: emission")
+                        logger.info(f"SIP execution aborted. Mode: emission")
                 sys.exit(-1)
 
         finally:
-            return sip_log_record
+            sip_report.update({'error': error})
+            return sip_report
         
         #DESCOMENTAR Cuando hable con Kelley
         '''try: 
@@ -697,7 +799,7 @@ class SiPar(dict):
                 "Valid catalog from previous runs found for the dataset. Catalog: "
                 f"{existing_files[0]}"
             )
-            return existing_files[0]  
+            return CatalogResult(catalog_path=existing_files[0])
         else:
             logger.warning(
                 f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory "
@@ -707,20 +809,20 @@ class SiPar(dict):
             if self.catalog_file is None and not self.sargs:
                 error_msg = (
                     "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or via "
-                    "the '-sarg|--sip-arguments'. Aborting SIP..."
+                    "the '-sarg|--sip-arguments'."
                 )
-                logger.error(f"ValueError: {error_msg}")
-                raise RecoverableValueError(error_msg)
+                #logger.error(f"ValueError: {error_msg}")
+                return CatalogResult(error_msg=error_msg)
                 
             #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
             elif self.catalog_file is None and self.sargs:
                 if (('-c' or '--catalog') not in self.sargs.keys()):
                     error_msg = (
                         "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or "
-                        "via the '-sarg|--sip-arguments'. Aborting SIP..."
+                        "via the '-sarg|--sip-arguments'."
                     )
-                    logger.error(f"ValueError: {error_msg}")
-                    raise RecoverableValueError(error_msg)
+                    #logger.error(f"ValueError: {error_msg}")
+                    return CatalogResult(error_msg=error_msg)
                 
             #Si hay en archivo, debo comprobar que sea correcto en longitud.
             elif self.catalog_file is not None:
@@ -731,8 +833,8 @@ class SiPar(dict):
                         " different from the number of datasets. There must be one "
                         "catalog per dataset."
                     )
-                    logger.error(f"ValueError: {error_msg}")
-                    raise RecoverableValueError(error_msg)
+                    #logger.error(f"ValueError: {error_msg}")
+                    return CatalogResult(error_msg=error_msg)
                 
                 elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
                     logger.info(
@@ -748,6 +850,100 @@ class SiPar(dict):
                     "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                 )
                 raise
+
+
+    def report_outputs(self, sip_report, output_dir):
+        
+        num_sources = self.detect_source_count() 
+    
+        for i in range(num_sources):
+            source_prefix = f"_{i+1}"
+            sip_report['outputs']['images'].append({
+                "type": "mom0",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom0.png",
+                "source_id": i+1,
+                "description": "Momment 0 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom1",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom1.png",
+                "source_id": i+1,
+                "description": "Momment 1 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom2",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_mom2.png",
+                "source_id": i+1,
+                "description": "Momment 2 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "spec",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_spec.png",
+                "source_id": i+1,
+                "description": "Spectrum plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_pv.png",
+                "source_id": i+1,
+                "description": "Position-Velociy (major axis) plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv_min",
+                "path": output_dir / f"{self.input_data.stem}{source_prefix}_pv_min.png",
+                "source_id": i+1,
+                "description": "Position-Velociy (minor axis) plot",
+                "software-id": "sip"
+            })
+        
+        sip_report['outputs']['files'].append({
+                "type": "par_file",
+                "path": self.sip_file_path,
+                "format": ".par",
+                "software-id": "sip"
+            })
+                    
+
+    def detect_source_count(self):
+
+        if not self.catalog_file:
+            return 0
+        
+        if self.catalog_file.with_suffix('.txt').exists():
+            try:
+                with open(self.catalog_file, 'r') as f:
+                    return sum(1 for line in f if line.strip().startswith('"'))
+            except Exception as e:
+                logger.warning(
+                    f"Error counting sources in {self.catalog_file}: {str(e)}. "
+                    ""
+                )
+                return 0
+        
+        elif self.catalog_file.with_suffix('.xml').exists():
+            try:
+                table = parse_single_table(self.catalog_file)
+                count = len(table.array)
+                logger.debug(f"Detected {count} sources in XML catalog: {self.catalog_file}")
+                return count
+            except Exception as e:
+                logger.warning(f"XML catalog parsing failed ({self.catalog_file}), "
+                               f"falling back to TXT: {str(e)}")
+        
+        else:
+            logger.warning(
+                f"Unexpected error: {e}. "
+                    "Please open an issue on GitHub "
+                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                    "case."
+            )
+            return 0
+        
         
 
     

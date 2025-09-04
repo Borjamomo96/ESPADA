@@ -1,0 +1,78 @@
+/* Buttons Dropdown Tabs */
+.collapsible {
+    background-color:white;
+    color: #222;
+    cursor: pointer;
+    padding: 10px;
+    width: 100%;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 0.9em;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.collapsible:hover, .collapsible.active {
+    background-color: #d9dfd9;
+}
+
+.collapsible:after { /* plus sign */
+    content: '\02795'; 
+    font-size: 13px;
+    float: right;
+    margin-left: 5px;
+}
+.collapsible.active:after { /* minus sign */
+    content: "\2796"; 
+}
+
+.collapsible.ok,
+.collapsible.ok.active {
+    background-color: #b6eab6; 
+    color: #222;
+}
+.collapsible.warning,
+.collapsible.warning.active {
+    background-color: #ffa734; 
+    color: #222;
+}
+.collapsible.disable,
+.collapsible.disable.active {
+    background-color: #d7aaf1; 
+    color: #222;
+}
+.collapsible.error,
+.collapsible.error.active {
+    background-color: #ffb3b3; 
+    color: #222;
+}
+
+
+.collapsible.ok:hover {
+    background-color: #91d891;
+}
+.collapsible.warning:hover {
+    background-color: #ffe066;
+}
+.collapsible.disable:hover {
+    background-color: #ffe066;
+}
+.collapsible.error:hover {
+    background-color: #ff6f6f;
+}
+
+.content {
+    height: 0;
+    overflow: hidden;
+    transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: #f9f9f9;
+    border-radius: 0 0 6px 6px;
+
+}
+.content.open {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}

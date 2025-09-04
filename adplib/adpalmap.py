@@ -265,12 +265,20 @@ def reorganize_log(log_path, worker_results):
 
         with open(sorted_log_path, 'w', encoding='utf-8') as f:
             f.writelines(sorted_lines)
+        
+        return sorted_log_path
             
     except Exception as e:
         print(f"Fatal error reorganizing {log_path}. Error: {e}")
         Logger.raw(format_exc())
+
+        sorted_log = log_path.name.replace("raw_", "", 1)
+        sorted_log_path = log_path.with_name(sorted_log)
+        with open(sorted_log_path, 'w', encoding='utf-8') as f:
+            f.writelines(f"Fatal error reorganizing {log_path}. Error: {e}")
         
-     
+        return sorted_log_path
+        
 
 def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
@@ -302,22 +310,25 @@ def process_data(number,
                  logger
     ):
     
+    pid = os.getpid()
+
     #--------------------------------------------------------------------------------------------#
     #Run SoFia
     from adplib.sofia.sopar import SoPar
 
     if adpalmap_config.enable_sofia == True:
 
-        sopar_log_record = []
+        sofia_report = []
+        qa_report = []
 
         if adpalmap_config.run_mode == 'emission':
-            
+
             adpalmap_sopar_emi = SoPar(
                 sofia_file_path=adpalmap_config.sofia_emi_file, 
-                sopar_mode="emission",
-                pid = os.getpid()
+                sopar_mode=adpalmap_config.run_mode,
+                pid = pid
                 )
-            #Update sofia abs file with the -sop parameters
+            
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
@@ -329,19 +340,21 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+
+            sofia_report.append(emi_sofia_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    qa_report.append(emi_qa_report)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will not be "
                         "performed."
                     )
-                    adpalmap_sopar_emi.quality_assesment()
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                    qa_report.append(emi_qa_report)
 
 
         elif adpalmap_config.run_mode == 'absorption':
@@ -363,19 +376,22 @@ def process_data(number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+
+            sofia_report.append(abs_sofia_report)
 
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    qa_report.append(abs_qa_report)
                 else:
                     logger.warning(
                         f"'enable_tap_service' is set to False. All checks in the QA will"
                         " not be performed."
                     )
-                    adpalmap_sopar_abs.quality_assesment()
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                    qa_report.append(abs_qa_report)
+
 
         elif adpalmap_config.run_mode == 'both':
 
@@ -412,33 +428,34 @@ def process_data(number,
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
 
-            sopar_log_record.append(adpalmap_sopar_abs.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode)
-            )
 
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            sofia_report.append(abs_sofia_report)
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+                    qa_report.append(abs_qa_report)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_abs.quality_assesment()
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                    qa_report.append(abs_qa_report)
 
-            sopar_log_record.append(adpalmap_sopar_emi.run_sofia(adpalmap_config, 
-                                                            mode=adpalmap_config.run_mode, 
-                                                            run=0)
-            )
-            
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
+            sofia_report.append(emi_sofia_report)
             if adpalmap_config.quality_assesment == True:
                 if mask_qa:
-                    adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+                    qa_report.append(emi_qa_report)
                 else:
                     logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
                                    "performed in the QA.")
-                    adpalmap_sopar_emi.quality_assesment()
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                    qa_report.append(emi_qa_report)
 
     else:
-        sopar_log_record = []
+        sofia_report = []
+        qa_report = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "Skipping Sofia runs.")
 
@@ -449,7 +466,7 @@ def process_data(number,
 
     if adpalmap_config.enable_sip == True:
 
-        sip_log_record = []
+        sip_report = []
 
         adpalmap_sipar = SiPar(
             sip_file_path = adpalmap_config.sip_par_file,
@@ -467,47 +484,48 @@ def process_data(number,
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
                 )
 
             elif adpalmap_config.run_mode == 'absorption':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
                 )
             elif adpalmap_config.run_mode == 'both':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
                 )
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
                 )
         elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
             if adpalmap_config.run_mode == 'emission':         
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
             elif adpalmap_config.run_mode == 'absorption':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
             elif adpalmap_config.run_mode == 'both':
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
                 )
-                sip_log_record.append(
+                sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, run=0)
                 )
         else:
-            sip_log_record.append(
+            sip_report.append(
                 adpalmap_sipar.run_sip(adpalmap_config)
             )
     else:
-        sip_log_record = []
+        sip_report = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
     #--------------------------------------------------------------------------------------------#
 
-    return sopar_log_record, sip_log_record  
+    return sofia_report, sip_report, qa_report
+
 
 
 def main():
@@ -515,6 +533,7 @@ def main():
     log_flag = False
     worker_results = []
     worker_exceptions = []
+    adpalmap_config = None
 
     try:
         # Parse args:
@@ -585,11 +604,14 @@ def main():
             queue=log_queue
         )
 
+
+
         #--------------------------------------------------------------------------------------------# 
         logger.info("ADPALMAP start point")
 
         log_flag = True
         start = time.perf_counter()
+
         #--------------------------------------------------------------------------------------------#
 
         #Optionally download data from ALMA archive
@@ -614,7 +636,6 @@ def main():
             if adpalmap_config.quality_assesment == True:
                 adpalmap_datap.download_mask(TAP_df)
             else:
-                print(adpalmap_datap.data_list)
                 if not hasattr(adpalmap_datap, 'mask_qa_list'):
                     adpalmap_datap.mask_qa_list = [""] * len(adpalmap_datap.data_list)
             
@@ -644,6 +665,7 @@ def main():
 
 
         number_list = list(range(len(data_pack_list)))
+
         #--------------------------------------------------------------------------------------------#
         
         #--------------------------------------------------------------------------------------------#
@@ -748,7 +770,8 @@ def main():
                 except Exception as e:
                     worker_exceptions.append(e)
                     logger.critical(
-                        f"Unexpected error. Please open an issue on GitHub "
+                        f"Unexpected error: {e}. "
+                         "Please open an issue on GitHub "
                          "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                          "case."
                     )
@@ -766,8 +789,18 @@ def main():
 
         if log_flag:
             log_path = Logger.get_log_filename()
-            reorganize_log(log_path, worker_results)
+            adp_log = reorganize_log(log_path, worker_results)
 
+        if adpalmap_config is not None and adpalmap_config.html_report:
+            from adpweb.report import Report
+            
+            base_dir = Path(__file__).parent.parent  
+            template = base_dir / "adpweb" / "templates" / "report.html"
+
+            adpalmap_report = Report(worker_results, template, adp_log)
+            
+            adpalmap_report.generate_html()
+            
 
 # Run the main functions
 if __name__ == '__main__':
