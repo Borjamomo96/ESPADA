@@ -60,7 +60,15 @@ def parse_single_dataset(data_set, id):
     if not files[0]:
         raise ValueError(f"The data file cannot be empty at input '{id}'")
 
-    return files
+    expanded_files = []
+    for file_path in files:
+        if file_path and file_path != "":  # Solo expandir si no está vacío
+            expanded_files.append(os.path.expanduser(file_path))
+        else:
+            expanded_files.append(file_path)
+    
+    return expanded_files
+    
 
 
 def validate_fits_files(data_set_list, id_list):
@@ -73,17 +81,19 @@ def validate_fits_files(data_set_list, id_list):
         new_dataset = []
         for file in data_set:
             if file:  
-            #if file == "" or str(file).strip().lower() in ["none", "null"]:
-                if not file.endswith(".fits"):
+                # Asegurarse de que la ruta está expandida
+                expanded_file = os.path.expanduser(file) if isinstance(file, str) else file
+                
+                if not str(expanded_file).endswith(".fits"):
                     raise ValueError(
-                        f"Input file '{file}' is not a FITS file. "
+                        f"Input file '{expanded_file}' is not a FITS file. "
                     )
-                elif not os.path.isfile(file):
+                elif not os.path.isfile(expanded_file):
                     raise FileNotFoundError(
-                        f"Input file '{file}' not found. Dataset: {id}"
+                        f"Input file '{expanded_file}' not found. Dataset: {id}"
                     )
                 else:
-                    new_dataset.append(Path(file))
+                    new_dataset.append(Path(expanded_file))
             else:
                 new_dataset.append("") 
 
