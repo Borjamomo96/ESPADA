@@ -7,7 +7,7 @@ from traceback import format_exc
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 from astropy.io.votable import parse_single_table
 
-
+from traceback import format_exc
 # Logger:
 import logging
 from adplib.logger import Logger
@@ -15,9 +15,10 @@ logger = Logger.get_logger()
 
 class CatalogResult:
     def __init__(self, catalog_path=None, error_msg=None):
-        self.catalog_path = catalog_path
+        
+        self.catalog_path = Path(catalog_path) if catalog_path is not None else None
         self.error_msg = error_msg
-        self.success = catalog_path is not None
+        self.success = self.catalog_path is not None
     
     def __bool__(self):
         return self.success
@@ -501,7 +502,7 @@ class SiPar(dict):
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "absorption",  
-                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "log_path": output_dir.parent / f"{self.input_data.stem}_sip.log",
                         "outputs": {"images": [], "files": []}
                     }
                     if self.catalog_file is None:
@@ -521,7 +522,7 @@ class SiPar(dict):
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
                         "mode": "emission",  
-                        "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                        "log_path": output_dir.parent / f"{self.input_data.stem}_sip.log",
                         "outputs": {"images": [],  "files": []}
                     }
                     if self.catalog_file is None:
@@ -539,7 +540,7 @@ class SiPar(dict):
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": "absorption",  
-                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "log_path": output_dir.parent / f"{self.input_data.stem}_sip.log",
                     "outputs": {"images": [], "files": []}
                 }
                 
@@ -553,7 +554,7 @@ class SiPar(dict):
                     "PID": self.pid,
                     "input_name": self.input_data.stem,
                     "mode": "emission",  
-                    "log_path": output_dir / f"{self.input_data.stem}_sip.log",
+                    "log_path": output_dir.parent / f"{self.input_data.stem}_sip.log",
                     "outputs": {"images": [], "files": []}
                 }
 
@@ -570,7 +571,7 @@ class SiPar(dict):
                     "entries will be appended to it."
                 )
             
-        cmd = self.generate_command(exclude=["aux_catalog_file"])
+        cmd = self.generate_command(exclude=["aux_catalog_file"], output_dir=sip_output_dir)
         error = ''
         sip_report.update({'command':cmd})
         try:
@@ -679,7 +680,7 @@ class SiPar(dict):
             sys.exit(-1)'''
         
     
-    def generate_command(self, exclude=None):
+    def generate_command(self, exclude=None, output_dir=None):
         """
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 
         the non-None attributes of the instance.
@@ -763,7 +764,7 @@ class SiPar(dict):
                 cmd.append(str(getattr(self, attr_name))) 
 
         cmd.append("-log")
-        log__name = str(self.catalog_file.parent / f"{self.input_data.stem}_sip.log")
+        log__name = str(output_dir.parent / f"{self.input_data.stem}_sip.log")
         cmd.append(log__name)
 
         return cmd
@@ -838,9 +839,9 @@ class SiPar(dict):
                 
                 elif isinstance(catalog_list, list) and len(self.number_list) == len(catalog_list):
                     logger.info(
-                        f"Valid 'catalog_file' parameter found in 'sip_args.yaml'."
+                        f"Valid lenth for the 'catalog_file' parameter in 'sip_args.yaml'."
                     )
-                    return catalog_list[self.number]
+                    return CatalogResult(catalog_path=catalog_list[self.number])
                 else:
                     pass
             else:
@@ -910,37 +911,54 @@ class SiPar(dict):
                     
 
     def detect_source_count(self):
-
         if not self.catalog_file:
             return 0
         
-        if self.catalog_file.with_suffix('.txt').exists():
+        # Verifico si el archivo existe
+        if not self.catalog_file.exists():
+            # Verifico si la extensión es válida
+            valid_extensions = ['.txt', '.xml']
+            if self.catalog_file.suffix.lower() in valid_extensions:
+                logger.warning(
+                    f"Catalog file '{self.catalog_file}' does not exist. "
+                    f"Unable to detect sources for reporting."
+                )
+            else:
+                logger.error(
+                    f"Invalid extension for catalog file: '{self.catalog_file.suffix}'. "
+                    f"Allowed extensions: {valid_extensions}"
+                )
+            return 0
+        
+        # Si el archivo existe
+        if self.catalog_file.suffix.lower() == '.txt':
             try:
                 with open(self.catalog_file, 'r') as f:
                     return sum(1 for line in f if line.strip().startswith('"'))
             except Exception as e:
                 logger.warning(
                     f"Error counting sources in {self.catalog_file}: {str(e)}. "
-                    ""
+                    "Returning 0 sources for reporting."
                 )
                 return 0
         
-        elif self.catalog_file.with_suffix('.xml').exists():
+        elif self.catalog_file.suffix.lower() == '.xml':
             try:
                 table = parse_single_table(self.catalog_file)
                 count = len(table.array)
                 logger.debug(f"Detected {count} sources in XML catalog: {self.catalog_file}")
                 return count
             except Exception as e:
-                logger.warning(f"XML catalog parsing failed ({self.catalog_file}), "
-                               f"falling back to TXT: {str(e)}")
+                logger.warning(
+                    f"XML catalog parsing failed ({self.catalog_file}): {str(e)}. "
+                    "Returning 0 sources for reporting."
+                )
+                return 0
         
         else:
-            logger.warning(
-                f"Unexpected error: {e}. "
-                    "Please open an issue on GitHub "
-                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-                    "case."
+            logger.error(
+                f"Invalid extension for catalog file: '{self.catalog_file.suffix}'. "
+                "Allowed extensions: '.txt' or '.xml'"
             )
             return 0
         

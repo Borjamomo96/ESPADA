@@ -90,14 +90,14 @@ class Report:
     def _read_log_file(self, log_path):
         """Read the content of a Log file"""
         if not log_path or not os.path.exists(log_path):
-            return f"No log file available: {log_path}"
+            return f"No log: '{log_path}' for this report"
         
         try:
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
         except Exception as e:
-            logger.error(f"Error reading log file {log_path}: {str(e)}")
-            return f"Error reading log: {str(e)}"
+            logger.error(f"Error reading log file '{log_path}': {str(e)}")
+            return f"Error reading log: '{str(e)}'"
 
 
     def _format_parfile_content(self, parfile_content, par_changes):
