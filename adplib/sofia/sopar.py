@@ -1191,18 +1191,18 @@ class SoPar(dict):
         
         ax = axs[0]
         ax.set_title("Moment 8 Image")
-        ax.imshow(mom8_ima, cmap='gray', origin='lower')
+        ax.imshow(mom8_ima, cmap='viridis', origin='lower')
         #ax.colorbar(label="Intensity")
 
         ax = axs[1]
         ax.set_title("Sofia 2D mask")
-        ax.imshow(sofia_2d_mask, cmap='gray', origin='lower')
+        ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
         #ax.colorbar(label="Intensity")
 
         if mask_file:
             ax = axs[2]
             ax.set_title("Mask ALMA archive")
-            ax.imshow(mask_archive_proj, cmap='gray', origin='lower')
+            ax.imshow(mask_archive_proj, cmap='viridis', origin='lower')
 
         qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
         qa_output_dir.mkdir(parents=True, exist_ok=True)  
