@@ -411,9 +411,9 @@ class SoPar(dict):
 
         Parameters:
         ----------
-        sop_params (dict): Dictionary with parameters provided via -sop.
-        adpalmap_main: Config() class object with configuration from the configuration file.
-        adpalmap_datap: Datap() class object with parameters from the download parameters file.
+        sop_par (dict): Dictionary with parameters provided via -sop.
+
+
 
         Returns:
         ----------
@@ -422,7 +422,9 @@ class SoPar(dict):
         
         logger.info(f"Reading parameters. Mode: {self.sopar_mode}.")
         
-        #El parámetro input.data se gestiona antes en la función principal.
+        #----------------------input.data--------------------------#
+        # The parameter 'imput.data' is managed in the main function.
+        # No require action is needeed here
         if hasattr(self, 'input_data') and getattr(self, 'input_data') is not None:
             logger.warning(
                 f"Ignoring parameter 'input.data' provided in the parameter file " 
@@ -431,8 +433,9 @@ class SoPar(dict):
                 "the configuration file."
             )
         self.input_data = input_data
+        #----------------------------------------------------------#
         
-        #------------------pipeline.threads----------------------#
+        #--------------------pipeline.threads----------------------#
         if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
             logger.warning(
                 "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
@@ -443,30 +446,20 @@ class SoPar(dict):
             )
         
         self.pipeline_threads = sofia_threads
-        
-        #---------------output.directory logic-------------------#
+        #----------------------------------------------------------#
+
+        #--------------------output.directory----------------------#
         if sop_par and "output.directory" in sop_par: 
-            self.output_directory = sop_par["output.directory"]
+            self.output_directory = Path(sop_par["output.directory"])
         elif hasattr(self, "output_directory") and self.output_directory:  
-            pass
+            self.output_directory = Path(self.output_directory)
         else:
-            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_outputs"
-            """ 
-            if not id:
-                logger.critical(
-                    "All SoFiA products will be stored in the same directory. There is a risk "
-                    "of overwriting some of them."
-                )
-                self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs"
-            else:
-                self.output_directory = f"{Path(self.input_data).parent.resolve()}/adpalmap_outputs_{str(id)}"
-            """
+            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
     
-
-        #CHANGE. Guardo el directorio de salida final en un nuevo atributo 
         self.base_output_directory = self.output_directory
+        #----------------------------------------------------------#
 
-        #-----------------input.invert logic---------------------#
+        #----------------------input.invert------------------------#
         if sop_par is not None:
             invert_value_sopar = sop_par.get("input.invert", getattr(self, "input_invert", False))
         else:
@@ -495,8 +488,9 @@ class SoPar(dict):
                 logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
                                "the second run. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
+        #----------------------------------------------------------#
 
-        #--------------------input.primaryBeam--------------------#
+        #--------------------input.primaryBeam---------------------#
         if primary_beam:      
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
@@ -531,8 +525,9 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
+        #----------------------------------------------------------#
 
-        #-----------------------input.mask------------------------#
+        #-----------------------input.mask-------------------------#
         if mask:      
             if (sop_par is not None 
                     and 'input.mask' in sop_par 
@@ -572,9 +567,9 @@ class SoPar(dict):
                     f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
                 )
 
-        #---------------------------------------------------------#
+        #----------------------------------------------------------#
 
-        #---------------------scfind.enable ----------------------#
+        #----------------------scfind.enable ----------------------#
         if mask:
             if (sop_par is not None 
                     and 'scfind.enable' in sop_par 
@@ -586,7 +581,7 @@ class SoPar(dict):
                 )
             self.scfind_enable = 'false'
 
-        #---------------------------------------------------------#
+        #----------------------------------------------------------#
 
         if sop_par is not None:
 
@@ -716,12 +711,17 @@ class SoPar(dict):
         SystemExit: If SoFia encounters an error during execution.
         """
         
+        os.makedirs(self.output_directory, exist_ok=True)
+        self.output_directory = Path(self.output_directory)
+
         if (mode is not None and mode=='absorption'):
+            
+            if self.output_filename:
+                self.output_filename = f"absorption_{self.output_filename}"
+            else:
+                self.output_filename = f"absorption_{self.input_data.stem}"
 
-            self.output_directory = Path(f'{self.output_directory}_absorption')
-            os.makedirs(self.output_directory, exist_ok=True)
-
-            sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+            sopar_log_name = f"absorption_{Path(self.input_data).stem}_logfile.log"
             sopar_report = {
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
@@ -789,10 +789,13 @@ class SoPar(dict):
 
         elif (mode is not None and mode=='emission'):
 
-            self.output_directory = Path(f'{self.output_directory}_emission')
-            os.makedirs(self.output_directory, exist_ok=True)
+            if self.output_filename:
+                self.output_filename = f"emission_{self.output_filename}"
+            else:
+                self.output_filename = f"emission_{self.input_data.stem}"
+
             
-            sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+            sopar_log_name = f"emission_{self.input_data.stem}_logfile.log"
             sopar_report = {
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
@@ -825,7 +828,7 @@ class SoPar(dict):
                     f"{Path(self.input_data).stem}"
                 )
                 Logger.raw("================================")
-                
+                print("AQUIIII", self.output_filename)
                 cmd = ["sofia", f"{temp_file_path}"]
                 subprocess.run(
                     cmd, 
@@ -858,11 +861,13 @@ class SoPar(dict):
         
         elif (mode is not None and mode==mode == 'both'):
             if run!=0:
-                #Corre en modo absorción, indicado en el main()
-                self.output_directory = Path(f'{self.output_directory}_absorption')
-                os.makedirs(self.output_directory, exist_ok=True)
+                
+                if self.output_filename:
+                    self.output_filename = f"absorption_{self.output_filename}"
+                else:
+                    self.output_filename = f"absorption_{self.input_data.stem}"
 
-                sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+                sopar_log_name = f"absorption_{Path(self.input_data).stem}_logfile.log"
                 sopar_report = {
                     "software_id" :'SoFiA-2',
                     "PID": self.pid,
@@ -942,10 +947,12 @@ class SoPar(dict):
                                 "a 'flag_cube'. "
                                 f"Mode: {self.sopar_mode}.")
 
-                self.output_directory = Path(f'{self.output_directory}_emission')
-                os.makedirs(self.output_directory, exist_ok=True)
+                if self.output_filename:
+                    self.output_filename = f"emission_{self.output_filename}"
+                else:
+                    self.output_filename = f"emission_{self.input_data.stem}"
                 
-                sopar_log_name = f"{Path(self.input_data).stem}_logfile.log"
+                sopar_log_name = f"emission_{Path(self.input_data).stem}_logfile.log"
                 sopar_report = {
                     "software_id" :'SoFiA-2',
                     "PID": self.pid,
@@ -1075,16 +1082,18 @@ class SoPar(dict):
 
 
     def report_outputs(self, sopar_report):
-    
+        
+        mode = sopar_report["mode"]
+
         sopar_report['outputs']['images'].append({
             "type": "rel",
-            "path": self.output_directory / f"{self.input_data.stem }_rel.eps",
+            "path": self.output_directory / f"{mode}_{self.input_data.stem }_rel.eps",
             "description": "Realibiliy Plot",
             "software-id": "sofia"
         })
         sopar_report['outputs']['images'].append({
             "type": "skellman",
-            "path": self.output_directory / f"{self.input_data.stem}_skellam.eps",
+            "path": self.output_directory / f"{mode}_{self.input_data.stem}_skellam.eps",
             "description": "Skellman Plot",
             "software-id": "sofia"
         })
@@ -1096,13 +1105,13 @@ class SoPar(dict):
         })    
         sopar_report['outputs']['files'].append({
             "type": "catalog_txt",
-            "path": self.output_directory / f"{self.input_data.stem}_cat.txt",
+            "path": self.output_directory / f"{mode}_{self.input_data.stem}_cat.txt",
             "format": "txt",
             "software-id": "sofia"
         })
         sopar_report['outputs']['files'].append({
             "type": "catalog_xml",
-            "path": self.output_directory / f"{self.input_data.stem}_xlm.txt",
+            "path": self.output_directory / f"{mode}_{self.input_data.stem}_xlm.txt",
             "format": "xlm",
             "software-id": "sofia"
         })
@@ -1153,7 +1162,7 @@ class SoPar(dict):
         #Máscara de lo obtenido por SoFiA
         sofia_output_dir = Path(self.output_directory)
         input_file_name = Path(self.input_data).stem
-        file_2d_mask = sofia_output_dir / f"{input_file_name}_mask-2d.fits"
+        file_2d_mask = sofia_output_dir / f"{self.sopar_mode}_{input_file_name}_mask-2d.fits"
         
         if file_2d_mask.exists():
             pass

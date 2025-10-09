@@ -146,6 +146,8 @@ def sipargs_to_dict(args_list):
 
 
 def reorganize_log(log_path, worker_results):
+
+    aux_logger = Initial_Logger.get_initial_logger()
     
     try:
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -204,6 +206,7 @@ def reorganize_log(log_path, worker_results):
                                     run['mode'] == mode and
                                     run['input_name'] == input_name):
                                     log_path_sofia = run['log_path']
+
                                     if log_path_sofia and Path(log_path_sofia).exists():
                                         with open(
                                             log_path_sofia, 'r', encoding='utf-8'
@@ -215,6 +218,11 @@ def reorganize_log(log_path, worker_results):
                                         )
                                         log_found = True
                                         break
+                                    else:
+                                        aux_logger.warning(
+                                            f"Error reorganizing the final logfile. The SoFiA-2 logfile '{log_path_sofia}' "
+                                            "does not exits."
+                                        )
                             if log_found:
                                 break
                     elif sip_match:
@@ -227,6 +235,7 @@ def reorganize_log(log_path, worker_results):
                                     run['mode'] == mode and
                                     run['input_name'] == input_name):
                                     log_path_sip = run['log_path']
+
                                     if log_path_sip and Path(log_path_sip).exists():
                                         
                                         with open(
@@ -239,6 +248,11 @@ def reorganize_log(log_path, worker_results):
                                         )
                                         log_found = True
                                         break
+                                    else:
+                                        aux_logger.warning(
+                                            f"Error reorganizing the final logfile. The SIP logfile '{log_path_sip}' "
+                                            "does not exits."
+                                        )
                             if log_found:
                                 break
                 else:
@@ -298,7 +312,7 @@ def calculate_workers(data_pack_list, max_cores):
     return max_workers
 
 
-def process_data(number,
+def process_data(id_number,
                  input_data, 
                  primary_beam, 
                  mask, 
@@ -474,7 +488,7 @@ def process_data(number,
             input_data = input_data,
             sargs = args.sip_args,
             number_list = number_list,
-            number = number,
+            id_number = id_number,
             pid = os.getpid()
             )
         
@@ -499,7 +513,7 @@ def process_data(number,
                 sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
                 )
-        elif adpalmap_config.enable_sofia == False and adpalmap_config.enable_tap_service == True:
+        else: 
             if adpalmap_config.run_mode == 'emission':         
                 sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config)
@@ -515,10 +529,8 @@ def process_data(number,
                 sip_report.append(
                     adpalmap_sipar.run_sip(adpalmap_config, run=0)
                 )
-        else:
-            sip_report.append(
-                adpalmap_sipar.run_sip(adpalmap_config)
-            )
+
+
     else:
         sip_report = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
@@ -739,12 +751,12 @@ def main():
             futures = [
                 pool.submit(
                     process_data, 
-                    i, data, primary_beam, mask, mask_qa,
+                    id_number, data, primary_beam, mask, mask_qa,
                     adpalmap_config,
                     args, sofia_threads, number_list,
                     Logger.setup_child_logger(log_queue)
                     )
-                for i, (data, primary_beam, mask, mask_qa) in enumerate(data_pack_list)
+                for id_number, (data, primary_beam, mask, mask_qa) in enumerate(data_pack_list)
             ]
             
 
