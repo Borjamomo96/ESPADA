@@ -860,7 +860,7 @@ class SoPar(dict):
                     f"{Path(self.input_data).stem}"
                 )
                 Logger.raw("================================")
-                print("AQUIIII", self.output_filename)
+                
                 cmd = ["sofia", f"{temp_file_path}"]
                 subprocess.run(
                     cmd, 
