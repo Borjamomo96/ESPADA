@@ -63,9 +63,10 @@ def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False
     file_path = Path(file_path)
     new_file_path = file_path.with_name(file_path.stem + '_int' + file_path.suffix)
     
+    # Check if the integer mask already exists
     if new_file_path.exists():
         logger.info(f"Found cached mask integer file '{new_file_path}'")
-        if (remove_archive_mask and from_downloadmask):
+        if remove_archive_mask:
             file_path.unlink()
             logger.info(f"Mask archive file deleted: '{file_path}'")
         return new_file_path
@@ -84,7 +85,7 @@ def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False
                     f"Integer-type version of the mask '{file_path}' has been created: "
                     f"{new_file_path}"
                 )
-                if (remove_archive_mask and from_downloadmask):
+                if remove_archive_mask:
                     file_path.unlink()
                     logger.info(f"Mask archive file deleted: '{file_path}'")
                 return new_file_path
@@ -305,17 +306,10 @@ class datap(dict):
         )
 
         patterns = []
-        exclude_patterns = []
+        # This list avoids conflicts with PB and mask files that could be .fits as well
+        exclude_patterns = [] # Caution, this list will also  be applied to ancillary files
         if self.download_par['fitsonly']:
             patterns.append('.fits')
-        if self.download_par['include_pb']:
-            patterns.append('.pb.')
-        else:
-            exclude_patterns.append('.pb.')
-        if self.download_par['include_mask']:
-            patterns.append('cube.I.mask')
-        else:
-            exclude_patterns.append('cube.I.mask')
 
         if patterns:
             dl_table = data_table[
@@ -335,6 +329,19 @@ class datap(dict):
                     )]
             ]
 
+        ancillary_patterns = []
+        ancillary_patterns.append('.pb.')
+        ancillary_patterns.append('cube.I.mask')
+        if ancillary_patterns:
+            al_table = data_table[
+                [i for i, v in enumerate(data_table['access_url'])
+                    if (
+                        any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in ancillary_patterns)
+                        and all(fmi in v for fmi in self.download_par['filename_must_include'])
+                        and not any(ex_pat in v for ex_pat in exclude_patterns)
+                    )]
+            ]
+
         
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
@@ -345,6 +352,15 @@ class datap(dict):
         dl_files = len(dl_df['access_url'].unique())
         dl_uid_list = list(dl_df['ID'].unique())
 
+        # To show ancillary data
+        al_df = al_table.to_pandas()
+        al_df = al_df.loc[al_df.access_url != '']
+        al_link_list = list(al_df['access_url'].unique())
+        # keep track of the download size and number of files to download
+        al_size = al_df['content_length'].sum()
+        al_files = len(al_df['access_url'].unique())
+        # al_uid_list = list(al_df['ID'].unique()) # It not necessary. It will be the same as for dl
+
 
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
@@ -352,7 +368,7 @@ class datap(dict):
             
 
         else:
-            logger.info("Starting download. Please wait...")
+            logger.info("Starting to download. Please wait...")
             Logger.raw("================================")
 
 
@@ -367,9 +383,18 @@ class datap(dict):
             logger.info("Download location = {}".format(self.alma.cache_location))
             logger.info("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
             logger.info("Selected Member OUSs: {}".format(dl_uid_list))
-            logger.info("Number of files to download = {}".format(dl_files))
-            dl_size_fmt, dl_format = self._format_bytes(dl_size)
-            logger.info("Needed disk space = {:.1f} {}".format(dl_size_fmt, dl_format))
+            if al_files > 0:
+                logger.info(f"Number of files to download = {dl_files} + {al_files} of ancillary files")
+                dl_size_fmt, dl_format = self._format_bytes(dl_size)
+                al_size_fmt, al_format = self._format_bytes(al_size)
+                logger.info(
+                    f"Needed disk space = {dl_size_fmt:.1f} {dl_format} + "
+                    f"{al_size_fmt:.1f} {al_format} for ancillary files"
+                )
+            else:
+                logger.info("Number of files to download = {dl_files}")
+                dl_size_fmt, dl_format = self._format_bytes(dl_size)
+                logger.info(f"Needed disk space = {dl_size_fmt:.1f} {dl_format}")
 
             
             if self.download_par['print_urls']:
@@ -377,6 +402,10 @@ class datap(dict):
                 logger.info("File URLs to download: ")
                 for url in dl_link_list:
                     Logger.raw(f"[{self.pid}] {url}") 
+                if al_files > 0:
+                    logger.info("File ancillary URLs to download: ")
+                    for url in al_link_list:
+                        Logger.raw(f"[{self.pid}] {url}")
                 
         else:
             logger.warning("Nothing to download.")
@@ -398,13 +427,17 @@ class datap(dict):
             sys.exit(-1)
 
         #Set Attr data locations of the just downloaded data
-        self.get_downloaded_file_path(Path(self.alma.cache_location), dl_link_list)
+        self.get_downloaded_datafile_path(Path(self.alma.cache_location), dl_link_list)
         Logger.raw("================================")
-        logger.info("Data download ended.")
+        logger.info("Data download completed.")
         Logger.raw("================================")
 
+        # Download acillary files right after data
+        self.download_ancillary_file(al_link_list)
+        self.get_downloaded_ancillaryfile_path(Path(self.alma.cache_location), al_link_list)
 
-    def download_mask(self, observations):
+
+    def download_ancillary_file(self, al_link_list):
         """
         Download mask files for the given observations from the ALMA archive.
 
@@ -431,50 +464,16 @@ class datap(dict):
         """
 
         try:
-            if any(observations['data_rights'] == 'Proprietary'):
-                #logger.warning("Some of the data you are trying to download are still in the 
-                # proprietary period and are not publicly available yet.")
-                observations = observations[observations['data_rights'] == 'Public']
-
-            uids_list = observations['member_ous_uid'].unique()
-            # when len(uids_list) == 0, it's because the DataFrame included only proprietary 
-            # data and we removed them in the above if statement, so the DataFrame is now empty
-
-            
-        # this is the case where the query had no results to begin with.
-        except TypeError:
-            logger.critical(
-                "Internal error. Something went wrong trying to download mask from "
-                "the archive. Fatal error. Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-            )
-            sys.exit(-1)
-        
-        #self.alma.cache_location
-
-        data_table = self.alma.get_data_info(uids_list, expand_tarfiles=True)
-        dl_table = data_table[
-                        [i for i, v in enumerate(data_table['access_url']) 
-                         if (".cube.I.mask." in v and 
-                             all(fmi in v for fmi in self.download_par['filename_must_include']))]
-                             ]
-        dl_df = dl_table.to_pandas()
-        # remove empty elements in the access_url column
-        dl_df = dl_df.loc[dl_df.access_url != '']
-        dl_link_list = list(dl_df['access_url'].unique())
-
-        try:
             Logger.raw("================================")
-            logger.info("Starting download masks for QA. Please wait...")
+            logger.info("Starting to download ancillary files. Please wait...")
             Logger.raw("================================")
-            self.alma.download_files(dl_link_list, cache=True)
+            self.alma.download_files(al_link_list, cache=True)
             
         except ValueError as e:
             logger.error(e)
 
-        self.get_downloaded_mask_path(Path(self.alma.cache_location), dl_link_list)
         Logger.raw("================================")
-        logger.info("Mask download for QA ended.")
+        logger.info("Ancillary files download completed.")
         Logger.raw("================================")
 
     
@@ -510,7 +509,7 @@ class datap(dict):
         return TAP_df
 
 
-    def get_downloaded_file_path(self, download_dir, dl_link_list):
+    def get_downloaded_datafile_path(self, download_dir, dl_link_list):
         """
         Process and retrieve paths to the most recent data cube and primary beam files in a given 
         directory.
@@ -529,9 +528,10 @@ class datap(dict):
         """
         
         data_files = [Path(url).name for url in dl_link_list 
-                      if "cube.I.pbcor" in Path(url).name]
-        # Excluye los archivos .pb. Solo por si acaso
-        data_files = [download_dir / Path(f) for f in data_files if ".pb." not in Path(f).name]       
+                      if "cube.I.pbcor" in Path(url).name]     
+        
+        # Give the right directory and skip all ancillary files 
+        data_files = [download_dir / Path(f) for f in data_files]  
         
 
         if data_files:
@@ -547,196 +547,7 @@ class datap(dict):
             sys.exit(-1)
             
 
-        if self.download_par['include_pb']:
-                
-            pb_files_aux = [download_dir / Path(Path(url).name) for url in dl_link_list 
-                            if "cube.I.pb." in Path(url).name]
-            
-            pb_files = []
-            for data_path in self.data_list:
-                data_segment = get_segment(str(data_path))  
-                matched = False
-                for pb_path in pb_files_aux:
-                    if data_segment == get_segment(str(pb_path)):
-                        pb_files.append(pb_path)  
-                        matched = True
-                        break  
-                if not matched:
-                    pb_files.append("") 
-
-            if  all(pb == "" for pb in pb_files):
-
-                logger.warning(
-                    "No primary beam was found in the downloaded dataset. Either it"
-                    " is not available in the archive, or the strings included in the "
-                    "'filename_must_include' parameter have been so restrictive that "
-                    "they exclude the primary beam file from the download. Avoid "
-                    "full names if you want to download the primary beam."
-                )
-                logger.warning(
-                    "Continued without taking into account any primary beams"
-                )
-                self.pb_list = pb_files
-                return
-            
-
-            decompress_pb_files = []  
-
-            for file in pb_files:
-                if file == "":  # Ignoro entradas vacías
-                    decompress_pb_files.append("")
-                    continue
-
-                if file.suffix == ".gz":
-                    extracted_file_path = file.with_suffix('')  
-
-                    # Compruebo si el archivo descomprimido ya existe
-                    if extracted_file_path.exists():
-                        logger.info(
-                            "The decompressed primary beam file already exists: "
-                            f"{extracted_file_path}"
-                        )
-                        decompress_pb_files.append(extracted_file_path)
-
-                        if self.download_par['remove_compressed_file']:
-                            file.unlink()
-                            logger.info(f"Compressed file deleted: {file}")
-                    else:
-                        # Intento descomprimir el archivo
-                        try:
-                            with gzip.open(file, 'rb') as gz_in:
-                                with open(extracted_file_path, 'wb') as extracted_out:
-                                    shutil.copyfileobj(gz_in, extracted_out)
-                            logger.info(
-                                f"Decompressed primary beam file: {extracted_file_path}"
-                            )
-
-                            if self.download_par['remove_compressed_file']:
-                                file.unlink()
-                                logger.info(f"Compressed file deleted: {file}")
-
-                            decompress_pb_files.append(extracted_file_path)
-                        except Exception as e:
-                            logger.error(f"Error decompressing file '{file}': {e}")
-                else:
-                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                    decompress_pb_files.append(file)
-    
-            if decompress_pb_files:
-                self.pb_list = decompress_pb_files
-            else:
-                logger.critical(
-                "No valid primary beam files were successfully processed. Fatal error. "
-                "Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-                )
-                sys.exit(-1)
-
-        else:
-            self.pb_list = ["" for _ in dl_link_list]
-
-
-        if self.download_par['include_mask']:
-                
-            mask_files_aux = [download_dir / Path(Path(url).name) for url in dl_link_list 
-                            if "cube.I.mask." in Path(url).name]
-            
-            mask_files = []
-            for data_path in self.data_list:
-                data_segment = get_segment(str(data_path))  
-                matched = False
-                for mask_path in mask_files_aux:
-                    if data_segment == get_segment(str(mask_path)):
-                        mask_files.append(mask_path)  
-                        matched = True
-                        break  
-                if not matched:
-                    mask_files.append("") 
-
-            if  all(mask == "" for mask in mask_files):
-
-                logger.warning(
-                    "No mask was found in the downloaded dataset. Either it"
-                    " is not available in the archive, or the strings included in the "
-                    "'filename_must_include' parameter have been so restrictive that "
-                    "they exclude the mask file from the download. Avoid "
-                    "full names if you want to download the mask."
-                )
-                logger.warning(
-                    "Continued without taking into account any masks"
-                )
-                self.mask_list = mask_files
-                return
-            
-
-            decompressed_mask_files = []  
-
-            for file in mask_files:
-                if file == "":  # Ignoro entradas vacías
-                    decompressed_mask_files.append("")
-                    continue
-
-                if file.suffix == ".gz":
-                    extracted_file_path = file.with_suffix('')  
-
-                    # Compruebo si el archivo descomprimido ya existe
-                    if extracted_file_path.exists():
-                        logger.info(
-                            "The decompressed mask file already exists: "
-                            f"{extracted_file_path}"
-                        )
-                        #Make a copy of the mask but with int values
-                        decompressed_mask_files.append(
-                            mask_float2int(extracted_file_path, self.download_par['remove_archive_mask'])
-                        )
-                        
-                        if self.download_par['remove_compressed_file']:
-                            file.unlink()
-                            logger.info(f"Compressed file deleted: {file}")
-                    else:
-                        # Intento descomprimir el archivo
-                        try:
-                            with gzip.open(file, 'rb') as gz_in:
-                                with open(extracted_file_path, 'wb') as extracted_out:
-                                    shutil.copyfileobj(gz_in, extracted_out)
-                            logger.info(
-                                f"Decompressed mask file: {extracted_file_path}"
-                            )
-
-                            if self.download_par['remove_compressed_file']:
-                                file.unlink()
-                                logger.info(f"Compressed file deleted: {file}")
-                            #Make a copy of the mask but with int values
-                            decompressed_mask_files.append(
-                                mask_float2int(
-                                    extracted_file_path, 
-                                    self.download_par['remove_archive_mask']
-                                )
-                            )                            
-                        except Exception as e:
-                            logger.error(f"Error decompressing file '{file}': {e}")
-                else:
-                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                    #Make a copy of the mask but with int values
-                    decompressed_mask_files.append(
-                        mask_float2int(file, self.download_par['remove_archive_mask'])
-                    )
-    
-            if decompressed_mask_files:
-                self.mask_list = decompressed_mask_files
-            else:
-                logger.critical(
-                "No valid mask files were successfully processed. Fatal error. "
-                "Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-                )
-                sys.exit(-1)
-
-        else:
-            self.mask_list = ["" for _ in dl_link_list]
-
-
-    def get_downloaded_mask_path(self, download_dir, dl_link_list):
+    def get_downloaded_ancillaryfile_path(self, download_dir, al_link_list):
 
         """
         Process and retrieve the most recent mask file from a given directory.
@@ -754,9 +565,96 @@ class datap(dict):
             None
         """
 
-        #Cuidado con buscar de esta manera, habría que ser más específico
-        mask_files_aux = [download_dir / Path(Path(url).name) for url in dl_link_list 
-                      if "cube.I.mask." in Path(url).name]
+        
+        #------------------------------------------------------------------------------------------#
+        pb_files_aux = [download_dir / Path(Path(url).name) for url in al_link_list 
+                        if "cube.I.pb." in Path(url).name]
+        
+        pb_files = []
+        for data_path in self.data_list:
+            data_segment = get_segment(str(data_path))  
+            matched = False
+            for pb_path in pb_files_aux:
+                if data_segment == get_segment(str(pb_path)):
+                    pb_files.append(pb_path)  
+                    matched = True
+                    break  
+            if not matched:
+                pb_files.append("") 
+
+        if  all(pb == "" for pb in pb_files):
+
+            logger.warning(
+                "No primary beam was found in the downloaded dataset. Either it"
+                " is not available in the archive, or the strings included in the "
+                "'filename_must_include' parameter have been so restrictive that "
+                "they exclude the primary beam file from the download. Avoid "
+                "full names if you want to download the primary beam."
+            )
+            logger.warning(
+                "Continued without taking into account any primary beams"
+            )
+            self.pb_list = pb_files
+            return
+        
+
+        decompress_pb_files = []  
+
+        for file in pb_files:
+            if file == "":  # Ignoro entradas vacías
+                decompress_pb_files.append("")
+                continue
+
+            if file.suffix == ".gz":
+                extracted_file_path = file.with_suffix('')  
+
+                # Compruebo si el archivo descomprimido ya existe
+                if extracted_file_path.exists():
+                    logger.info(
+                        "The decompressed primary beam file already exists: "
+                        f"{extracted_file_path}"
+                    )
+                    decompress_pb_files.append(extracted_file_path)
+
+                    if self.download_par['remove_compressed_file']:
+                        file.unlink()
+                        logger.info(f"Compressed file deleted: {file}")
+                else:
+                    # Intento descomprimir el archivo
+                    try:
+                        with gzip.open(file, 'rb') as gz_in:
+                            with open(extracted_file_path, 'wb') as extracted_out:
+                                shutil.copyfileobj(gz_in, extracted_out)
+                        logger.info(
+                            f"Decompressed primary beam file: {extracted_file_path}"
+                        )
+
+                        if self.download_par['remove_compressed_file']:
+                            file.unlink()
+                            logger.info(f"Compressed file deleted: {file}")
+
+                        decompress_pb_files.append(extracted_file_path)
+                    except Exception as e:
+                        logger.error(f"Error decompressing file '{file}': {e}")
+            else:
+                # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                decompress_pb_files.append(file)
+
+        if decompress_pb_files:
+            self.pb_list = decompress_pb_files
+        else:
+            logger.critical(
+            "No valid primary beam files were successfully processed. Fatal error. "
+            "Please open an issue on GitLab "
+            "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+            )
+            sys.exit(-1)
+
+        #------------------------------------------------------------------------------------------#
+
+        #------------------------------------------------------------------------------------------#
+        mask_files_aux = [download_dir / Path(Path(url).name) for url in al_link_list 
+                        if "cube.I.mask." in Path(url).name]
         
         mask_files = []
         for data_path in self.data_list:
@@ -769,82 +667,87 @@ class datap(dict):
                     break  
             if not matched:
                 mask_files.append("") 
-        
-        if all(mask == "" for mask in mask_files):
-            logger.warning("No mask files found in the download data set selected.")
-            self.mask_qa_list = mask_files
-            return
 
-        decompressed_mask_files = []  #Almaceno archivos descomprimidos o existentes
+        if  all(mask == "" for mask in mask_files):
+
+            logger.warning(
+                "No mask was found in the downloaded dataset. Either it"
+                " is not available in the archive, or the strings included in the "
+                "'filename_must_include' parameter have been so restrictive that "
+                "they exclude the mask file from the download. Avoid "
+                "full names if you want to download the mask."
+            )
+            logger.warning(
+                "Continued without taking into account any masks"
+            )
+            self.mask_list = mask_files
+            return
+        
+
+        decompressed_mask_files = []  
 
         for file in mask_files:
-
             if file == "":  # Ignoro entradas vacías
                 decompressed_mask_files.append("")
                 continue
-            # Compruebo si esta comprimido (.gz)
+
             if file.suffix == ".gz":
-                extracted_file_path = file.with_suffix('') 
+                extracted_file_path = file.with_suffix('')  
 
                 # Compruebo si el archivo descomprimido ya existe
                 if extracted_file_path.exists():
-                    logger.info(f"The decompressed file already exists: {extracted_file_path}")
+                    logger.info(
+                        "The decompressed mask file already exists: "
+                        f"{extracted_file_path}"
+                    )
                     #Make a copy of the mask but with int values
                     decompressed_mask_files.append(
-                        mask_float2int(
-                            extracted_file_path, 
-                            self.download_par['remove_archive_mask'],
-                            from_downloadmask=True
-                        )
+                        mask_float2int(extracted_file_path, self.download_par['remove_archive_mask'])
                     )
-
+                    
                     if self.download_par['remove_compressed_file']:
                         file.unlink()
                         logger.info(f"Compressed file deleted: {file}")
                 else:
+                    # Intento descomprimir el archivo
                     try:
                         with gzip.open(file, 'rb') as gz_in:
                             with open(extracted_file_path, 'wb') as extracted_out:
                                 shutil.copyfileobj(gz_in, extracted_out)
-                        logger.info(f"Decompressed file: {extracted_file_path}")
+                        logger.info(
+                            f"Decompressed mask file: {extracted_file_path}"
+                        )
 
                         if self.download_par['remove_compressed_file']:
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
-
                         #Make a copy of the mask but with int values
                         decompressed_mask_files.append(
                             mask_float2int(
                                 extracted_file_path, 
-                                self.download_par['remove_archive_mask'],
-                                from_downloadmask=True
+                                self.download_par['remove_archive_mask']
                             )
-                        )
+                        )                            
                     except Exception as e:
                         logger.error(f"Error decompressing file '{file}': {e}")
             else:
+                # Si no es un archivo comprimido (.gz), lo agrego a la lista
                 #Make a copy of the mask but with int values
                 decompressed_mask_files.append(
-                    mask_float2int(
-                        file, 
-                        self.download_par['remove_archive_mask'],
-                        from_downloadmask=True
-                    )
+                    mask_float2int(file, self.download_par['remove_archive_mask'])
                 )
 
-
-        
         if decompressed_mask_files:
-            self.mask_qa_list = decompressed_mask_files
- 
+            self.mask_list = decompressed_mask_files
         else:
             logger.critical(
-                "No valid mask files were successfully processed. Fatal error. Please open an"
-                " issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with "
-                "your specific case."
+            "No valid mask files were successfully processed. Fatal error. "
+            "Please open an issue on GitLab "
+            "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
             )
             sys.exit(-1)
 
+        #------------------------------------------------------------------------------------------#
 
 
     # Type of querys available     
@@ -1373,7 +1276,6 @@ class datap(dict):
         if hasattr(self, 'download_par') and isinstance(self.download_par, dict):
             download_par_expected_types = {
                 'fitsonly': bool,
-                'include_pb': bool,
                 'remove_compressed_file': bool,
                 'remove_archive_mask': bool,
                 'dryrun': bool,

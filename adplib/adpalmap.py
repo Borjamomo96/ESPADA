@@ -298,7 +298,7 @@ def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
     
     #Estimación de memoria por proceso
-    total_size = sum(os.path.getsize(data) for data, _, _, _ in data_pack_list if data)
+    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
     avg_size = (total_size / total_files) if total_files > 0 else 0
     #Memoria disponible en GB
     mem_available = psutil.virtual_memory().available / 1024**3  
@@ -316,7 +316,6 @@ def process_data(id_number,
                  input_data, 
                  primary_beam, 
                  mask, 
-                 mask_qa,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
@@ -348,6 +347,8 @@ def process_data(id_number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       use_pb=adpalmap_config.use_pb,
+                                                       use_mask=adpalmap_config.use_mask,
                                                        tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -358,17 +359,21 @@ def process_data(id_number,
 
             sofia_report.append(emi_sofia_report)
 
-            if adpalmap_config.quality_assesment == True:
-                if mask_qa:
-                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+            if adpalmap_config.enable_tap_service == True:
+                if mask:
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
                     qa_report.append(emi_qa_report)
                 else:
-                    logger.warning(
-                        f"'enable_tap_service' is set to False. All checks in the QA will not be "
-                        "performed."
-                    )
+                    logger.warning("No ALMA file mask available. Reduced QA image.")
                     emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                     qa_report.append(emi_qa_report)
+            else:
+                logger.warning(
+                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
+                    "performed."
+                )
+                emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                qa_report.append(emi_qa_report)
 
 
         elif adpalmap_config.run_mode == 'absorption':
@@ -384,6 +389,8 @@ def process_data(id_number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       use_pb=adpalmap_config.use_pb,
+                                                       use_mask=adpalmap_config.use_mask,
                                                        tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -394,17 +401,21 @@ def process_data(id_number,
 
             sofia_report.append(abs_sofia_report)
 
-            if adpalmap_config.quality_assesment == True:
-                if mask_qa:
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+            if adpalmap_config.enable_tap_service == True:
+                if mask:
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
                     qa_report.append(abs_qa_report)
                 else:
-                    logger.warning(
-                        f"'enable_tap_service' is set to False. All checks in the QA will"
-                        " not be performed."
-                    )
+                    logger.warning("No ALMA file mask available. Reduced QA image.")
                     abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                     qa_report.append(abs_qa_report)
+            else:
+                logger.warning(
+                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
+                    "performed."
+                )
+                abs_qa_report = adpalmap_sopar_emi.quality_assesment()
+                qa_report.append(abs_qa_report)
 
 
         elif adpalmap_config.run_mode == 'both':
@@ -425,6 +436,8 @@ def process_data(id_number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode,
+                                                       use_pb=adpalmap_config.use_pb,
+                                                       use_mask=adpalmap_config.use_mask,
                                                        tap=adpalmap_config.enable_tap_service,
                                                        sofia_threads=sofia_threads
                                                        )  
@@ -434,6 +447,8 @@ def process_data(id_number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
                                                        mode=adpalmap_config.run_mode, 
+                                                       use_pb=adpalmap_config.use_pb,
+                                                       use_mask=adpalmap_config.use_mask,
                                                        tap=adpalmap_config.enable_tap_service,
                                                        run=0,
                                                        sofia_threads=sofia_threads
@@ -445,27 +460,42 @@ def process_data(id_number,
 
             abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
             sofia_report.append(abs_sofia_report)
-            if adpalmap_config.quality_assesment == True:
-                if mask_qa:
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask_qa)
+            
+            if adpalmap_config.enable_tap_service == True:
+                if mask:
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
                     qa_report.append(abs_qa_report)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
-                                   "performed in the QA.")
+                    logger.warning("No ALMA file mask available. Reduced QA image.")
                     abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                     qa_report.append(abs_qa_report)
+            else:
+                logger.warning(
+                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
+                    "performed."
+                )
+                abs_qa_report = adpalmap_sopar_emi.quality_assesment()
+                qa_report.append(abs_qa_report)
 
             emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
             sofia_report.append(emi_sofia_report)
-            if adpalmap_config.quality_assesment == True:
-                if mask_qa:
-                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask_qa)
+
+            if adpalmap_config.enable_tap_service == True:
+                if mask:
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
                     qa_report.append(emi_qa_report)
                 else:
-                    logger.warning(f"'enable_tap_service' is set to False. All checks will not be "
-                                   "performed in the QA.")
+                    logger.warning("No ALMA file mask available. Reduced QA image.")
                     emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                     qa_report.append(emi_qa_report)
+            else:
+                logger.warning(
+                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
+                    "performed."
+                )
+                emi_qa_report = adpalmap_sopar_emi.quality_assesment()
+                qa_report.append(emi_qa_report)
+
 
     else:
         sofia_report = []
@@ -644,12 +674,6 @@ def main():
             elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
 
             adpalmap_datap.download_data(TAP_df)
-
-            if adpalmap_config.quality_assesment == True:
-                adpalmap_datap.download_mask(TAP_df)
-            else:
-                if not hasattr(adpalmap_datap, 'mask_qa_list'):
-                    adpalmap_datap.mask_qa_list = [""] * len(adpalmap_datap.data_list)
             
         else:
             adpalmap_datap = None
@@ -663,17 +687,16 @@ def main():
         if adpalmap_config.enable_tap_service == True:
             
             data_pack_list = [
-                (data, pb, mask, mask_qa)
-                for data, pb, mask, mask_qa in zip(
+                (data, pb, mask)
+                for data, pb, mask in zip(
                     adpalmap_datap.data_list, 
                     adpalmap_datap.pb_list, 
-                    adpalmap_datap.mask_list,
-                    adpalmap_datap.mask_qa_list
+                    adpalmap_datap.mask_list
                 )
             ]
         #Datos ya descargados
         else: 
-            data_pack_list = [dataset + ('',) for dataset in adpalmap_config.input_data_set]
+            data_pack_list = adpalmap_config.input_data_set
 
 
         number_list = list(range(len(data_pack_list)))
@@ -751,12 +774,12 @@ def main():
             futures = [
                 pool.submit(
                     process_data, 
-                    id_number, data, primary_beam, mask, mask_qa,
+                    id_number, data, primary_beam, mask,
                     adpalmap_config,
                     args, sofia_threads, number_list,
                     Logger.setup_child_logger(log_queue)
                     )
-                for id_number, (data, primary_beam, mask, mask_qa) in enumerate(data_pack_list)
+                for id_number, (data, primary_beam, mask) in enumerate(data_pack_list)
             ]
             
 
@@ -798,7 +821,7 @@ def main():
 
 
     finally:
-
+        
         if log_flag:
             log_path = Logger.get_log_filename()
             adp_log = reorganize_log(log_path, worker_results)

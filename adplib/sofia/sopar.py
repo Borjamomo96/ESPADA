@@ -402,7 +402,8 @@ class SoPar(dict):
     def update_input_parameters(
             self, sop_par, 
             input_data, primary_beam=None, mask=None,
-            mode=None, tap=None, run=-1, sofia_threads=1
+            mode=None, tap=None, use_pb=None, use_mask=None, run=-1, 
+            sofia_threads=1
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params.
@@ -505,9 +506,16 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
-                       
-            self.input_primaryBeam = primary_beam
+            if use_pb:
+                self.input_primaryBeam = primary_beam
+            else:
+                logger.warning(
+                    f"'use_pb' set to False: the primary beam '{primary_beam}' will no be used as "
+                    "'input.primaryBeam'"
+                    )
+                self.input_primaryBeam = ""
 
+        # input.primaryBeam is a key parameter cannot be set via -sop or in the sofia.par file
         else:
             if (sop_par is not None 
                     and 'input.primaryBeam' in sop_par 
@@ -545,10 +553,23 @@ class SoPar(dict):
             
             #Comprueba si la máscara es descargada o no. Si no compruebo que sea tipo int()
             if tap:
-                self.input_mask = mask
+                if use_mask:
+                    self.input_mask = mask
+                else:
+                    logger.warning(
+                        f"'use_mask' set to False: the mask '{mask}' will no be used as 'input.mask'"
+                        )
+                    self.input_mask = ""
             else:
-                self.input_mask = mask_float2int(mask)
+                if use_mask:
+                    self.input_mask = mask_float2int(mask)
+                else:
+                    logger.warning(
+                        f"'use_mask' set to False: the mask '{mask}' will no be used as 'input.mask'"
+                        )
+                    self.input_mask = ""                    
 
+        # input.mask is a key parameter cannot be set via -sop or in the sofia.par file
         else:
             if (sop_par is not None 
                     and 'input.mask' in sop_par 
@@ -570,7 +591,9 @@ class SoPar(dict):
         #----------------------------------------------------------#
 
         #----------------------scfind.enable ----------------------#
-        if mask:
+        if (mask and use_mask):
+            logger.info("The 'scfind_enable' parameter has set to false. Setting a mask in "
+                        "'input.mask' parameter assumes that no further sources need to be searched.")
             if (sop_par is not None 
                     and 'scfind.enable' in sop_par 
                     and sop_par['scfind.enable'] is not None
@@ -579,9 +602,10 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
                     "parameter provided in vía '-sop' comand."
                 )
-            self.scfind_enable = 'false'
+            #self.scfind_enable = 'false'
 
         #----------------------------------------------------------#
+
 
         if sop_par is not None:
 

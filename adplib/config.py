@@ -157,6 +157,8 @@ class Config(dict):
         #Check the logic for the input parameters
         self.input_logic()
 
+        self.quality_assesment = True
+
 
     def configure(self, config_path=None, **kwargs):
 
@@ -197,8 +199,7 @@ class Config(dict):
         for k, v in config_dict.items():
             setattr(self, k, v)
                 
-
-            
+       
     def check_config_par(self):
         """
         Validate the attributes for the Config class readed from the configuration file.
@@ -206,7 +207,6 @@ class Config(dict):
         """
         #Tipos esperados en los parámetros
         expected_types = {
-            'quality_assesment': bool,
             'html_report': bool,
             'verbose': bool,
             'num_cores': int | None,
@@ -218,6 +218,8 @@ class Config(dict):
             'download_par_file': str | None,
             'enable_sofia': bool,
             'run_mode': str,
+            'use_pb': bool,
+            'use_mask': bool,
             'abs_flag_cube': bool,
             'auto_setup': bool,
             'sofia_abs_file': str | None,

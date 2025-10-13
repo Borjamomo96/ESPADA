@@ -4,7 +4,6 @@
 #   GENERAL   #
 ###############
 
-quality_assesment: True
 html_report: True
 verbose: False
 num_cores: 12
@@ -41,6 +40,8 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
 
 enable_sofia : True
 run_mode: 'emission' #'both', 'absorption'
+use_pb: False  
+use_mask: True
 abs_flag_cube: True
 auto_setup: False
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par
