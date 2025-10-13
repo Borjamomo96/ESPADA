@@ -506,14 +506,22 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
-            if use_pb:
-                self.input_primaryBeam = primary_beam
-            else:
+
+            if tap: 
                 logger.warning(
-                    f"'use_pb' set to False: the primary beam '{primary_beam}' will no be used as "
-                    "'input.primaryBeam'"
-                    )
+                    f"The primary beam '{primary_beam}' will no be used as 'input.primaryBeam'. Data retrieved "
+                    "from the ALMA archive are assumed to be already corrected for the primary beam"
+                )
                 self.input_primaryBeam = ""
+            else:
+                if use_pb:
+                    self.input_primaryBeam = primary_beam
+                else:
+                    logger.warning(
+                        f"'use_pb' set to False: the primary beam '{primary_beam}' will no be used as "
+                        "'input.primaryBeam'"
+                        )
+                    self.input_primaryBeam = ""
 
         # input.primaryBeam is a key parameter cannot be set via -sop or in the sofia.par file
         else:
