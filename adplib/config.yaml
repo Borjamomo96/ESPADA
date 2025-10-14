@@ -4,7 +4,7 @@
 #   GENERAL   #
 ###############
 
-html_report: True
+html_report: False # provisionally False by default 
 verbose: False
 num_cores: 12
 
