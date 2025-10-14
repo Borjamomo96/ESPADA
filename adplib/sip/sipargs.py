@@ -513,7 +513,8 @@ class SiPar(dict):
             # At the end of this case it needs to save output_dir as sip_output_dir for the 
             # html outputs
             sip_output_dir = output_dir
-                    
+
+
         if  sip_report["log_path"].exists():
             try:
                 sip_report["log_path"].unlink()
@@ -650,8 +651,9 @@ class SiPar(dict):
             exclude = []  # Si no se pasa, inicializamos como lista vacía
 
         cmd = ["sofia_image_pipeline"]
-        for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
 
+        for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
+            
             if attr_name in exclude:  
                 continue
 
@@ -708,8 +710,19 @@ class SiPar(dict):
                         cmd.append(str(attr_value))  
                     else: 
                         continue
-
-
+            
+            # The cont image is set only if the TAP service is used and the user does 
+            # not specify any value.
+            elif (attr_name == "user_image" and 
+                  getattr(self, attr_name) is None and 
+                  self.adpalmap_config.enable_tap_service
+            ):  
+                logger.info(
+                    f"Continuum image '{self.ancillary}' from the archive loaded into 'user_image' "
+                    "parameter."
+                )
+                cmd.append(shortcut[0])
+                cmd.append(str(self.ancillary)) 
 
             elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  

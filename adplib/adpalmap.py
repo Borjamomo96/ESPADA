@@ -316,6 +316,7 @@ def process_data(id_number,
                  input_data, 
                  primary_beam, 
                  mask, 
+                 ancillary,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
@@ -516,6 +517,7 @@ def process_data(id_number,
             sip_file_path = adpalmap_config.sip_par_file,
             adpalmap_config = adpalmap_config,
             input_data = input_data,
+            ancillary = ancillary,
             sargs = args.sip_args,
             number_list = number_list,
             id_number = id_number,
@@ -683,7 +685,7 @@ def main():
 
         #--------------------------------------------------------------------------------------------#
 
-        #Al igual que antes, a este bloque solo entra si input es False y Tap True.
+        # ALMA archive data
         if adpalmap_config.enable_tap_service == True:
             
             data_pack_list = [
@@ -694,11 +696,26 @@ def main():
                     adpalmap_datap.mask_list
                 )
             ]
-        #Datos ya descargados
+            ancillary_pack_list = [(cont) for cont in adpalmap_datap.cont_list]
+
+            if len(data_pack_list) != len(ancillary_pack_list):
+                logger.critical(
+                    f"Unexpected error: 'data_pack_list' and 'ancillary_pack_list' have diffetent "
+                    "length. Please open an issue on GitHub "
+                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                    "case."
+                )
+                sys.exit(-1)
+        # Local Data
         else: 
             data_pack_list = adpalmap_config.input_data_set
+            ancillary_pack_list = [""] * len (data_pack_list)
 
-
+        # Complete dataset list
+        complete_pack_list = [
+        (data, primary_beam, mask, ancillary) 
+        for (data, primary_beam, mask), ancillary in zip(data_pack_list, ancillary_pack_list)
+        ]
         number_list = list(range(len(data_pack_list)))
 
         #--------------------------------------------------------------------------------------------#
@@ -774,12 +791,12 @@ def main():
             futures = [
                 pool.submit(
                     process_data, 
-                    id_number, data, primary_beam, mask,
+                    id_number, data, primary_beam, mask, ancillary,
                     adpalmap_config,
                     args, sofia_threads, number_list,
                     Logger.setup_child_logger(log_queue)
                     )
-                for id_number, (data, primary_beam, mask) in enumerate(data_pack_list)
+                for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
             ]
             
 

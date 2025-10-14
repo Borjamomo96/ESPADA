@@ -302,7 +302,7 @@ class datap(dict):
     
         #Fits only and phrase within the file to download
         data_table = self.alma.get_data_info(
-            uids_list, expand_tarfiles=self.download_par['fitsonly']
+            uids_list, expand_tarfiles=True
         )
 
         patterns = []
@@ -330,15 +330,18 @@ class datap(dict):
             ]
 
         ancillary_patterns = []
-        ancillary_patterns.append('.pb.')
+        ancillary_patterns.append('cube.I.pb.')
         ancillary_patterns.append('cube.I.mask')
+        ancillary_patterns.append('mfs.I.pbcor')
+        ancillary_exclude_patterns = []
+
         if ancillary_patterns:
             al_table = data_table[
                 [i for i, v in enumerate(data_table['access_url'])
                     if (
                         any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in ancillary_patterns)
                         and all(fmi in v for fmi in self.download_par['filename_must_include'])
-                        and not any(ex_pat in v for ex_pat in exclude_patterns)
+                        and not any(ex_pat in v for ex_pat in ancillary_exclude_patterns)
                     )]
             ]
 
@@ -408,9 +411,9 @@ class datap(dict):
                         Logger.raw(f"[{self.pid}] {url}")
                 
         else:
-            logger.warning("Nothing to download.")
-            print(
-                "Note: often only a subset of the observations (e.g. the representative window)" 
+            logger.warning("Nothing to download. Check 'filename_must_inlude' parameter, often this comes from a "
+                           "typo or missings '' in the list.") 
+            logger.warning("Note: often only a subset of the observations (e.g. the representative window)" 
                 "is ingested into the archive. In such cases, you may need to download the raw "
                 "dataset, reproduce the calibrated measurement set, and image the observations "
                 "of interest. It is also possible to request calibrated  measurement sets through"
@@ -537,13 +540,14 @@ class datap(dict):
         if data_files:
             self.data_list = data_files
         else:
-            logger.error(f"It appears that no files containing a data cube have been downloaded." 
-                         "Files with data from ALMA cycle 2 must contain the string 'cube.I.pbcor'" 
-                         "in their names. If the file you want to download is older please open an "
-                         "issue on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with the "
-                         "specific case. You can still use the ADP Alma Pipeline if you download "
-                         "the file yourself and run it locally.")
-            logger.info("Exiting pipeline")
+            logger.error(
+                "No data cube file containing the string 'cube.I.pbcor' was found in the "
+                "downloaded data. In older cycles, data cubes may follow different naming "
+                "conventions that are not supported by this pipeline. Please submit an issue "
+                " on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with the "
+                "specific case."
+            )
+            logger.info("ADP pipeline execution aborted")
             sys.exit(-1)
             
 
@@ -564,6 +568,20 @@ class datap(dict):
         Returns:
             None
         """
+        #------------------------------------------------------------------------------------------#
+
+        cont_files = [Path(url).name for url in al_link_list 
+                      if "mfs.I.pbcor" in Path(url).name]         
+        
+        cont_files = [download_dir / Path(f) for f in cont_files]
+
+        if cont_files:
+            self.cont_list = cont_files
+        else:
+            logger.warning(
+                "No continuum file matching 'mfs.I.pbcorr' was found. Older data cycles "
+                "may use different naming conventions not currently supported."
+            )
 
         
         #------------------------------------------------------------------------------------------#

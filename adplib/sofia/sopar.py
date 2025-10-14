@@ -161,8 +161,9 @@ def moment8_ima(adpalmap_sopar):
         logger.error(error_msg)
         raise RecoverableValueError(error_msg)
 
-    #Ahora el PrimaryBeam
-    if hasattr(adpalmap_sopar, "input_primaryBeam") and adpalmap_sopar.input_primaryBeam:
+    # The relevant information about primary beam is on 'primary_beam'
+    # the input_primaryBeam parameter is subject to changes
+    if hasattr(adpalmap_sopar, "primary_beam") and adpalmap_sopar.input_primaryBeam:
 
         pb_path = Path(adpalmap_sopar.input_primaryBeam)
 
