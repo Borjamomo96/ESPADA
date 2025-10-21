@@ -92,7 +92,13 @@ def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False
             else:
                 return file_path
     except Exception as e:
-        logger.error(f"Mask conversion to integer failed. File: {file_path}. Error: {e}")
+        logger.error(
+            f"Mask conversion to integer failed. File: {file_path}. Error: {e}. \n"
+            "Check that the mask has been fully downloaded. Sometimes an incomplete "
+            "download of one of the files from a previous run causes it to be detected "
+            "as fully downloaded in subsequent runs when it is not, which leads to "
+            "subsequent critical errors."
+            )
         return ""
 
 
@@ -568,40 +574,42 @@ class datap(dict):
         Returns:
             None
         """
-        #------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
-        cont_files = [Path(url).name for url in al_link_list 
-                      if "mfs.I.pbcor" in Path(url).name]         
-        
-        cont_files = [download_dir / Path(f) for f in cont_files]
+        cont_files_aux = [download_dir / Path(url).name for url in al_link_list 
+                        if "mfs.I.pbcor" in Path(url).name]
 
-        if cont_files:
-            self.cont_list = cont_files
-        else:
+        # Create matched list by spw??
+        cont_files = []
+        for data_path in self.data_list:
+            data_segment = get_segment(str(data_path))
+            matched_cont = next((cont for cont in cont_files_aux 
+                                if get_segment(str(cont)) == data_segment), "")
+            cont_files.append(matched_cont)
+
+        if not any(cont_files):
             logger.warning(
-                "No continuum file matching 'mfs.I.pbcorr' was found. Older data cycles "
-                "may use different naming conventions not currently supported."
+                "No continuum file matching 'mfs.I.pbcor' was found for any spectral window. "
+                "Older data cycles may use different naming conventions not currently supported."
             )
+        self.cont_list = cont_files
+            
 
+        ##############################################################################################
         
-        #------------------------------------------------------------------------------------------#
-        pb_files_aux = [download_dir / Path(Path(url).name) for url in al_link_list 
+        ##############################################################################################
+
+        pb_files_aux = [download_dir / Path(url).name for url in al_link_list 
                         if "cube.I.pb." in Path(url).name]
         
         pb_files = []
         for data_path in self.data_list:
-            data_segment = get_segment(str(data_path))  
-            matched = False
-            for pb_path in pb_files_aux:
-                if data_segment == get_segment(str(pb_path)):
-                    pb_files.append(pb_path)  
-                    matched = True
-                    break  
-            if not matched:
-                pb_files.append("") 
+            data_segment = get_segment(str(data_path))
+            matched_pb = next((pb for pb in pb_files_aux 
+                            if get_segment(str(pb)) == data_segment), "")
+            pb_files.append(matched_pb)
 
-        if  all(pb == "" for pb in pb_files):
-
+        if not any(pb_files):
             logger.warning(
                 "No primary beam was found in the downloaded dataset. Either it"
                 " is not available in the archive, or the strings included in the "
@@ -609,85 +617,76 @@ class datap(dict):
                 "they exclude the primary beam file from the download. Avoid "
                 "full names if you want to download the primary beam."
             )
-            logger.warning(
-                "Continued without taking into account any primary beams"
-            )
+            logger.warning("Continued without taking into account any primary beams")
             self.pb_list = pb_files
-            return
-        
+            
+        else:
+            decompress_pb_files = []  
 
-        decompress_pb_files = []  
+            for file in pb_files:
+                if file == "":  # Ignoro entradas vacías
+                    decompress_pb_files.append("")
+                    continue
 
-        for file in pb_files:
-            if file == "":  # Ignoro entradas vacías
-                decompress_pb_files.append("")
-                continue
+                if file.suffix == ".gz":
+                    extracted_file_path = file.with_suffix('')  
 
-            if file.suffix == ".gz":
-                extracted_file_path = file.with_suffix('')  
-
-                # Compruebo si el archivo descomprimido ya existe
-                if extracted_file_path.exists():
-                    logger.info(
-                        "The decompressed primary beam file already exists: "
-                        f"{extracted_file_path}"
-                    )
-                    decompress_pb_files.append(extracted_file_path)
-
-                    if self.download_par['remove_compressed_file']:
-                        file.unlink()
-                        logger.info(f"Compressed file deleted: {file}")
-                else:
-                    # Intento descomprimir el archivo
-                    try:
-                        with gzip.open(file, 'rb') as gz_in:
-                            with open(extracted_file_path, 'wb') as extracted_out:
-                                shutil.copyfileobj(gz_in, extracted_out)
+                    # Compruebo si el archivo descomprimido ya existe
+                    if extracted_file_path.exists():
                         logger.info(
-                            f"Decompressed primary beam file: {extracted_file_path}"
+                            "The decompressed primary beam file already exists: "
+                            f"{extracted_file_path}"
                         )
+                        decompress_pb_files.append(extracted_file_path)
 
                         if self.download_par['remove_compressed_file']:
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
+                    else:
+                        # Intento descomprimir el archivo
+                        try:
+                            with gzip.open(file, 'rb') as gz_in:
+                                with open(extracted_file_path, 'wb') as extracted_out:
+                                    shutil.copyfileobj(gz_in, extracted_out)
+                            logger.info(
+                                f"Decompressed primary beam file: {extracted_file_path}"
+                            )
 
-                        decompress_pb_files.append(extracted_file_path)
-                    except Exception as e:
-                        logger.error(f"Error decompressing file '{file}': {e}")
+                            if self.download_par['remove_compressed_file']:
+                                file.unlink()
+                                logger.info(f"Compressed file deleted: {file}")
+
+                            decompress_pb_files.append(extracted_file_path)
+                        except Exception as e:
+                            logger.error(f"Error decompressing file '{file}': {e}")
+                else:
+                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                    decompress_pb_files.append(file)
+
+            if any(decompress_pb_files):
+                self.pb_list = decompress_pb_files
             else:
-                # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                decompress_pb_files.append(file)
+                logger.critical(
+                "No valid primary beam files were successfully processed. Fatal error. "
+                "Please open an issue on GitLab "
+                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                )
+                sys.exit(-1)
 
-        if decompress_pb_files:
-            self.pb_list = decompress_pb_files
-        else:
-            logger.critical(
-            "No valid primary beam files were successfully processed. Fatal error. "
-            "Please open an issue on GitLab "
-            "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-            )
-            sys.exit(-1)
+        ##############################################################################################
 
-        #------------------------------------------------------------------------------------------#
-
-        #------------------------------------------------------------------------------------------#
-        mask_files_aux = [download_dir / Path(Path(url).name) for url in al_link_list 
+        ##############################################################################################
+        mask_files_aux = [download_dir / Path(url).name for url in al_link_list 
                         if "cube.I.mask." in Path(url).name]
         
         mask_files = []
         for data_path in self.data_list:
-            data_segment = get_segment(str(data_path))  
-            matched = False
-            for mask_path in mask_files_aux:
-                if data_segment == get_segment(str(mask_path)):
-                    mask_files.append(mask_path)  
-                    matched = True
-                    break  
-            if not matched:
-                mask_files.append("") 
+            data_segment = get_segment(str(data_path))
+            matched_mask = next((mask for mask in mask_files_aux 
+                                if get_segment(str(mask)) == data_segment), "")
+            mask_files.append(matched_mask)
 
-        if  all(mask == "" for mask in mask_files):
-
+        if not any(mask_files):
             logger.warning(
                 "No mask was found in the downloaded dataset. Either it"
                 " is not available in the archive, or the strings included in the "
@@ -695,77 +694,74 @@ class datap(dict):
                 "they exclude the mask file from the download. Avoid "
                 "full names if you want to download the mask."
             )
-            logger.warning(
-                "Continued without taking into account any masks"
-            )
+            logger.warning("Continued without taking into account any masks")
             self.mask_list = mask_files
-            return
-        
+            
+        else:
+            decompressed_mask_files = []  
 
-        decompressed_mask_files = []  
+            for file in mask_files:
+                if file == "":  # Ignoro entradas vacías
+                    decompressed_mask_files.append("")
+                    continue
 
-        for file in mask_files:
-            if file == "":  # Ignoro entradas vacías
-                decompressed_mask_files.append("")
-                continue
+                if file.suffix == ".gz":
+                    extracted_file_path = file.with_suffix('')  
 
-            if file.suffix == ".gz":
-                extracted_file_path = file.with_suffix('')  
-
-                # Compruebo si el archivo descomprimido ya existe
-                if extracted_file_path.exists():
-                    logger.info(
-                        "The decompressed mask file already exists: "
-                        f"{extracted_file_path}"
-                    )
-                    #Make a copy of the mask but with int values
-                    decompressed_mask_files.append(
-                        mask_float2int(extracted_file_path, self.download_par['remove_archive_mask'])
-                    )
-                    
-                    if self.download_par['remove_compressed_file']:
-                        file.unlink()
-                        logger.info(f"Compressed file deleted: {file}")
-                else:
-                    # Intento descomprimir el archivo
-                    try:
-                        with gzip.open(file, 'rb') as gz_in:
-                            with open(extracted_file_path, 'wb') as extracted_out:
-                                shutil.copyfileobj(gz_in, extracted_out)
+                    # Compruebo si el archivo descomprimido ya existe
+                    if extracted_file_path.exists():
                         logger.info(
-                            f"Decompressed mask file: {extracted_file_path}"
+                            "The decompressed mask file already exists: "
+                            f"{extracted_file_path}"
                         )
-
+                        #Make a copy of the mask but with int values
+                        decompressed_mask_files.append(
+                            mask_float2int(extracted_file_path, self.download_par['remove_archive_mask'])
+                        )
+                        
                         if self.download_par['remove_compressed_file']:
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
-                        #Make a copy of the mask but with int values
-                        decompressed_mask_files.append(
-                            mask_float2int(
-                                extracted_file_path, 
-                                self.download_par['remove_archive_mask']
+                    else:
+                        # Intento descomprimir el archivo
+                        try:
+                            with gzip.open(file, 'rb') as gz_in:
+                                with open(extracted_file_path, 'wb') as extracted_out:
+                                    shutil.copyfileobj(gz_in, extracted_out)
+                            logger.info(
+                                f"Decompressed mask file: {extracted_file_path}"
                             )
-                        )                            
-                    except Exception as e:
-                        logger.error(f"Error decompressing file '{file}': {e}")
+
+                            if self.download_par['remove_compressed_file']:
+                                file.unlink()
+                                logger.info(f"Compressed file deleted: {file}")
+                            #Make a copy of the mask but with int values
+                            decompressed_mask_files.append(
+                                mask_float2int(
+                                    extracted_file_path, 
+                                    self.download_par['remove_archive_mask']
+                                )
+                            )                            
+                        except Exception as e:
+                            logger.error(f"Error decompressing file '{file}': {e}")
+                else:
+                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                    #Make a copy of the mask but with int values
+                    decompressed_mask_files.append(
+                        mask_float2int(file, self.download_par['remove_archive_mask'])
+                    )
+
+            if any(decompressed_mask_files):
+                self.mask_list = decompressed_mask_files
             else:
-                # Si no es un archivo comprimido (.gz), lo agrego a la lista
-                #Make a copy of the mask but with int values
-                decompressed_mask_files.append(
-                    mask_float2int(file, self.download_par['remove_archive_mask'])
+                logger.critical(
+                "No valid mask files were successfully processed. Fatal error. "
+                "Please open an issue on GitLab "
+                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
                 )
+                sys.exit(-1)
 
-        if decompressed_mask_files:
-            self.mask_list = decompressed_mask_files
-        else:
-            logger.critical(
-            "No valid mask files were successfully processed. Fatal error. "
-            "Please open an issue on GitLab "
-            "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
-            )
-            sys.exit(-1)
-
-        #------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
 
     # Type of querys available     

@@ -417,11 +417,11 @@ class SiPar(dict):
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
-            sip_output_dir = Path(sopar.output_directory) / f"{sopar.sopar_mode}_{self.input_data.stem}_figures"
+            sip_output_dir = Path(sopar.output_directory) / f"{sopar.output_filename}_figures"
             input_file_name = Path(sopar.input_data).stem
                     
-            sofia_catalog_txt = sofia_output_dir / f"{sopar.sopar_mode}_{input_file_name}_cat.txt"
-            sofia_catalog_xml = sofia_output_dir / f"{sopar.sopar_mode}_{input_file_name}_xml.fits"
+            sofia_catalog_txt = sofia_output_dir / f"{sopar.output_filename}_cat.txt"
+            sofia_catalog_xml = sofia_output_dir / f"{sopar.output_filename}_xml.fits"
 
             if sofia_catalog_txt.exists() or sofia_catalog_xml.exists():
                 pass
@@ -431,7 +431,7 @@ class SiPar(dict):
 
             # Update SIP report
             sip_report["mode"]     = sopar.sopar_mode
-            sip_report["log_path"] = sopar.output_directory / f"{sopar.sopar_mode}_{self.input_data.stem}_sip.log"
+            sip_report["log_path"] = sopar.output_directory / f"{sopar.output_filename}_sip.log"
 
     
             if sofia_catalog_txt and sofia_catalog_xml:

@@ -40,8 +40,8 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
 
 enable_sofia : True
 run_mode: 'emission' #'both', 'absorption'
-use_pb: False  
-use_mask: True
+use_pb: True  
+use_mask: False
 abs_flag_cube: True
 auto_setup: False
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par
@@ -54,5 +54,10 @@ sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par
 enable_sip : True
 sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml
 
+#################
+#     GROUP     #
+#################
 
-
+enable_group: True
+overlap_mode :  absflux'    # 'flux', 'absflux' or 'area'
+overlap_threshold : 0.8     # a number between 0 and 1

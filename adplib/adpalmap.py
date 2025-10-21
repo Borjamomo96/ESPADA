@@ -326,7 +326,7 @@ def process_data(id_number,
     
     pid = os.getpid()
 
-    #--------------------------------------------------------------------------------------------#
+    ##############################################################################################
     #Run SoFia
     from adplib.sofia.sopar import SoPar
 
@@ -356,7 +356,7 @@ def process_data(id_number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config)
 
             sofia_report.append(emi_sofia_report)
 
@@ -398,7 +398,7 @@ def process_data(id_number,
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config)
 
             sofia_report.append(abs_sofia_report)
 
@@ -459,7 +459,7 @@ def process_data(id_number,
                 adpalmap_sopar_abs.auto_setup()
 
 
-            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode)
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config)
             sofia_report.append(abs_sofia_report)
             
             if adpalmap_config.enable_tap_service == True:
@@ -478,7 +478,7 @@ def process_data(id_number,
                 abs_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(abs_qa_report)
 
-            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, mode=adpalmap_config.run_mode, run=0)
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, run=0)
             sofia_report.append(emi_sofia_report)
 
             if adpalmap_config.enable_tap_service == True:
@@ -505,11 +505,13 @@ def process_data(id_number,
                     "Skipping Sofia runs.")
 
 
-    #--------------------------------------------------------------------------------------------#
+    ##############################################################################################
     #Run SIP
-    from adplib.sip.sipargs import SiPar
+    
 
     if adpalmap_config.enable_sip == True:
+
+        from adplib.sip.sipargs import SiPar
 
         sip_report = []
 
@@ -566,7 +568,98 @@ def process_data(id_number,
     else:
         sip_report = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
-    #--------------------------------------------------------------------------------------------#
+    
+    ##############################################################################################
+
+    if adpalmap_config.enable_group:
+
+        from adplib.group import group
+
+        logger.info("Starting Source Grouping")
+
+        group_report = []
+
+        adpalmap_group = group(qa_report=qa_report, adpalmap_config=adpalmap_config)
+
+        # Check this conditions with 'adpalmap_config.enable_sofia' will be similar but in this 
+        # way cases, where sofia get an error and does not produce a mask, work better
+        if adpalmap_group.qa_report:
+
+            if adpalmap_config.run_mode == 'absorption':
+
+                abs_group_mask = adpalmap_group.find_mask2d_sofia(mode="absorption")
+                if abs_group_mask:
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, abs_group_mask)
+                    if group_mask is not None:
+
+                        adpalmap_sopar_abs.update_group_parameters(group_mask)
+                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia(adpalmap_config=adpalmap_config)
+                        group_report.append(abs_sopar_group_report)
+
+                        abs_sip_group_report = adpalmap_sipar.run_sip(
+                            adpalmap_config=adpalmap_config, 
+                            sopar=adpalmap_sopar_abs
+                        )
+                        group_report.append(abs_sip_group_report)
+                    
+            
+
+            if adpalmap_config.run_mode == 'emission':
+
+                emi_group_mask = adpalmap_group.find_mask2d_sofia(mode="emission")
+                if emi_group_mask:
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
+                    if group_mask is not None:
+                        adpalmap_sopar_emi.update_group_parameters(group_mask)
+                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(adpalmap_config=adpalmap_config)
+                        group_report.append(emi_sopar_group_report)
+
+                        emi_sip_group_report = adpalmap_sipar.run_sip(
+                            adpalmap_config=adpalmap_config, 
+                            sopar=adpalmap_sopar_emi
+                        )
+                        group_report.append(emi_sip_group_report)
+
+            if adpalmap_config.run_mode == 'both':
+
+                abs_group_mask = adpalmap_group.find_mask2d_sofia(mode="absorption")
+                if abs_group_mask:
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, abs_group_mask)
+                    if group_mask is not None:
+                        adpalmap_sopar_abs.update_group_parameters(group_mask)
+                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia(adpalmap_config=adpalmap_config)
+                        group_report.append(abs_sopar_group_report)
+
+                        abs_sip_group_report = adpalmap_sipar.run_sip(
+                            adpalmap_config=adpalmap_config, 
+                            sopar=adpalmap_sopar_abs
+                        )
+                        group_report.append(abs_sip_group_report)
+
+                emi_group_mask = adpalmap_group.find_mask2d_sofia(mode="emission")
+                if emi_group_mask:
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
+                    if group_mask is not None:
+                        adpalmap_sopar_emi.update_group_parameters(group_mask)
+                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(adpalmap_config=adpalmap_config, run=0)
+                        group_report.append(emi_sopar_group_report)
+
+                        emi_sip_group_report = adpalmap_sipar.run_sip(
+                            adpalmap_config=adpalmap_config, 
+                            sopar=adpalmap_sopar_emi,
+                            run=0
+                        )
+                        group_report.append(emi_sip_group_report)               
+
+        else:
+            logger.warning(f"No suitable 2D mask from SoFiA were found. Group execution aborted")        
+
+    else: 
+        group_report = []
+        f"'enable_sip' set to {adpalmap_config.enable_group}. Skipping grouping."
+   
+
+    ##############################################################################################
 
     return sofia_report, sip_report, qa_report
 
@@ -696,6 +789,7 @@ def main():
                     adpalmap_datap.mask_list
                 )
             ]
+
             ancillary_pack_list = [(cont) for cont in adpalmap_datap.cont_list]
 
             if len(data_pack_list) != len(ancillary_pack_list):

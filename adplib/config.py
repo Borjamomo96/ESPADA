@@ -226,6 +226,9 @@ class Config(dict):
             'sofia_emi_file': str | None,
             'enable_sip': bool,
             'sip_par_file': str | None,
+            'enable_group': bool | None,
+            'overlap_mode': str | None,
+            'overlap_threshold': float | None
         }
 
         #Los parámetros obligatorios, hasta la fecha
