@@ -1,19 +1,19 @@
-#This is and example of the configuration file. 
+# Configuration defaul file for ADPALMAP 
 
-###############
+############### 
 #   GENERAL   #
 ###############
 
-html_report: False # provisionally False by default 
-verbose: False
-num_cores: 12
+html_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
+verbose: False                      # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
+num_cores: 12                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ADPALMAP. The minimum number is 1, and the maximum depends on the device.
 
 ################
 #    LOGGER    #
 ################
 
-clear_logs: True
-log_file: log_dir/adpalmap.log
+clear_logs: True                    # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
+log_file: log_dir/adpalmap.log      # <str> (Default value = 'log_dir/adpalmap.log') Creates a directory with the final and sorted log file for the run.
 
 ##################
 #   INPUT DATA   #
@@ -25,39 +25,39 @@ input_data_set: /home/usuario/ADP-ALMA-Pipeline/adplib/sofia/sofia_test_datacube
     #3: 
     #4: 
 
-input_file: 
+input_file: # (Default = ) Path to the input dataset file. The structure follows the same rules as for the 'input_data_set' parameter at some extend. Read the documentation to see examples of possible inputs.
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False
-download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml
+enable_tap_service: False                                                # <bool> (Default value = False) Allows you to use the 'datap' module to download datasets from the ALMA archive and run the pipeline on them.
+download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml') Path to the path to the parameter file for download.
 
 #################
 #     SOFIA     #
 #################
 
-enable_sofia : True
-run_mode: 'emission' #'both', 'absorption'
-use_pb: True  
-use_mask: False
-abs_flag_cube: True
-auto_setup: False
-sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par
-sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par
+enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
+run_mode: 'emission' #'both', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
+use_pb: True                                                                # <bool> (Default value = True) Determines whether the primary beam either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+use_mask: True                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
+auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
+sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par') Path to the SoFiA-2 parameter file optimized to found 'absorption'.
+sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par    # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par') Path to the SoFiA-2 parameter file optimized to found 'emission'.
 
 #################
 #      SIP      #
 #################
 
-enable_sip : True
-sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml
+enable_sip : True                                               # <bool> (Default value = True) Allows you to use the 'siparg' module where the software SIP is executed
+sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml ') Path to the SIP argument file.
 
 #################
 #     GROUP     #
 #################
 
-enable_group: True
-overlap_mode :  absflux'    # 'flux', 'absflux' or 'area'
+enable_group: True                                              # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
+overlap_mode :  'absflux'    # 'flux', 'absflux' or 'area'
 overlap_threshold : 0.8     # a number between 0 and 1

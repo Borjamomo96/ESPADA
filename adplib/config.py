@@ -255,10 +255,11 @@ class Config(dict):
                         f"type {expected_type}, but is of type {type(value)}."
                     )
                     
-        #Compruebo especificamente los valores de run_mode
+        # Compruebo específicamente los valores de run_mode y overlap_mode
         # Valores permitidos para parámetros específicos
         valid_values = {
             'run_mode': ['emission', 'absorption', 'both'],
+            'overlap_mode': ['flux', 'absflux', 'area'],
         }
         for param, valid_values_list in valid_values.items():
             if hasattr(self, param):

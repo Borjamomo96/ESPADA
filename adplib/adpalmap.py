@@ -579,17 +579,16 @@ def process_data(id_number,
 
         group_report = []
 
-        adpalmap_group = group(qa_report=qa_report, adpalmap_config=adpalmap_config)
+        adpalmap_group = group(adpalmap_config=adpalmap_config)
 
-        # Check this conditions with 'adpalmap_config.enable_sofia' will be similar but in this 
-        # way cases, where sofia get an error and does not produce a mask, work better
-        if adpalmap_group.qa_report:
+        # Check if SoFiA is on, otherwise group is not necessary
+        if adpalmap_config.enable_sofia:
 
             if adpalmap_config.run_mode == 'absorption':
-
-                abs_group_mask = adpalmap_group.find_mask2d_sofia(mode="absorption")
+                
+                abs_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_abs, mode="absorption")
                 if abs_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, abs_group_mask)
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_abs.input_data, abs_group_mask)
                     if group_mask is not None:
 
                         adpalmap_sopar_abs.update_group_parameters(group_mask)
@@ -606,7 +605,7 @@ def process_data(id_number,
 
             if adpalmap_config.run_mode == 'emission':
 
-                emi_group_mask = adpalmap_group.find_mask2d_sofia(mode="emission")
+                emi_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_emi, mode="emission")
                 if emi_group_mask:
                     group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
                     if group_mask is not None:
@@ -622,9 +621,9 @@ def process_data(id_number,
 
             if adpalmap_config.run_mode == 'both':
 
-                abs_group_mask = adpalmap_group.find_mask2d_sofia(mode="absorption")
+                abs_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_abs, mode="absorption")
                 if abs_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, abs_group_mask)
+                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_abs.input_data, abs_group_mask)
                     if group_mask is not None:
                         adpalmap_sopar_abs.update_group_parameters(group_mask)
                         abs_sopar_group_report = adpalmap_sopar_abs.run_sofia(adpalmap_config=adpalmap_config)
@@ -636,7 +635,7 @@ def process_data(id_number,
                         )
                         group_report.append(abs_sip_group_report)
 
-                emi_group_mask = adpalmap_group.find_mask2d_sofia(mode="emission")
+                emi_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_emi, mode="emission")
                 if emi_group_mask:
                     group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
                     if group_mask is not None:

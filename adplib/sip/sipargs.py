@@ -714,7 +714,7 @@ class SiPar(dict):
             # The cont image is set only if the TAP service is used and the user does 
             # not specify any value.
             elif (attr_name == "user_image" and 
-                  getattr(self, attr_name) is None and 
+                  getattr(self, attr_name) is not None and 
                   self.adpalmap_config.enable_tap_service
             ):  
                 logger.info(

@@ -848,6 +848,12 @@ class SoPar(dict):
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
 
+                # Safe the 3D-mask for the group module
+                self.mask3d = (
+                    self.output_directory 
+                    / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
+                )
+
                 if self.adpalmap_config.html_report:
                     try:
                         self.report_outputs(sopar_report)  
@@ -883,7 +889,7 @@ class SoPar(dict):
             sopar_report.update({"log_path": self.output_directory / sopar_log_name})
             sopar_report.update(
                 {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
-            )
+            ) # Compare between the intial and the final sofia.par to track changes
 
             # Remove existing log file
             if  sopar_report["log_path"].exists():
@@ -917,6 +923,13 @@ class SoPar(dict):
                 logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                 Logger.raw("================================")
                 
+                # Safe the 3D-mask for the group module
+                self.mask3d = (
+                    self.output_directory 
+                    / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
+                )
+
+                # Add output to the SoFiA report 
                 if adpalmap_config.html_report:
                     try:
                         self.report_outputs(sopar_report)  
@@ -985,10 +998,21 @@ class SoPar(dict):
                     Logger.raw("================================")
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")
-                    try:
-                        self.report_outputs(sopar_report)  
-                    except Exception as e:
-                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
+                    # Safe the 3D-mask for the group module
+                    self.mask3d = (
+                        self.output_directory 
+                        / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
+                    )
+                    
+                    # Add output to the SoFiA report 
+                    if adpalmap_config.html_report:
+                        try:
+                            self.report_outputs(sopar_report)  
+                        except Exception as e:
+                            logger.warning(
+                                f"Error adding outputs for the html report (non-critical): {e}"
+                            )
 
                 except subprocess.CalledProcessError as e:
                     error = str(e)
@@ -1064,10 +1088,21 @@ class SoPar(dict):
                     Logger.raw("================================")
                     logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
                     Logger.raw("================================")  
-                    try:
-                        self.report_outputs(sopar_report)  
-                    except Exception as e:
-                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
+                    # Safe the 3D-mask for the group module
+                    self.mask3d = (
+                        self.output_directory 
+                        / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
+                    )
+
+                    # Add output to the SoFiA report 
+                    if adpalmap_config.html_report:
+                        try:
+                            self.report_outputs(sopar_report)  
+                        except Exception as e:
+                            logger.warning(
+                                f"Error adding outputs for the html report (non-critical): {e}"
+                            )
 
                 except subprocess.CalledProcessError as e:
                     error = str(e)

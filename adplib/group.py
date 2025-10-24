@@ -32,27 +32,28 @@ class group(dict):
         self.__dict__ = self 
 
 
-    def find_mask2d_sofia(self, mode=None):
-
-        for single_qa_report in self.qa_report:
-            # Verificar que el report sea del modo correcto
-            if single_qa_report.get('mode') == mode:
-                if 'outputs' in single_qa_report and 'images' in single_qa_report['outputs']:
-                    # Buscar la imagen mask2d_sofia en este report específico
-                    for image in single_qa_report['outputs']['images']:
-                        if image['type'] == 'mask2d_sofia':
-                            mask_path = image['path']
-                            logger.info(f"Found 2D-mask from SoFiA for mode '{mode}': {mask_path}")
+    def find_mask_sofia(self, sopar=None, mode=None):
         
-                            return mask_path
-                        
-        #logger.warning("No suitable 2D mask from SoFiA found. Skipping grouping.")
-        logger.warning(
-          f"No 2D-mask from SoFiA found for mode: '{mode}'. Group execution aborted"
-          )
-        return None
-            
+        if (hasattr(sopar , 'mask3d') 
+        and getattr(sopar, 'mask3d') is not None
+        ):
+            mask = sopar.mask3d
 
+            if mask.exists():
+                logger.info(f"Found mask from SoFiA for mode '{mode}': {mask}")
+                return mask
+            else:
+                logger.warning(
+                f"No mask from SoFiA found for mode: '{mode}'. Group execution aborted"
+                )
+                return None  
+            
+        else:
+            logger.critical(
+                "The mask3d attribute does not exist, something went wrong. Please open an"
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                "case."
+            )
       
     def group_sofia_detections(self, cube_file, mask_file):
 
@@ -80,56 +81,60 @@ class group(dict):
         with fits.open(cube_file) as f:
             cub = f[0].data
         logger.info(f"Datacube '{cube_file}' opened")
+        
+        if cub.ndim == 4:
+            cub = np.squeeze(cub, axis=0)
+        elif cub.ndim > 4:
+            logger.error("Too many dimensions")
+            sys.exit(-1)
 
         logger.info(f"Loading mask '{mask_file}'...")
         with fits.open(mask_file) as f:
-            msk = f[0].data
+            msk_original = f[0].data  
             header = f[0].header
         logger.info(f"Mask '{mask_file}' opened")
-        logger.info(f"Mask shape: {msk.shape}")
+        
+        if msk_original.ndim == 4:
+            msk_original = np.squeeze(msk_original, axis=0)
+        elif msk_original.ndim > 4:
+            logger.error("Too many dimensions")
+            sys.exit(-1)
+
+        msk_original = np.nan_to_num(msk_original, nan=0.0)
+        cub = np.nan_to_num(cub, nan=0.0)
+
+        logger.info(f"Mask shape: {msk_original.shape}")
         logger.info(f"Cube shape: {cub.shape}")
 
-        # If mask is 3D, collapse it to 2D by taking max along spectral axis. 
-        # This should never happend because we manage the workflow of the pipeline, but just in case..
-        if msk.ndim == 3:
-            logger.info("Collapsing 3D mask to 2D...")
-            msk_2d = msk.max(axis=0)
-        else:
-            msk_2d = msk
-
- 
-        logger.info("Creating integrated flux image from cube...")
-        if cub.ndim == 3:
-            flux_image = cub.sum(axis=0) 
-        else:
-            flux_image = cub
-
+        # Find unique IDs in the mask
         logger.info("Finding unique source IDs...")
-        unique_ids = np.unique(msk_2d)
-        unique_ids = unique_ids[unique_ids > 0]  
+        unique_ids = np.unique(msk_original)
+        unique_ids = unique_ids[unique_ids > 0]
         logger.info(f"Found source IDs: {unique_ids.tolist()}")
 
-
+        # Create dictionary with source information - CORREGIDO
         logger.info("Precomputing source properties...")
         source_props = {}
+        
         for source_id in unique_ids:
+
+            source_mask = (msk_original == source_id)  # ✅ Nombre diferente
             
-            source_mask = (msk_2d == source_id)
-            
-            # Calculate properties
-            total_area = source_mask.sum()
-            total_flux = (flux_image * source_mask).sum()
-            total_absflux = np.abs(flux_image * source_mask).sum()
+            # Calculate integrated properties along the spectral axis
+            aper_2d = source_mask.sum(axis=0).astype(bool)
+            imag_2d = np.nansum(cub * source_mask, axis=0)
             
             source_props[source_id] = {
-                'mask': source_mask,
-                'total_area': total_area,
-                'total_flux': total_flux,
-                'total_absflux': total_absflux
+                'mask': source_mask,      
+                'aper_2d': aper_2d,     
+                'imag_2d': imag_2d,      
+                'total_area': aper_2d.sum(),
+                'total_flux': np.nansum(imag_2d),
+                'total_absflux': np.nansum(np.abs(imag_2d))
             }
 
-        # Clean up large arrays 
-        del msk, msk_2d, flux_image
+        # Free memory
+        del cub
         gc.collect()
 
         # Loop over source pairs to find overlaps
@@ -144,16 +149,18 @@ class group(dict):
 
         for i, ii in enumerate(ids):
             for jj in ids[i+1:]:
-                
-                mask_ii = source_props[ii]['mask']
-                mask_jj = source_props[jj]['mask']
+                # Use built-in 2D apertures to calculate overlap
+                aper_ii = source_props[ii]['aper_2d']
+                aper_jj = source_props[jj]['aper_2d']
+                imag_ii = source_props[ii]['imag_2d']
+                imag_jj = source_props[jj]['imag_2d']
+
                 
                 # Calculate overlap area
-                overlap_mask = mask_ii & mask_jj
-                overlap_area = overlap_mask.sum()
-                
+                overlap = aper_ii & aper_jj
+                overlap_area = overlap.sum()
+              
                 if overlap_area == 0:
-                    # No overlap, skip calculations
                     if print_all:
                         logger.info(
                             f"{ii:5d} {jj:5d} {0.0:14.2f} {0.0:14.2f} {0.0:14.2f} "
@@ -161,25 +168,13 @@ class group(dict):
                         )
                     continue
                 
-                # Calculate fractional overlaps
+                # Calculate overlap fractions
                 frac_area_ii = overlap_area / source_props[ii]['total_area']
                 frac_area_jj = overlap_area / source_props[jj]['total_area']
-                
-                # For flux calculations, we need the flux image again temporarily
-                with fits.open(cube_file) as f:
-                    cub_temp = f[0].data
-                    if cub_temp.ndim == 3:
-                        flux_temp = cub_temp.sum(axis=0)
-                    else:
-                        flux_temp = cub_temp
-                
-                frac_flux_ii = (flux_temp * overlap_mask).sum() / source_props[ii]['total_flux'] if source_props[ii]['total_flux'] != 0 else 0
-                frac_flux_jj = (flux_temp * overlap_mask).sum() / source_props[jj]['total_flux'] if source_props[jj]['total_flux'] != 0 else 0
-                frac_absflux_ii = np.abs(flux_temp * overlap_mask).sum() / source_props[ii]['total_absflux'] if source_props[ii]['total_absflux'] != 0 else 0
-                frac_absflux_jj = np.abs(flux_temp * overlap_mask).sum() / source_props[jj]['total_absflux'] if source_props[jj]['total_absflux'] != 0 else 0
-                
-                del cub_temp, flux_temp
-                gc.collect()
+                frac_flux_ii = (imag_ii * overlap).sum() / source_props[ii]['total_flux'] if source_props[ii]['total_flux'] != 0 else 0
+                frac_flux_jj = (imag_jj * overlap).sum() / source_props[jj]['total_flux'] if source_props[jj]['total_flux'] != 0 else 0
+                frac_absflux_ii = np.abs(imag_ii * overlap).sum() / source_props[ii]['total_absflux'] if source_props[ii]['total_absflux'] != 0 else 0
+                frac_absflux_jj = np.abs(imag_jj * overlap).sum() / source_props[jj]['total_absflux'] if source_props[jj]['total_absflux'] != 0 else 0
                 
                 # Check overlap criteria
                 paired = False
@@ -189,18 +184,13 @@ class group(dict):
                     paired = True
                 elif overlap_mode == 'absflux' and frac_absflux_ii > overlap_threshold and frac_absflux_jj > overlap_threshold:
                     paired = True
+
                 
                 if paired:
-                    logger.info(
-                        f"{ii:5d} {jj:5d} {frac_area_ii:14.2f} {frac_area_jj:14.2f} {frac_flux_ii:14.2f} "
-                        f"{frac_flux_jj:14.2f} {frac_absflux_ii:14.2f} {frac_absflux_jj:14.2f} (*)"
-                    )
-                    pairs.append((ii, jj))
+                    logger.info(f"{ii:5d} {jj:5d} {frac_area_ii:14.2f} {frac_area_jj:14.2f} {frac_flux_ii:14.2f} {frac_flux_jj:14.2f} {frac_absflux_ii:14.2f} {frac_absflux_jj:14.2f} (*)")
+                    pairs.append((int(ii), int(jj)))
                 elif print_all:
-                    logger.info(
-                        f"{ii:5d} {jj:5d} {frac_area_ii:14.2f} {frac_area_jj:14.2f} {frac_flux_ii:14.2f} "
-                        f"{frac_flux_jj:14.2f} {frac_absflux_ii:14.2f} {frac_absflux_jj:14.2f}"
-                    )
+                    logger.info(f"{ii:5d} {jj:5d} {frac_area_ii:14.2f} {frac_area_jj:14.2f} {frac_flux_ii:14.2f} {frac_flux_jj:14.2f} {frac_absflux_ii:14.2f} {frac_absflux_jj:14.2f}")
 
         logger.info(f"Pairs = {pairs}")
 
@@ -210,22 +200,15 @@ class group(dict):
             logger.info(f"Groups = {groups}")
         else:
             groups = []
-            logger.info("No overlapping pairs found.")
+            logger.warning("No overlapping pairs found.")
 
         if len(groups) and writemask:
-            logger.info("Modifying mask in order to group sources and delete un-grouped sources ...")
+            logger.info("Modifying mask in order to group sources and delete un-grouped sources...")
             
-            # Reload the original mask for modification
-            with fits.open(mask_file) as f:
-                msk_original = f[0].data
-                header_original = f[0].header
-            
+            # Usar msk_original en lugar de recargar el archivo
             mask_out = Path(mask_file).parent / f"group_{Path(mask_file).name}"
+            msk_new = msk_original.copy()  
             
-            # Create a copy for output
-            msk_new = msk_original.copy()
-            
-            # Process groups
             remaining_ids = set(ids)
             for gg in groups:
                 logger.info(f" group: {gg}")
@@ -235,24 +218,19 @@ class group(dict):
                         remaining_ids.remove(source_id)
                     if source_id != group_id:
                         logger.info(f"          {source_id} -> {group_id}")
-                        if msk_new.ndim == 3:
-                            msk_new[msk_new == source_id] = group_id
-                        else:
-                            msk_new[msk_new == source_id] = group_id
+                        msk_new[msk_new == source_id] = group_id
             
-            # Remove ungrouped sources
             for source_id in remaining_ids:
                 logger.info(f"  source {source_id} deleted")
-                if msk_new.ndim == 3:
-                    msk_new[msk_new == source_id] = 0
-                else:
-                    msk_new[msk_new == source_id] = 0
+                msk_new[msk_new == source_id] = 0
             
-            fits.writeto(mask_out, msk_new, header=header_original, overwrite=True)
-            logger.info(f"Written mask {mask_out}")
+            if np.unique(msk_new[msk_new > 0]).shape[0] > len(groups):
+                logger.error("The number of sources in the new mask is larger than the number of groups.")
+                sys.exit(-1)
 
+            fits.writeto(mask_out, msk_new, header=header, overwrite=True)
+            logger.info(f"Written mask {mask_out}")
             return Path(mask_out)
-        
         else:
             logger.warning("No sources to group")
             return None

@@ -1,7 +1,7 @@
 
 # ADP ALMA Pipeline
 
-ADP Alma Pipeline (ADPALMAP) is a wrapper for the software (ALminer, SoFiA2 and SIP) designed to obtain advanced ALMA data products.
+The ALMA spectral line ADP software (“ADPALMAP”) is an end-to-end pipeline which acts as a wrapper and control package for the downloading of ALMA data from the science archive, and the subsequent source finding, parameterization, and visualization workflow, using the existing Source Finding Application (SoFiA) and SoFiA Image Pipeline (SIP) packages. ADPALMAP is designed to generate advanced ALMA spectral line data products with minimal user intervention.
 
 ## Requirements
 
@@ -14,12 +14,12 @@ This pipeline makes use of the external programs Source Finding Application (SoF
 
 Additionally, part of the code from the ALMA Archive Mining & Visualization Toolkit (ALMINER, https://github.com/emerge-erc/ALminer.git) software has been used and suitably adapted.
 
-**Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
+**Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori for each device. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
 
 _Alternatively (not recommended option, under user responsibility)_: the corresponding line of code where each software is executed can be changed. To do this:
 
   - Look for the function `run_sofia` inside the _sopar.py_ module. 
-  - Inside each function, look for the lines `cmd = ["sofia", f"{temp_file_path}"]` in each of the if blocks corresponding to each of the usage modes. 
+  - Inside each function, look for the lines `cmd = ["sofia", f"{temp_file_path}"]` in each of the if blocks corresponding to each of the usage modes (see below). 
   - Change the (str) _"sofia"_ for the corresponding command used to run SoFiA on the device.
 
   - Look for the function `generate_command` inside the _sipagrs.py_ module.
@@ -77,10 +77,16 @@ The pipeline runs using a configuration file named *config.yaml*, which is expla
 ```
 $ adpalmap -c config_example.yaml
 ```
-The pipeline also has two other arguments, '-sop|--sofia-parameters' and '-sarg|--sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if they were run in isolation, respectively. The following sections provide more details about their usage. Example:
+The pipeline also has two other arguments, '-sop|--sofia-parameters' and '-sarg|--sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if each software were run in isolation. The following sections provide more details about their usage. Example:
 ```
 $ adpalmap -sop contsub.threshold=3.0 linker.radiusXY=3 -sarg -i 0.15
 
+```
+Finally, the pipeline has the '-i|--info' argument, which allows you to briefly display information about the files used by the pipeline, as well as the parameters they contain. Example:
+
+```
+$ adpalmap -i file=config.yaml
+$ adpalmap -i parameter=run_mode
 ```
 
 
