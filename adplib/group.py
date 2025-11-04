@@ -38,21 +38,20 @@ class group(dict):
         and getattr(sopar, 'mask3d') is not None
         ):
             mask = sopar.mask3d
-
             if mask.exists():
                 logger.info(f"Found mask from SoFiA for mode '{mode}': {mask}")
                 return mask
             else:
-                logger.warning(
-                f"No mask from SoFiA found for mode: '{mode}'. Group execution aborted"
-                )
-                return None  
-            
-        else:
-            logger.critical(
+                logger.critical(
                 "The mask3d attribute does not exist, something went wrong. Please open an"
                 " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
                 "case."
+            )
+                return None  
+        
+        else:
+            logger.warning(
+                f"No mask from SoFiA found for mode: '{mode}'. Group execution aborted"
             )
       
     def group_sofia_detections(self, cube_file, mask_file):

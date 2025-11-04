@@ -150,6 +150,9 @@ def reorganize_log(log_path, worker_results):
     aux_logger = Initial_Logger.get_initial_logger()
     
     try:
+        
+    ##############################################################################################
+
         with open(log_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
@@ -157,8 +160,14 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
+        # Diccionario para trackear qué PIDs ya pasaron por group
+        pid_group_flags = {}
+
+        # Worker from SoFiA-2 - SIP - Group
         sopar_workers = [worker[0] for worker in worker_results]
         sip_workers = [worker[1] for worker in worker_results]
+        group_workers = [worker[3] for worker in worker_results]
+
         
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
@@ -170,11 +179,18 @@ def reorganize_log(log_path, worker_results):
         sip_start_pattern = re.compile(
             r"\[PID:(\d+)\].*SIP start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
         )
+        
+        group_start_pattern = re.compile(
+            r"\[PID:(\d+)\].*Source Grouping start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
+        )
+
+    ##############################################################################################
 
         for i, line in enumerate(lines):
             
             pid_match = (pid_pattern.search(line))
-            #Es una línea sin PID. Hay algunas
+
+            # For lines without PID ([PID]). There are a few
             if pid_match is None:
                 continue
 
@@ -183,8 +199,8 @@ def reorganize_log(log_path, worker_results):
                 if not main_pid:
                     main_pid = current_pid
                 pid_groups[current_pid] = []
-
-
+                # Iniciate the flag for this PID (False = before group)
+                pid_group_flags[current_pid] = False
 
             if "ADPALMAP successfully ended" in line:
                 main_final.append(line)
@@ -195,82 +211,167 @@ def reorganize_log(log_path, worker_results):
                     pid_groups[current_pid].append(line)
                     sofia_match = sofia_start_pattern.search(line)
                     sip_match = sip_start_pattern.search(line)
-
+                    group_match = group_start_pattern.search(line)
+        
+    ##############################################################################################
+     
                     if sofia_match:
                         pid, mode, input_name = sofia_match.groups()
-                        # Buscar el log_path correspondiente en sopar_worker_results
                         log_found = False
-                        for worker in sopar_workers:
-                            for run in worker:
-                                if (str(run['PID']) == pid and
-                                    run['mode'] == mode and
-                                    run['input_name'] == input_name):
-                                    log_path_sofia = run['log_path']
+                        
+                        if not pid_group_flags[pid]:  # Before group - find regular ones
+                            
+                            for worker in sopar_workers:
+                                
+                                for run in worker:
+                                    if (str(run['PID']) == pid and
+                                        run['mode'] == mode and
+                                        run['input_name'] == input_name):
+                                        log_path_sofia = run['log_path']
 
-                                    if log_path_sofia and Path(log_path_sofia).exists():
-                                        with open(
-                                            log_path_sofia, 'r', encoding='utf-8'
-                                            ) as sofia_log:
-                                            sofia_lines = sofia_log.readlines()
-                                        # Opcional: indentar o marcar las líneas del log de SoFia
-                                        pid_groups[current_pid].extend(
-                                            [f"    {l}" for l in sofia_lines]
-                                        )
-                                        log_found = True
-                                        break
-                                    else:
-                                        aux_logger.warning(
-                                            f"Error reorganizing the final logfile. The SoFiA-2 logfile '{log_path_sofia}' "
-                                            "does not exits."
-                                        )
-                            if log_found:
-                                break
+                                        if log_path_sofia and Path(log_path_sofia).exists():
+                                            with open(
+                                                log_path_sofia, 'r', encoding='utf-8'
+                                                ) as sofia_log:
+                                                sofia_lines = sofia_log.readlines()
+                                            pid_groups[current_pid].append(
+                                                f"    [INCLUDING SOFIA LOG: {log_path_sofia}]\n"
+                                            )
+                                            pid_groups[current_pid].extend(
+                                                [f"    {l}" for l in sofia_lines]
+                                            )
+                                            log_found = True
+                                            break
+                                        else:
+                                            aux_logger.warning(
+                                                "Error reorganizing the final logfile. "
+                                                f"The SoFiA-2 logfile '{log_path_sofia}' "
+                                                "does not exits."
+                                            )
+                                if log_found:
+                                    break
+                        else:  # After group - find in group
+                            for worker in group_workers:
+                                for run in worker:
+                                    if (str(run['PID']) == pid and
+                                        run.get('mode') == mode and
+                                        run.get('input_name') == input_name and
+                                        run.get('software_id') == 'SoFiA-2'):
+                                        log_path_sofia = run['log_path']
+
+                                        if log_path_sofia and Path(log_path_sofia).exists():
+                                            pid_groups[current_pid].append(
+                                                f"\n    === Group SoFiA-2 Execution "
+                                                f"(Mode: {mode}) ===\n")
+                                            with open(
+                                                log_path_sofia, 'r', encoding='utf-8'
+                                                ) as sofia_log:
+                                                sofia_lines = sofia_log.readlines()
+                                            pid_groups[current_pid].append(
+                                                    f"    [INCLUDING SOFIA LOG: {log_path_sofia}]\n"
+                                                )
+                                            pid_groups[current_pid].extend(
+                                                [f"        {l}" for l in sofia_lines]
+                                            )
+                                            log_found = True
+                                            break
+                                        else:
+                                            aux_logger.warning(
+                                                "Error reorganizing the final logfile. "
+                                                f"The group SoFiA-2 logfile '{log_path_sofia}' "
+                                                "does not exits."
+                                            )
+
+    ##############################################################################################
+    
                     elif sip_match:
                         pid, mode, input_name = sip_match.groups()
                         log_found = False
                         
-                        for worker in sip_workers:
-                            for run in worker:
-                                if (str(run['PID']) == pid and
-                                    run['mode'] == mode and
-                                    run['input_name'] == input_name):
-                                    log_path_sip = run['log_path']
+                        if not pid_group_flags[pid]:  
+                            for worker in sip_workers:
+                                for run in worker:
+                                    if (str(run['PID']) == pid and
+                                        run['mode'] == mode and
+                                        run['input_name'] == input_name):
+                                        log_path_sip = run['log_path']
 
-                                    if log_path_sip and Path(log_path_sip).exists():
-                                        
-                                        with open(
-                                            log_path_sip, 'r', encoding='utf-8'
-                                            ) as sip_log:
-                                            sip_lines = sip_log.readlines()
-                                        # Opcional: indentar o marcar las líneas del log de SIP
-                                        pid_groups[current_pid].extend(
-                                            [f"    {l}" for l in sip_lines]
-                                        )
-                                        log_found = True
-                                        break
-                                    else:
-                                        aux_logger.warning(
-                                            f"Error reorganizing the final logfile. The SIP logfile '{log_path_sip}' "
-                                            "does not exits."
-                                        )
-                            if log_found:
-                                break
+                                        if log_path_sip and Path(log_path_sip).exists():
+                                            with open(
+                                                log_path_sip, 'r', encoding='utf-8'
+                                                ) as sip_log:
+                                                sip_lines = sip_log.readlines()
+                                            pid_groups[current_pid].append(
+                                                f"    [INCLUDING SIP LOG: {log_path_sofia}]\n"
+                                            )
+                                            pid_groups[current_pid].extend(
+                                                [f"    {l}" for l in sip_lines]
+                                            )
+                                            log_found = True
+                                            break
+                                        else:
+                                            aux_logger.warning(
+                                                "Error reorganizing the final logfile. "
+                                                f"The SIP logfile '{log_path_sip}' "
+                                                "does not exits."
+                                            )
+                                if log_found:
+                                    break
+                        else:  
+                            for worker in group_workers:
+                                for run in worker:
+                                    if (str(run['PID']) == pid and
+                                        run.get('mode') == mode and
+                                        run.get('input_name') == input_name and
+                                        run.get('software_id') == 'SIP'):
+                                        log_path_sip = run['log_path']
+
+                                        if log_path_sip and Path(log_path_sip).exists():
+                                            pid_groups[current_pid].append(
+                                                f"\n    === Group SIP Execution (Mode: {mode}) ===\n")
+                                            with open(
+                                                log_path_sip, 'r', encoding='utf-8'
+                                                ) as sip_log:
+                                                sip_lines = sip_log.readlines()
+                                            pid_groups[current_pid].append(
+                                                    f"    [INCLUDING SIP LOG: {log_path_sofia}]\n"
+                                                )
+                                            pid_groups[current_pid].extend(
+                                                [f"        {l}" for l in sip_lines]
+                                            )
+                                            log_found = True
+                                            break
+                                        else:
+                                            aux_logger.warning(
+                                                "Error reorganizing the final logfile. "
+                                                f"The group SIP logfile '{log_path_sip}' "
+                                                "does not exits."
+                                            )
+
+    ##############################################################################################
+
+                    elif group_match:
+                        pid, mode, input_name = group_match.groups()
+                        # Mark that this specific PID has already been through the group
+                        pid_group_flags[pid] = True
+
                 else:
                     main_final.append(line)
 
+    ##############################################################################################
+    
         sorted_lines = []
 
-        #Mensajes iniciales del main
+        # Mensajes iniciales del main
         sorted_lines.extend(pid_groups.pop(main_pid))
 
-        #Subprocesos ordenados numéricamente
+        # Subprocesos ordenados numéricamente
         sub_pids = [pid for pid in pid_groups if pid != main_pid]
         
         for pid in sorted(sub_pids, key=int):
             sorted_lines.append(f"\n=== Subprocess PID: {pid} start ===\n")
             sorted_lines.extend(pid_groups[pid])
             sorted_lines.append(f"===  Subprocess PID: {pid} end  ===\n\n")
-
 
         sorted_lines.extend(main_final)
 
@@ -281,6 +382,8 @@ def reorganize_log(log_path, worker_results):
             f.writelines(sorted_lines)
         
         return sorted_log_path
+    
+    ##############################################################################################
             
     except Exception as e:
         print(f"Fatal error reorganizing {log_path}. Error: {e}")
@@ -292,7 +395,7 @@ def reorganize_log(log_path, worker_results):
             f.writelines(f"Fatal error reorganizing {log_path}. Error: {e}")
         
         return sorted_log_path
-        
+
 
 def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
@@ -316,7 +419,7 @@ def process_data(id_number,
                  input_data, 
                  primary_beam, 
                  mask, 
-                 ancillary,
+                 ancillary_data,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
@@ -336,27 +439,26 @@ def process_data(id_number,
         qa_report = []
 
         if adpalmap_config.run_mode == 'emission':
-
+            
+            # 'mode' variable has only 'emission' or 'absorption' while adpalmap_config.run_mode
+            # has also 'both' which has no sense for logs. The 'mode' variable is needed.
             adpalmap_sopar_emi = SoPar(
                 sofia_file_path=adpalmap_config.sofia_emi_file, 
-                sopar_mode=adpalmap_config.run_mode,
-                pid = pid
+                adpalmap_config=adpalmap_config,
+                mode='emission', 
+                pid= pid,
+                sofia_threads=sofia_threads
                 )
             
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mask=mask,
-                                                       mode=adpalmap_config.run_mode,
-                                                       use_pb=adpalmap_config.use_pb,
-                                                       use_mask=adpalmap_config.use_mask,
-                                                       tap=adpalmap_config.enable_tap_service,
-                                                       sofia_threads=sofia_threads
+                                                       mask=mask
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
 
-            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config)
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia()
 
             sofia_report.append(emi_sofia_report)
 
@@ -381,24 +483,20 @@ def process_data(id_number,
 
             adpalmap_sopar_abs = SoPar(
                 sofia_file_path=adpalmap_config.sofia_abs_file, 
-                sopar_mode="absorption",
-                pid = os.getpid()
+                adpalmap_config=adpalmap_config,
+                mode='absorption',
+                pid = pid
                 )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mask=mask,
-                                                       mode=adpalmap_config.run_mode,
-                                                       use_pb=adpalmap_config.use_pb,
-                                                       use_mask=adpalmap_config.use_mask,
-                                                       tap=adpalmap_config.enable_tap_service,
-                                                       sofia_threads=sofia_threads
+                                                       mask=mask
                                                        )  
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_abs.auto_setup()
 
-            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config)
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia()
 
             sofia_report.append(abs_sofia_report)
 
@@ -423,43 +521,35 @@ def process_data(id_number,
 
             adpalmap_sopar_abs = SoPar(
                 sofia_file_path=adpalmap_config.sofia_abs_file,
-                sopar_mode="absorption",
-                pid = os.getpid()
+                adpalmap_config=adpalmap_config,
+                mode='absorption',
+                pid = pid
                 )
             adpalmap_sopar_emi = SoPar(
                 sofia_file_path=adpalmap_config.sofia_emi_file,
-                sopar_mode="emission",
-                pid = os.getpid()
+                adpalmap_config=adpalmap_config,
+                mode='emission',
+                pid = pid
                 )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
-                                                       mask=mask,
-                                                       mode=adpalmap_config.run_mode,
-                                                       use_pb=adpalmap_config.use_pb,
-                                                       use_mask=adpalmap_config.use_mask,
-                                                       tap=adpalmap_config.enable_tap_service,
-                                                       sofia_threads=sofia_threads
+                                                       mask=mask
                                                        )  
             #Update sofia emi file with the -sop parameters
             adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
                                                        input_data=input_data, 
                                                        primary_beam=primary_beam, 
                                                        mask=mask,
-                                                       mode=adpalmap_config.run_mode, 
-                                                       use_pb=adpalmap_config.use_pb,
-                                                       use_mask=adpalmap_config.use_mask,
-                                                       tap=adpalmap_config.enable_tap_service,
-                                                       run=0,
-                                                       sofia_threads=sofia_threads
+                                                       run=0
                                                        )   
             if adpalmap_config.auto_setup == True:
                 adpalmap_sopar_emi.auto_setup()
                 adpalmap_sopar_abs.auto_setup()
 
 
-            abs_sofia_report = adpalmap_sopar_abs.run_sofia(adpalmap_config)
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia()
             sofia_report.append(abs_sofia_report)
             
             if adpalmap_config.enable_tap_service == True:
@@ -478,7 +568,7 @@ def process_data(id_number,
                 abs_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(abs_qa_report)
 
-            emi_sofia_report = adpalmap_sopar_emi.run_sofia(adpalmap_config, run=0)
+            emi_sofia_report = adpalmap_sopar_emi.run_sofia(run=0)
             sofia_report.append(emi_sofia_report)
 
             if adpalmap_config.enable_tap_service == True:
@@ -514,38 +604,34 @@ def process_data(id_number,
         from adplib.sip.sipargs import SiPar
 
         sip_report = []
-
+        
         adpalmap_sipar = SiPar(
-            sip_file_path = adpalmap_config.sip_par_file,
-            adpalmap_config = adpalmap_config,
-            input_data = input_data,
-            ancillary = ancillary,
+            sip_file_path = adpalmap_config.sip_par_file, adpalmap_config = adpalmap_config,
+            input_data = input_data,  ancillary_data = ancillary_data,
             sargs = args.sip_args,
-            number_list = number_list,
-            id_number = id_number,
-            pid = os.getpid()
+            number_list = number_list, id_number = id_number, pid = pid
             )
         
-        adpalmap_sipar.update_input_parameters(args.sip_args, adpalmap_config)
+        adpalmap_sipar.update_input_parameters()
               
         
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi)
+                    adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
                 )
 
             elif adpalmap_config.run_mode == 'absorption':
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                    adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
                 )
             elif adpalmap_config.run_mode == 'both':
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_abs)
+                    adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
                 )
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config, sopar=adpalmap_sopar_emi, run=0)
+                    adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi, run=0)
                 )
         else: 
             if adpalmap_config.run_mode == 'emission':         
@@ -573,9 +659,7 @@ def process_data(id_number,
 
     if adpalmap_config.enable_group:
 
-        from adplib.group import group
-
-        logger.info("Starting Source Grouping")
+        from adplib.group import group      
 
         group_report = []
 
@@ -586,65 +670,113 @@ def process_data(id_number,
 
             if adpalmap_config.run_mode == 'absorption':
                 
-                abs_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_abs, mode="absorption")
+                Logger.raw("================================") 
+                logger.info(f"Source Grouping start. Mode: absorption. Input data: {input_data.stem}")
+                Logger.raw("================================")
+                # Find the 3D mask from SoFiA-2
+                abs_group_mask = adpalmap_group.find_mask_sofia(
+                    sopar=adpalmap_sopar_abs, mode="absorption"
+                )
+
                 if abs_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_abs.input_data, abs_group_mask)
+                    # Execute group and create a new mask
+                    group_mask = adpalmap_group.group_sofia_detections(
+                        adpalmap_sopar_abs.input_data, abs_group_mask
+                    )
+                    Logger.raw("================================")
+                    logger.info("Source Grouping finished")
+                    Logger.raw("================================")
                     if group_mask is not None:
-
+                        # Update the parameters for execute SoFiA-2 again
                         adpalmap_sopar_abs.update_group_parameters(group_mask)
-                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia(adpalmap_config=adpalmap_config)
+                        # Execute SoFiA-2 
+                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
                         group_report.append(abs_sopar_group_report)
-
-                        abs_sip_group_report = adpalmap_sipar.run_sip(
-                            adpalmap_config=adpalmap_config, 
-                            sopar=adpalmap_sopar_abs
-                        )
+                        # Execute SIP
+                        abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
                         group_report.append(abs_sip_group_report)
                     
             
 
             if adpalmap_config.run_mode == 'emission':
 
-                emi_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_emi, mode="emission")
+                Logger.raw("================================") 
+                logger.info(f"Source Grouping start. Mode: emission. Input data: {input_data.stem}")
+                Logger.raw("================================")
+                # Find the 3D mask from SoFiA-2
+                emi_group_mask = adpalmap_group.find_mask_sofia(
+                    sopar=adpalmap_sopar_emi, mode="emission"
+                )
+                
                 if emi_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
+                    # Execute group and create a new mask
+                    group_mask = adpalmap_group.group_sofia_detections(
+                        adpalmap_sopar_emi.input_data, emi_group_mask
+                    )
+                    Logger.raw("================================")
+                    logger.info("Source Grouping finished")
+                    Logger.raw("================================")
                     if group_mask is not None:
+                        # Update the parameters for execute SoFiA-2 again
                         adpalmap_sopar_emi.update_group_parameters(group_mask)
-                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(adpalmap_config=adpalmap_config)
+                        # Execute SoFiA-2
+                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
                         group_report.append(emi_sopar_group_report)
-
-                        emi_sip_group_report = adpalmap_sipar.run_sip(
-                            adpalmap_config=adpalmap_config, 
-                            sopar=adpalmap_sopar_emi
-                        )
+                        # Execute SIP
+                        emi_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
                         group_report.append(emi_sip_group_report)
 
             if adpalmap_config.run_mode == 'both':
-
-                abs_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_abs, mode="absorption")
+                
+                Logger.raw("================================") 
+                logger.info(f"Source Grouping start. Mode: absorption. Input data: {input_data.stem}")
+                Logger.raw("================================")
+                # Find the 3D mask from SoFiA-2
+                abs_group_mask = adpalmap_group.find_mask_sofia(
+                    sopar=adpalmap_sopar_abs, mode="absorption"
+                )
                 if abs_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_abs.input_data, abs_group_mask)
+                    # Execute group and create a new mask
+                    group_mask = adpalmap_group.group_sofia_detections(
+                        adpalmap_sopar_abs.input_data, abs_group_mask
+                    )
+                    Logger.raw("================================")
+                    logger.info("Source Grouping finished")
+                    Logger.raw("================================")
                     if group_mask is not None:
+                        # Update the parameters for execute SoFiA-2 again
                         adpalmap_sopar_abs.update_group_parameters(group_mask)
-                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia(adpalmap_config=adpalmap_config)
+                        # Execute SoFiA-2
+                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
                         group_report.append(abs_sopar_group_report)
-
-                        abs_sip_group_report = adpalmap_sipar.run_sip(
-                            adpalmap_config=adpalmap_config, 
-                            sopar=adpalmap_sopar_abs
-                        )
+                        # Execute SIP
+                        abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
                         group_report.append(abs_sip_group_report)
 
-                emi_group_mask = adpalmap_group.find_mask_sofia(sopar=adpalmap_sopar_emi, mode="emission")
+                Logger.raw("================================") 
+                logger.info(f"Source Grouping start. Mode: emission. Input data: {input_data.stem}")
+                Logger.raw("================================")
+                # Find the 3D mask from SoFiA-2
+                emi_group_mask = adpalmap_group.find_mask_sofia(
+                    sopar=adpalmap_sopar_emi, mode="emission"
+                )
+                
                 if emi_group_mask:
-                    group_mask = adpalmap_group.group_sofia_detections(adpalmap_sopar_emi.input_data, emi_group_mask)
+                    # Execute group and create a new mask
+                    group_mask = adpalmap_group.group_sofia_detections(
+                        adpalmap_sopar_emi.input_data, emi_group_mask
+                    )
+                    Logger.raw("================================")
+                    logger.info("Source Grouping finished")
+                    Logger.raw("================================")
                     if group_mask is not None:
+                        # Update the parameters for execute SoFiA-2 again
                         adpalmap_sopar_emi.update_group_parameters(group_mask)
-                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(adpalmap_config=adpalmap_config, run=0)
+                        # Execute SoFiA-2
+                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
                         group_report.append(emi_sopar_group_report)
-
+                        # Execute SIP
                         emi_sip_group_report = adpalmap_sipar.run_sip(
-                            adpalmap_config=adpalmap_config, 
                             sopar=adpalmap_sopar_emi,
                             run=0
                         )
@@ -656,11 +788,11 @@ def process_data(id_number,
     else: 
         group_report = []
         f"'enable_sip' set to {adpalmap_config.enable_group}. Skipping grouping."
-   
+    
 
     ##############################################################################################
 
-    return sofia_report, sip_report, qa_report
+    return sofia_report, sip_report, qa_report, group_report
 
 
 

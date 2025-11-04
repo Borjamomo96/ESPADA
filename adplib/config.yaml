@@ -5,7 +5,7 @@
 ###############
 
 html_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
-verbose: False                      # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
+verbose: True                      # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
 num_cores: 12                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ADPALMAP. The minimum number is 1, and the maximum depends on the device.
 
 ################
@@ -19,8 +19,8 @@ log_file: log_dir/adpalmap.log      # <str> (Default value = 'log_dir/adpalmap.l
 #   INPUT DATA   #
 ##################
 
-input_data_set: /home/usuario/ADP-ALMA-Pipeline/adplib/sofia/sofia_test_datacube.fits
-    #1: 
+input_data_set: #/home/usuario/ADP-ALMA-Pipeline/adplib/sofia/sofia_test_datacube.fits  # <str> | <list> (Default value = ) Path to the dataset where the pipeline will be executed, read the documentation to see examples of possible inputs.
+    1: ['/home/usuario/0Test_ADP_ALMAPipeline/test_directories/test_rapido/x.fits', '', '/home/usuario/0Test_ADP_ALMAPipeline/test_directories/test_rapido/x_mask.fits'] 
     #2:  
     #3: 
     #4: 
@@ -39,9 +39,9 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml     # <str> 
 #################
 
 enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
-run_mode: 'emission' #'both', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
+run_mode: 'both' #'both', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
 use_pb: True                                                                # <bool> (Default value = True) Determines whether the primary beam either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
-use_mask: True                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+use_mask: False                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
 auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par') Path to the SoFiA-2 parameter file optimized to found 'absorption'.
@@ -60,4 +60,4 @@ sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Defaul
 
 enable_group: True                                              # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
 overlap_mode :  'absflux'    # 'flux', 'absflux' or 'area'
-overlap_threshold : 0.8     # a number between 0 and 1
+overlap_threshold : 0.1     # a number between 0 and 1

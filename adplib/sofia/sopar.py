@@ -438,7 +438,9 @@ class SoPar(dict):
         None: Updates the attributes of the SoPar object directly.
         """
         
-        logger.info(f"Reading parameters in {self.sofia_file_path}. Mode: {self.sopar_mode}.")
+        logger.info(
+            f"Reading parameters in {self.sofia_file_path}. Mode: {self.adpalmap_config.run_mode}."
+            )
         
         ###########################-------------input.data--------------##############################
         # The parameter 'input.data' is managed in the main function.
@@ -451,61 +453,6 @@ class SoPar(dict):
                 "the configuration file."
             )
         self.input_data = input_data
-        ##############################################################################################
-        
-        ########################-------------pipeline.threads--------------###########################
-        if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
-            logger.warning(
-                "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
-                f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
-                "of threds used with the parameter 'num_cores' and estimated the optimal"
-                "use of these based on the number of cores and RAM available and the size "
-                "of the files"
-            )
-        
-        self.pipeline_threads = sofia_threads
-        ##############################################################################################
-
-        ########################-------------output.directory--------------###########################
-        if sop_par and "output.directory" in sop_par: 
-            self.output_directory = Path(sop_par["output.directory"])
-        elif hasattr(self, "output_directory") and self.output_directory:  
-            self.output_directory = Path(self.output_directory)
-        else:
-            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
-    
-        self.base_output_directory = self.output_directory
-        ##############################################################################################
-
-        ##########################-------------input.invert--------------#############################
-        if sop_par is not None:
-            invert_value_sopar = sop_par.get("input.invert", getattr(self, "input_invert", False))
-        else:
-            invert_value_sopar = None
-        
-        if mode == 'emission' and (invert_value_sopar=='true' or self.input_invert=='true'):
-            logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
-                           "Changing 'input.invert' to 'false'.")
-            self.input_invert = 'false'
-        elif mode == 'absorption':
-            if (invert_value_sopar=='false' or self.input_invert=='false'):
-                logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. "
-                               "Changing 'input.invert' to 'true'.")
-                self.input_invert = 'true'
-            elif (self.input_invert !='false' or self.input_invert is None):
-                self.input_invert = 'true'
-            else: 
-                self.input_invert = 'true'
-        elif mode == 'both' and run !=0:
-            if (invert_value_sopar=='false' or self.input_invert=='false'):
-                logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for "
-                               "the first run. Changing 'input.invert' to 'true'.")
-            self.input_invert = 'true'
-        elif mode == 'both' and run ==0:
-            if (invert_value_sopar=='true' or self.input_invert=='true'):
-                logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
-                               "the second run. Changing 'input.invert' to 'false'.")
-            self.input_invert = 'false'
         ##############################################################################################
 
         #######################-------------input.primaryBeam--------------###########################
@@ -613,6 +560,37 @@ class SoPar(dict):
 
         ##############################################################################################
 
+        ##########################-------------input.invert--------------#############################
+        if sop_par is not None:
+            invert_value_sopar = sop_par.get("input.invert", getattr(self, "input_invert", False))
+        else:
+            invert_value_sopar = None
+        
+        if mode == 'emission' and (invert_value_sopar=='true' or self.input_invert=='true'):
+            logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
+                           "Changing 'input.invert' to 'false'.")
+            self.input_invert = 'false'
+        elif mode == 'absorption':
+            if (invert_value_sopar=='false' or self.input_invert=='false'):
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. "
+                               "Changing 'input.invert' to 'true'.")
+                self.input_invert = 'true'
+            elif (self.input_invert !='false' or self.input_invert is None):
+                self.input_invert = 'true'
+            else: 
+                self.input_invert = 'true'
+        elif mode == 'both' and run !=0:
+            if (invert_value_sopar=='false' or self.input_invert=='false'):
+                logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for "
+                               "the first run. Changing 'input.invert' to 'true'.")
+            self.input_invert = 'true'
+        elif mode == 'both' and run ==0:
+            if (invert_value_sopar=='true' or self.input_invert=='true'):
+                logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
+                               "the second run. Changing 'input.invert' to 'false'.")
+            self.input_invert = 'false'
+        ##############################################################################################        
+        
         #########################-------------scfind.enable--------------#############################
         if (mask and use_mask):
             logger.info("The 'scfind_enable' parameter has set to false. Setting a mask in "
@@ -629,6 +607,80 @@ class SoPar(dict):
 
         ##############################################################################################
 
+        ########################-------------pipeline.threads--------------###########################
+        if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
+            logger.warning(
+                "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
+                f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
+                "of threds used with the parameter 'num_cores' and estimated the optimal"
+                "use of these based on the number of cores and RAM available and the size "
+                "of the files"
+            )
+        
+        self.pipeline_threads = sofia_threads
+        ##############################################################################################
+
+        ########################-------------output.directory--------------###########################
+        if sop_par and "output.directory" in sop_par: 
+            self.output_directory = Path(sop_par["output.directory"])
+        elif hasattr(self, "output_directory") and self.output_directory:  
+            self.output_directory = Path(self.output_directory)
+        else:
+            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
+    
+        self.base_output_directory = self.output_directory
+
+        ##############################################################################################
+
+        ########################--------------output.filename--------------###########################
+        if sop_par and "output.directory" in sop_par: 
+            self.output_directory = Path(sop_par["output.directory"])
+        elif hasattr(self, "output_directory") and self.output_directory:  
+            self.output_directory = Path(self.output_directory)
+        else:
+            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
+    
+        self.base_output_directory = self.output_directory
+
+        if self.adpalmap_config.run_mode == 'absorption':
+            if self.output_filename:
+                self.output_filename = f"absorption_{self.output_filename}"
+                sopar_log_path = f"absorption_{self.output_filename}_logfile.log"
+            else:
+                self.output_filename = f"absorption_{self.input_data.stem}"
+                sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log"
+
+        if self.adpalmap_config.run_mode == 'emission':
+            if self.output_filename:
+                self.output_filename = f"emission_{self.output_filename}"
+                sopar_log_path = f"emission_{self.output_filename}_logfile.log"
+            else:
+                self.output_filename = f"emission_{self.input_data.stem}"
+                sopar_log_path = f"emission_{self.input_data.stem}_logfile.log"  
+
+        if self.adpalmap_config.run_mode == 'both' and run!=0:
+            if self.output_filename:
+                self.output_filename = f"absorption_{self.output_filename}"
+                sopar_log_path = f"absorption_{self.output_filename}_logfile.log"
+            else:
+                self.output_filename = f"absorption_{self.input_data.stem}"
+                sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log" 
+
+        elif self.adpalmap_config.run_mode == 'both' and run==0:
+            if self.output_filename:
+                # Safe the original 'output.filename' for 'flag.cube'
+                self.original_output_filename = self.output_filename
+                self.output_filename = f"emission_{self.output_filename}"
+                sopar_log_path = f"emission_{self.output_filename}_logfile.log"
+            else:
+                self.original_output_filename = self.output_filename
+                self.output_filename = f"emission_{self.input_data.stem}"
+                sopar_log_path = f"emission_{self.input_data.stem}_logfile.log" 
+
+        # Safe the logfile and make sure that is Path() object
+        self.sopar_logfile = self.output_directory / sopar_log_path
+
+        ##############################################################################################
 
         if sop_par is not None:
 
@@ -652,7 +704,7 @@ class SoPar(dict):
                     setattr(self, normalized_key, value)
                     logger.warning(f"Added new parameter '{key}' with value '{value}'.")
 
-        logger.info(f"Parameters updated. Mode: {self.sopar_mode}.")
+        logger.info(f"Parameters updated. Mode: {self.adpalmap_config.run_mode}.")
 
 
     def update_group_parameters(self, group_mask):
@@ -669,17 +721,23 @@ class SoPar(dict):
         None: Updates the attributes of the SoPar object directly.
         """
 
-        logger.info(f"Updating SoFiA parameters. Mode: {self.sopar_mode}.")
+        logger.info(f"Updating SoFiA parameters. Mode: {self.adpalmap_config.run_mode}.")
         
-        if self.sopar_mode == "absorption":
-            self.input_invert = "true"
-        elif self.sopar_mode == "emission":
-            self.input_invert = "false"
-        self.scfind_enable = "false"
         self.input_mask = group_mask
-        self.output_filename = f"group_{self.output_filename}"
 
-        logger.info(f"Parameter ready. Mode: {self.sopar_mode}.")
+        if self.adpalmap_config.run_mode == "absorption":
+            self.input_invert = "true"
+        elif self.adpalmap_config.run_mode == "emission":
+            self.input_invert = "false"
+
+        self.scfind_enable = "false"
+
+        self.output_filename = f"group_{self.output_filename}"
+        
+        # '{self.output_filename}' Already contain prefixx 'group_'
+        self.sopar_logfile = self.output_directory / f"{self.output_filename}_logfile.log"
+
+        logger.info(f"Parameter ready. Mode: {self.adpalmap_config.run_mode}.")
 
 
     def auto_setup(self):
@@ -696,7 +754,7 @@ class SoPar(dict):
         SystemExit: If `self.input_data` is not defined, is empty, or the FITS file does not exist.
         """
 
-        logger.info(f"Auto-setup start. Mode: {self.sopar_mode}")
+        logger.info(f"Auto-setup start. Mode: {self.adpalmap_config.run_mode}")
 
         if not hasattr(self, "input_data") or not self.input_data:
             logger.critical(
@@ -759,10 +817,10 @@ class SoPar(dict):
                 
 
         # Otros parámetros pueden ser añadidos según las reglas específicas...
-        logger.info(f"Auto-setup DONE. Mode: {self.sopar_mode}")
+        logger.info(f"Auto-setup DONE. Mode: {self.adpalmap_config.run_mode}")
 
 
-    def run_sofia(self, adpalmap_config, run=-1):        
+    def run_sofia(self, run=-1):        
         """
         Runs the SoFia tool in different modes (absorption, emission, or both) based on 
         the provided configuration.
@@ -773,7 +831,6 @@ class SoPar(dict):
 
         Parameters:
         ----------
-        adpalmap_config: Config() class object with configuration from the configuration file..
         mode (str, optional): Mode to run SoFia in. Can be 'absorption', 'emission', or 'both'.
                               Defaults to None.
         run (int, optional): Indicates the run iteration when mode is 'both'. Used to handle 
@@ -788,332 +845,117 @@ class SoPar(dict):
         os.makedirs(self.output_directory, exist_ok=True)
         self.output_directory = Path(self.output_directory)
 
+    ##############################################################################################
+        # Set source from absorption run as a 'flag_cube' in the emission run in the 'both' mode
+        if self.adpalmap_config.run_mode == "both" and run ==0:
+            if (self.adpalmap_config.abs_flag_cube is not None and 
+                self.adpalmap_config.abs_flag_cube==True):                    
+                flag_cube = self.output_directory / f"{self.original_output_filename}_mask.fits"
+                if flag_cube.exists():
+                    self.flag_cube = flag_cube
+                else:
+                    logger.warning("There is no mask available from the absorption run. "
+                                    "The parameter 'flag_cube' will not be used")
+            else:
+                logger.info("The mask from the absorption run will not be used as "
+                            "a 'flag_cube'. "
+                            f"Mode: {self.mode}.")
+    ##############################################################################################
+
+        # Create a SoFiA-2 report 
         sopar_report = {
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
-                "mode": self.sopar_mode,  
-                "log_path": "",
+                "mode": self.mode,  
+                "log_path": self.sopar_logfile,
                 "sofia_parfile" : self.sofia_file_path,
                 "outputs" : {'images' : [], 'files': []}
             }
-
-        if (adpalmap_config.run_mode=='absorption'):
             
-            if self.output_filename:
-                self.output_filename = f"absorption_{self.output_filename}"
-                sopar_log_name = f"absorption_{self.output_filename}_logfile.log"
-            else:
-                self.output_filename = f"absorption_{self.input_data.stem}"
-                sopar_log_name = f"absorption_{self.input_data.stem}_logfile.log"
+        # Create a temp file with the updated parameters for SoFiA
+        temp_file_path = self.create_tempfile()
 
-            # Create a temp file with the updated parameters for SoFiA
-            temp_file_path = self.create_tempfile()
+        # Update the report 
+        sopar_report.update(
+            {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+        )
 
-            # Update the report 
-            sopar_report.update({"log_path": self.output_directory / sopar_log_name})
-            sopar_report.update(
-                {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
+        # Remove existing log file
+        if  sopar_report["log_path"].exists():
+            try:
+                sopar_report["log_path"].unlink()
+            except:
+                logger.warning(
+                    "Error trying to delete existing log file. The new log "
+                    "entries will be appended to it."
+                )
+
+        error = ''
+
+    ##############################################################################################
+    
+        try:
+            # Safe in the log the parameters fotr the run 
+            self.log_parameters()
+            Logger.raw("================================")
+            logger.info(
+                f"SoFia start. Mode: {self.mode}. Input data: "
+                f"{Path(self.input_data).stem}"
             )
+            Logger.raw("================================")
 
-            # Remove existing log file
-            if  sopar_report["log_path"].exists():
+            # Execute SoFiA-2 
+            cmd = ["sofia", f"{temp_file_path}"]
+            subprocess.run(
+                cmd,
+                text=True,
+                check=True,
+                capture_output=not self.adpalmap_config.verbose
+            )
+            Logger.raw("================================")
+            logger.info(f"SoFia finished. Mode: {self.mode}")
+            Logger.raw("================================")
+
+            # Safe the 3D-mask for the group module
+            if self.adpalmap_config.enable_group:
+                self.mask3d = (
+                    self.output_directory 
+                    / f"{self.mode}_{self.input_data.stem}_mask.fits"
+                )
+
+            # Add outputs for the html report
+            if self.adpalmap_config.html_report:
                 try:
-                    sopar_report["log_path"].unlink()
-                except:
-                    logger.warning(
-                        "Error trying to delete existing log file. The new log "
-                        "entries will be appended to it."
-                    )
+                    self.report_outputs(sopar_report)  
+                except Exception as e:
+                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
+        except subprocess.CalledProcessError as e:
+            if self.adpalmap_config.enable_group:
+                # If this attribute change from None to any other, find_mask_sofia() in group.py
+                # have to be changed as well
+                self.mask3d = None
+            error = str(e)
+            logger.error(
+                f"Error running SoFia. Mode: {self.mode}. Error: {e}"
+            )
+            logger.info(f"SoFia execution aborted")
             
-            error = ''
-            try:
-                self.log_parameters()
-                Logger.raw("================================")
-                logger.info(
-                    f"SoFia start. Mode: {self.sopar_mode}. Input data: "
-                    f"{Path(self.input_data).stem}"
-                )
-                Logger.raw("================================")
-
-                cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(
-                    cmd,
-                    text=True,
-                    check=True,
-                    capture_output=not adpalmap_config.verbose
-                )
-                Logger.raw("================================")
-                logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
-                Logger.raw("================================")
-
-                # Safe the 3D-mask for the group module
-                self.mask3d = (
-                    self.output_directory 
-                    / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
-                )
-
-                if self.adpalmap_config.html_report:
-                    try:
-                        self.report_outputs(sopar_report)  
-                    except Exception as e:
-                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
-
-            except subprocess.CalledProcessError as e:
-                error = str(e)
-                logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
-                sys.exit(-1)
-
-            finally:
-                if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                sopar_report.update({"error": e})
-                return sopar_report
-
-
-        elif (adpalmap_config.run_mode=='emission'):
-
-            if self.output_filename:
-                self.output_filename = f"emission_{self.output_filename}"
-                sopar_log_name = f"emission_{self.output_filename}_logfile.log"
+            if self.adpalmap_config.run_mode == 'both' and run!=0:
+                # Exits the function without propagating an error to run in 'absorption'
+                logger.info(f"SoFiA will try to run again in mode: emission.")
+                return 
             else:
-                self.output_filename = f"emission_{self.input_data.stem}"
-                sopar_log_name = f"emission_{self.input_data.stem}_logfile.log"
-
-            # Create a temp file with the updated parameters for SoFiA
-            temp_file_path = self.create_tempfile()
-
-            # Update the report 
-            sopar_report.update({"log_path": self.output_directory / sopar_log_name})
-            sopar_report.update(
-                {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
-            ) # Compare between the intial and the final sofia.par to track changes
-
-            # Remove existing log file
-            if  sopar_report["log_path"].exists():
-                try:
-                    sopar_report["log_path"].unlink()
-                except:
-                    logger.warning(
-                        "Error trying to delete existing log file. The new log "
-                        "entries will be appended to it."
-                    )
-
-            error = ''
-            try:
-                self.log_parameters()
-                Logger.raw("================================")
-                logger.info(
-                    f"SoFia start. Mode: {self.sopar_mode}. Input data: "
-                    f"{Path(self.input_data).stem}"
-                )
-                Logger.raw("================================")
-                
-                cmd = ["sofia", f"{temp_file_path}"]
-                subprocess.run(
-                    cmd, 
-                    text=True, 
-                    check=True, 
-                    capture_output=not adpalmap_config.verbose
-                ) 
-
-                Logger.raw("================================")
-                logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
-                Logger.raw("================================")
-                
-                # Safe the 3D-mask for the group module
-                self.mask3d = (
-                    self.output_directory 
-                    / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
-                )
-
-                # Add output to the SoFiA report 
-                if adpalmap_config.html_report:
-                    try:
-                        self.report_outputs(sopar_report)  
-                    except Exception as e:
-                        logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
-
-            except subprocess.CalledProcessError as e:
-                error = str(e)
-                logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
                 sys.exit(-1)
-            finally:
-                if os.path.exists(temp_file_path):
-                    os.remove(temp_file_path)
-                sopar_report.update({"error": error})
-                return sopar_report    
-                    
+
+        finally:
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            sopar_report.update({"error": error})
+            return sopar_report
         
-        elif (adpalmap_config.run_mode=='both'):
-            if run!=0:
-                
-                if self.output_filename:
-                    self.output_filename = f"absorption_{self.output_filename}"
-                    sopar_log_name = f"absorption_{self.output_filename}_logfile.log"
-                else:
-                    self.output_filename = f"absorption_{self.input_data.stem}"
-                    sopar_log_name = f"absorption_{self.input_data.stem}_logfile.log"
-
-                # Create a temp file with the updated parameters for SoFiA
-                temp_file_path = self.create_tempfile()
-
-                # Update the report 
-                sopar_report.update({"log_path": self.output_directory / sopar_log_name})
-                sopar_report.update(
-                    {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
-                )
-
-                # Remove existing log file
-                if  sopar_report["log_path"].exists():
-                    try:
-                        sopar_report["log_path"].unlink()
-                    except:
-                        logger.warning(
-                            "Error trying to delete existing log file. The new log "
-                            "entries will be appended to it."
-                        )
-
-                error = ''
-                try:
-                    self.log_parameters()
-                    Logger.raw("================================")
-                    logger.info(
-                        f"SoFia start. Mode: {self.sopar_mode}. Input data: "
-                        f"{Path(self.input_data).stem}"
-                    )
-                    Logger.raw("================================")
-
-                    cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(
-                        cmd, 
-                        text=True, 
-                        check=True, 
-                        capture_output=not adpalmap_config.verbose
-                        ) 
-
-                    Logger.raw("================================")
-                    logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
-                    Logger.raw("================================")
-
-                    # Safe the 3D-mask for the group module
-                    self.mask3d = (
-                        self.output_directory 
-                        / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
-                    )
-                    
-                    # Add output to the SoFiA report 
-                    if adpalmap_config.html_report:
-                        try:
-                            self.report_outputs(sopar_report)  
-                        except Exception as e:
-                            logger.warning(
-                                f"Error adding outputs for the html report (non-critical): {e}"
-                            )
-
-                except subprocess.CalledProcessError as e:
-                    error = str(e)
-                    logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                    logger.info(f"SoFiA will try to run again in mode: emission.")
-                finally:
-                    if os.path.exists(temp_file_path):
-                        os.remove(temp_file_path)
-                    sopar_report.update({"error": error})
-                    return sopar_report 
-
-            elif run==0:
-                
-                # Look for the absorption mask cube. This is subjet to changes if the directory and 
-                # filenames structure change
-                if adpalmap_config.abs_flag_cube is not None and adpalmap_config.abs_flag_cube==True:                    
-                    flag_cube = self.output_directory / f"{self.output_filename}_mask.fits"
-                    if flag_cube.exists():
-                        self.flag_cube = flag_cube
-                    else:
-                        logger.warning("There is no mask available from the absorption run. "
-                                       "The parameter 'flag_cube' will not be used")
-                else:
-                    logger.info("The mask from the absorption run will not be used as "
-                                "a 'flag_cube'. "
-                                f"Mode: {self.sopar_mode}.")
-
-
-                if self.output_filename:
-                    self.output_filename = f"emission_{self.output_filename}"
-                    sopar_log_name = f"emission_{self.output_filename}_logfile.log"
-                else:
-                    self.output_filename = f"emission_{self.input_data.stem}"
-                    sopar_log_name = f"emission_{self.input_data.stem}_logfile.log"
-
-                # Create a temp file with the updated parameters for SoFiA
-                temp_file_path = self.create_tempfile()
-
-                # Update the report 
-                sopar_report.update({"log_path": self.output_directory / sopar_log_name})
-                sopar_report.update(
-                    {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
-                )
-
-                # Remove existing log file
-                if  sopar_report["log_path"].exists():
-                    try:
-                        sopar_report["log_path"].unlink()
-                    except:
-                        logger.warning(
-                            "Error trying to delete existing log file. The new log "
-                            "entries will be appended to it."
-                        )
-
-                error = ''
-                try:
-                    self.log_parameters()
-                    Logger.raw("================================")
-                    logger.info(
-                        f"SoFia start. Mode: {self.sopar_mode}. Input data: "
-                        f"{Path(self.input_data).stem}"
-                    )
-                    Logger.raw("================================")
-
-                    cmd = ["sofia", f"{temp_file_path}"]
-                    subprocess.run(
-                        cmd, 
-                        text=True, 
-                        check=True, 
-                        capture_output=not adpalmap_config.verbose
-                        ) 
-
-                    Logger.raw("================================")
-                    logger.info(f"SoFia finished. Mode: {self.sopar_mode}")
-                    Logger.raw("================================")  
-
-                    # Safe the 3D-mask for the group module
-                    self.mask3d = (
-                        self.output_directory 
-                        / f"{adpalmap_config.run_mode}_{self.input_data.stem}_mask.fits"
-                    )
-
-                    # Add output to the SoFiA report 
-                    if adpalmap_config.html_report:
-                        try:
-                            self.report_outputs(sopar_report)  
-                        except Exception as e:
-                            logger.warning(
-                                f"Error adding outputs for the html report (non-critical): {e}"
-                            )
-
-                except subprocess.CalledProcessError as e:
-                    error = str(e)
-                    logger.error(f"Error running SoFia. Mode: {self.sopar_mode}. Error: {e}")
-                    logger.info(f"SoFia execution aborted. Mode: {self.sopar_mode}.")
-                    sys.exit(-1)
-                finally:
-                    if os.path.exists(temp_file_path):
-                        os.remove(temp_file_path)
-                    sopar_report.update({"error": error})
-                    return sopar_report 
+        ##############################################################################################
                 
 
     def create_tempfile(self):
@@ -1239,7 +1081,7 @@ class SoPar(dict):
                         supported.
         """
 
-        logger.info(f"Quality assesment start. Mode: {self.sopar_mode}.")
+        logger.info(f"Quality assesment start. Mode: {self.mode}.")
 
         # At the moment there is just one singles images but do it in this way allows add
         # additional images easly in the future
@@ -1247,7 +1089,7 @@ class SoPar(dict):
                 "software_id" :'QA',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
-                "mode": self.sopar_mode,  
+                "mode": self.mode,  
                 "log_path": "",
                 "outputs" : {'images' : [], 'files': []}
             }
@@ -1258,7 +1100,9 @@ class SoPar(dict):
         #Máscara de lo obtenido por SoFiA
         sofia_output_dir = Path(self.output_directory)
         input_file_name = Path(self.input_data).stem
-        file_2d_mask = sofia_output_dir / f"{self.sopar_mode}_{input_file_name}_mask-2d.fits"
+        file_2d_mask = (
+            sofia_output_dir / f"{self.adpalmap_config.run_mode}_{input_file_name}_mask-2d.fits"
+        )
         
         if file_2d_mask.exists():
             pass
@@ -1324,7 +1168,7 @@ class SoPar(dict):
             plt.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
                 f"QA file saved in {qa_output_dir}. Quality assesment completed "
-                f"successfully. Mode: {self.sopar_mode}"
+                f"successfully. Mode: {self.adpalmap_config.run_mode}"
                 )
             
             qa_report['outputs']['images'].append({
@@ -1336,7 +1180,7 @@ class SoPar(dict):
             return qa_report
         except Exception as e:
             logger.warning(f"Something went wrong while saving QA file: {e}")
-            logger.info(f"Quality assement aborted . Mode: {self.sopar_mode}")
+            logger.info(f"Quality assement aborted . Mode: {self.adpalmap_config.run_mode}")
             return qa_report
             
 

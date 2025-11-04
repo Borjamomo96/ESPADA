@@ -305,7 +305,7 @@ class SiPar(dict):
         #logger.info("All parameters are valid.")
 
 
-    def update_input_parameters(self, sip_args, adpalmap_config):
+    def update_input_parameters(self):
         """
         Updates the parameters of the SiPar class with the values provided in the terminal arguments.
 
@@ -321,8 +321,8 @@ class SiPar(dict):
         """
     
         
-        if sip_args is not None:
-            for key, value in sip_args.items():
+        if self.sargs is not None:
+            for key, value in self.sargs.items():
                 #Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
                 matched_attr = None
                 for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
@@ -332,13 +332,13 @@ class SiPar(dict):
 
                 if matched_attr is not None:
                     # Special case for 'catalog_file' or '-c'
-                    if matched_attr == "catalog_file" and adpalmap_config.enable_sofia:
+                    if matched_attr == "catalog_file" and self.adpalmap_config.enable_sofia:
                         logger.warning(
                             f"The catalog(s) provide via -sarg will be ignored because those provided by"
                             f" SoFiA have priority"
                         )
                         continue  
-                    elif matched_attr == "catalog_file" and not adpalmap_config.enable_sofia:
+                    elif matched_attr == "catalog_file" and not self.adpalmap_config.enable_sofia:
                         #Quiere decir que ha encontrado catalogos previos, tienen prioriodad
                         if(self.catalog_file is not None):
                             logger.warning(
@@ -377,7 +377,7 @@ class SiPar(dict):
                     logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
         
 
-    def run_sip(self, adpalmap_config, sopar=None, run=-1):
+    def run_sip(self, sopar=None, run=-1):
         """
         Run the SIP (Source Identification Pipeline) process with the specified configuration.
 
@@ -406,6 +406,7 @@ class SiPar(dict):
         """
         cwd_file = Path.cwd().resolve()
 
+        # Create SIP report
         sip_report = {
                         "software_id" :'SIP',
                         "PID": self.pid,
@@ -414,6 +415,9 @@ class SiPar(dict):
                         "log_path": "",
                         "outputs": {"images": [],  "files": []}
                     }
+        
+        ##############################################################################################
+        # Check the catalog files availables|set 
         
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
@@ -430,7 +434,7 @@ class SiPar(dict):
                 sofia_catalog_xml = None
 
             # Update SIP report
-            sip_report["mode"]     = sopar.sopar_mode
+            sip_report["mode"]     = sopar.mode
             sip_report["log_path"] = sopar.output_directory / f"{sopar.output_filename}_sip.log"
 
     
@@ -446,18 +450,18 @@ class SiPar(dict):
                     " directory."
                 )
                 logger.error(error_msg)
-                if adpalmap_config.run_mode == 'both' and run!=0:
-                    logger.info(f"SIP execution skipped. Run: {sopar.sopar_mode}")
+                if self.adpalmap_config.run_mode == 'both' and run!=0:
+                    logger.info(f"SIP execution skipped. Run: {sopar.mode}")
                     sip_report.update({'command': '', 'error': error_msg})
                     return sip_report
                 else:
-                    logger.info(f"SIP execution aborted. Run: {sopar.sopar_mode}.")
+                    logger.info(f"SIP execution aborted. Run: {sopar.mode}.")
                     sip_report.update({'command': '', 'error': error_msg})
                     return sip_report
 
 
         else:
-            if adpalmap_config.run_mode == "both":             
+            if self.adpalmap_config.run_mode == "both":             
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
                     self.aux_catalog_file = self.catalog_file
@@ -492,7 +496,7 @@ class SiPar(dict):
                         sip_report.update({'command': '', 'error': ''})
                         return sip_report
                     
-            elif adpalmap_config.run_mode == "absorption":
+            elif self.adpalmap_config.run_mode == "absorption":
                 output_dir = (
                     cwd_file / f"adpalmap_{self.input_data.stem}" / f"absorption_{self.input_data.stem}_figures"
                 )
@@ -501,7 +505,7 @@ class SiPar(dict):
                 sip_report["mode"]     = "absorption"
                 sip_report["log_path"] = output_dir.parent / f"absorption_{self.input_data.stem}_sip.log"
            
-            elif adpalmap_config.run_mode == "emission":
+            elif self.adpalmap_config.run_mode == "emission":
                 output_dir = (
                     cwd_file / f"adpalmap_{self.input_data.stem}" / f"emission_{self.input_data.stem}_figures"
                 )
@@ -514,7 +518,9 @@ class SiPar(dict):
             # html outputs
             sip_output_dir = output_dir
 
+        ##############################################################################################
 
+        # Remove existing log file
         if  sip_report["log_path"].exists():
             try:
                 sip_report["log_path"].unlink()
@@ -523,43 +529,42 @@ class SiPar(dict):
                     "Error trying to delete existing log file. The new log "
                     "entries will be appended to it."
                 )
-            
+
+        ##############################################################################################
+
+        # Generate the command
         cmd = self.generate_command(exclude=["aux_catalog_file"], output_dir=sip_output_dir, mode=sip_report["mode"])
-        error = ''
+
+        # Update the report
         sip_report.update({'command':cmd})
+
+        error = ''
         try:
-            Logger.raw("================================")
-            if sopar:
-                logger.info(
-                    f"SIP start. Mode: {sopar.sopar_mode}. Input data: "
-                    f"{input_file_name}"
-                    )
-            else:
-                if adpalmap_config.run_mode == "both": 
-                    if run != 0:
-                        logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
-                    else:
-                        logger.info(f"SIP start. Mode: emission. Input data: {self.input_data.stem}")
-                elif adpalmap_config.run_mode == "absorption":
-                    logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
-                elif adpalmap_config.run_mode == "emission":
-                    logger.info(f"SIP start. Mode: emission. Input data: {self.input_data.stem}")
-                
-            Logger.raw("================================")
-            logger.info(f"Command used to run SIP: {' '.join(cmd)}")
             
+            Logger.raw("================================")
+            if self.adpalmap_config.run_mode == "both" and run!=0:
+                logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
+            elif self.adpalmap_config.run_mode == "both" and run==0:
+                logger.info(f"SIP start. Mode: emission. Input data: {self.input_data.stem}")
+            else:
+                logger.info(
+                    f"SIP start. Mode: {self.adpalmap_config.run_mode}. "
+                    f"Input data: {self.input_data.stem}"
+                )
+            Logger.raw("================================")
+
+            logger.info(f"Command used to run SIP: {' '.join(cmd)}")
+
+            # Execute SIP
             subprocess.run(
                 cmd, 
                 text=True, 
                 check=True, 
-                capture_output=not adpalmap_config.verbose
+                capture_output=not self.adpalmap_config.verbose
                 )       
                                
             Logger.raw("================================")
-            if sopar:
-                logger.info(f"SIP finished. Mode: {sopar.sopar_mode}")
-            else:
-                logger.info(f"SIP finished.")
+            logger.info(f"SIP finished.")
             Logger.raw("================================")
             
             #Intentamos correr una segunda vez SIP para generar el plot resumen por fuente
@@ -574,7 +579,7 @@ class SiPar(dict):
             except subprocess.CalledProcessError as e:
                 logger.critical(f"Error running SIP making summary images: {e}")"""
 
-            #Añadimos los outputs al report
+            # Add output to SIP report 
             if self.adpalmap_config.html_report:
                 try:
                     self.report_outputs(sip_report, sip_output_dir)  
@@ -588,37 +593,20 @@ class SiPar(dict):
 
         except subprocess.CalledProcessError as e:
             error = str(e)
-            # In case of error this show the message and exit code of SIP
-            if sopar:
-                logger.error(f"Error running SIP. Mode: {sopar.sopar_mode}. Error: {e}")
-            else:
-                if adpalmap_config.run_mode == "both": 
-                    if run != 0:
-                        logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
-                    else: 
-                        logger.error(f"Error running SIP. Mode: emission. Error: {e}")
-                elif adpalmap_config.run_mode == "absorption":
-                    logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
-                elif adpalmap_config.run_mode == "emission":
-                    logger.error(f"Error running SIP. Mode: emission. Error: {e}")
 
-
-            if adpalmap_config.run_mode == 'both' and run !=0:
-                if sopar:
-                    logger.info(f"SIP execution skipped. Mode: {sopar.sopar_mode}")
-                    return
-                else:
-                    logger.error(f"SIP execution skipped. Mode: absorption.")
-
-            else:
-                if sopar:
-                    logger.info(f"SIP execution aborted. Mode: {sopar.sopar_mode}")
-                else:
-                    if adpalmap_config.run_mode == 'absorption':
-                        logger.info(f"SIP execution aborted. Mode: absorption")
-                    elif adpalmap_config.run_mode == 'emission':
-                        logger.info(f"SIP execution aborted. Mode: emission")
+            if self.adpalmap_config.run_mode == "both" and run!=0:
+                logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
+                logger.info(f"SIP execution skipped.")
+                return
+            elif self.adpalmap_config.run_mode == "both" and run==0:
+                logger.error(f"Error running SIP. Mode: emission. Error: {e}")
+                logger.info(f"SIP execution aborted.")
                 sys.exit(-1)
+            else:
+                logger.error(f"Error running SIP. Mode: {self.adpalmap_config.run_mode}. Error: {e}")
+                logger.info(f"SIP execution aborted.")
+                sys.exit(-1)
+
 
         finally:
             sip_report.update({'error': error})
@@ -631,7 +619,8 @@ class SiPar(dict):
         except subprocess.CalledProcessError as e:
             logger.critical(f"Error running SIP making summary images: {e}")
             sys.exit(-1)'''
-        
+    ##############################################################################################
+
     
     def generate_command(self, exclude=None, output_dir=None, mode=None):
         """
