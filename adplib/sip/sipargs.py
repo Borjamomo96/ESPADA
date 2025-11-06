@@ -422,7 +422,6 @@ class SiPar(dict):
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
             sofia_output_dir = Path(sopar.output_directory)
             sip_output_dir = Path(sopar.output_directory) / f"{sopar.output_filename}_figures"
-            input_file_name = Path(sopar.input_data).stem
                     
             sofia_catalog_txt = sofia_output_dir / f"{sopar.output_filename}_cat.txt"
             sofia_catalog_xml = sofia_output_dir / f"{sopar.output_filename}_xml.fits"
@@ -533,7 +532,9 @@ class SiPar(dict):
         ##############################################################################################
 
         # Generate the command
-        cmd = self.generate_command(exclude=["aux_catalog_file"], output_dir=sip_output_dir, mode=sip_report["mode"])
+        cmd = self.generate_command(
+            exclude=["aux_catalog_file"], output_dir=sip_output_dir, mode=sip_report["mode"], sopar=sopar
+        )
 
         # Update the report
         sip_report.update({'command':cmd})
@@ -582,7 +583,7 @@ class SiPar(dict):
             # Add output to SIP report 
             if self.adpalmap_config.html_report:
                 try:
-                    self.report_outputs(sip_report, sip_output_dir)  
+                    self.report_outputs(sip_report, sip_output_dir, sopar=sopar)  
                 except Exception as e:
                     logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
@@ -619,10 +620,10 @@ class SiPar(dict):
         except subprocess.CalledProcessError as e:
             logger.critical(f"Error running SIP making summary images: {e}")
             sys.exit(-1)'''
-    ##############################################################################################
+
 
     
-    def generate_command(self, exclude=None, output_dir=None, mode=None):
+    def generate_command(self, exclude=None, output_dir=None, mode=None, sopar=None):
         """
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 
         the non-None attributes of the instance.
@@ -718,7 +719,10 @@ class SiPar(dict):
                 cmd.append(str(getattr(self, attr_name))) 
 
         cmd.append("-log")
-        log__name = str(output_dir.parent / f"{mode}_{self.input_data.stem}_sip.log")
+        if sopar:
+            log__name = str(output_dir.parent / f"{sopar.output_filename}_sip.log")
+        else:
+            log__name = str(output_dir.parent / f"{mode}_{self.input_data.stem}_sip.log")
         cmd.append(log__name)
 
         return cmd
@@ -825,62 +829,109 @@ class SiPar(dict):
                 raise
 
 
-    def report_outputs(self, sip_report, output_dir):
+    def report_outputs(self, sip_report, output_dir, sopar):
         
         num_sources = self.detect_source_count() 
         mode = sip_report["mode"]
     
-        for i in range(num_sources):
-            source_prefix = f"_{i+1}"
-            sip_report['outputs']['images'].append({
-                "type": "mom0",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom0.png",
-                "source_id": i+1,
-                "description": "Momment 0 image",
-                "software-id": "sip"
-            })
-            sip_report['outputs']['images'].append({
-                "type": "mom1",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom1.png",
-                "source_id": i+1,
-                "description": "Momment 1 image",
-                "software-id": "sip"
-            })
-            sip_report['outputs']['images'].append({
-                "type": "mom2",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom2.png",
-                "source_id": i+1,
-                "description": "Momment 2 image",
-                "software-id": "sip"
-            })
-            sip_report['outputs']['images'].append({
-                "type": "spec",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_spec.png",
-                "source_id": i+1,
-                "description": "Spectrum plot",
-                "software-id": "sip"
-            })
-            sip_report['outputs']['images'].append({
-                "type": "pv",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv.png",
-                "source_id": i+1,
-                "description": "Position-Velociy (major axis) plot",
-                "software-id": "sip"
-            })
-            sip_report['outputs']['images'].append({
-                "type": "pv_min",
-                "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv_min.png",
-                "source_id": i+1,
-                "description": "Position-Velociy (minor axis) plot",
-                "software-id": "sip"
-            })
+        if sopar:
+            for i in range(num_sources):
+                source_prefix = f"_{i+1}"
+                sip_report['outputs']['images'].append({
+                    "type": "mom0",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom0.png",
+                    "source_id": i+1,
+                    "description": "Momment 0 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "mom1",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom1.png",
+                    "source_id": i+1,
+                    "description": "Momment 1 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "mom2",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom2.png",
+                    "source_id": i+1,
+                    "description": "Momment 2 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "spec",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_spec.png",
+                    "source_id": i+1,
+                    "description": "Spectrum plot",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "pv",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_pv.png",
+                    "source_id": i+1,
+                    "description": "Position-Velociy (major axis) plot",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "pv_min",
+                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_pv_min.png",
+                    "source_id": i+1,
+                    "description": "Position-Velociy (minor axis) plot",
+                    "software-id": "sip"
+                })
         
-        sip_report['outputs']['files'].append({
-                "type": "par_file",
-                "path": self.sip_file_path,
-                "format": ".par",
-                "software-id": "sip"
-            })
+        else:
+            for i in range(num_sources):
+                source_prefix = f"_{i+1}"
+                sip_report['outputs']['images'].append({
+                    "type": "mom0",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom0.png",
+                    "source_id": i+1,
+                    "description": "Momment 0 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "mom1",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom1.png",
+                    "source_id": i+1,
+                    "description": "Momment 1 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "mom2",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom2.png",
+                    "source_id": i+1,
+                    "description": "Momment 2 image",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "spec",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_spec.png",
+                    "source_id": i+1,
+                    "description": "Spectrum plot",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "pv",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv.png",
+                    "source_id": i+1,
+                    "description": "Position-Velociy (major axis) plot",
+                    "software-id": "sip"
+                })
+                sip_report['outputs']['images'].append({
+                    "type": "pv_min",
+                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv_min.png",
+                    "source_id": i+1,
+                    "description": "Position-Velociy (minor axis) plot",
+                    "software-id": "sip"
+                })
+            
+            sip_report['outputs']['files'].append({
+                    "type": "par_file",
+                    "path": self.sip_file_path,
+                    "format": ".par",
+                    "software-id": "sip"
+                })
                     
 
     def detect_source_count(self):

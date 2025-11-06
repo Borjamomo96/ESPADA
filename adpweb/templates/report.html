@@ -82,106 +82,197 @@
 
             <!-- Sección SoFiA-2 -->
             <div class="gallery-section">
-                <h3 class="section-title">SoFiA-2 Outputs</h3>                
-                <!-- Absorption Mode -->
-                {% if dataset.images_grouped.sofia.absorption %}
-                <div class="mode-container">
-                    <h4 class="mode-title">Absorption Mode</h4>
-                    <div class="image-gallery">
-                        {% for img in dataset.images_grouped.sofia.absorption %}
-                        <div class="img-container">
-                          <img src="{{ img.path }}" alt="{{ img.description }}">
-                          <div class="img-desc">{{ img.description }}</div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                <!-- Emission Mode -->
-                {% if dataset.images_grouped.sofia.emission %}
-                <div class="mode-container">
-                    <h4 class="mode-title">Emisiion Mode</h4>
-                    <div class="image-gallery">
-                        {% for img in dataset.images_grouped.sofia.emission %}
-                        <div class="img-container">
-                          <img src="{{ img.path }}" alt="{{ img.description }}">
-                          <div class="img-desc">{{ img.description }}</div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                <!-- Placeholder for no images -->
-                {% if not dataset.images_grouped.sofia.absorption and not dataset.images_grouped.sofia.emission %}
-                <div class="image-gallery">
-                    <div class="placeholder">No SoFiA-2 images available</div>
-                </div>
-                {% endif %}
+              <h3 class="section-title">SoFiA-2 Outputs</h3>                
+              
+              <!-- Regular Absorption Mode -->
+              {% if dataset.images_grouped.sofia.regular.absorption %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Absorption Mode</h4>
+                  <div class="image-gallery">
+                      {% for img in dataset.images_grouped.sofia.regular.absorption %}
+                      <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                      </div>
+                      {% endfor %}
+                  </div>
+              </div>
+              {% endif %}
+
+              <!-- Group Absorption Mode -->
+              {% if dataset.images_grouped.sofia.group.absorption %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Absorption Mode - Group</h4>
+                  <div class="image-gallery">
+                      {% for img in dataset.images_grouped.sofia.group.absorption %}
+                      <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                      </div>
+                      {% endfor %}
+                  </div>
+              </div>
+              {% endif %}
+
+              <!-- Regular Emission Mode -->
+              {% if dataset.images_grouped.sofia.regular.emission %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Emission Mode</h4>
+                  <div class="image-gallery">
+                      {% for img in dataset.images_grouped.sofia.regular.emission %}
+                      <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                      </div>
+                      {% endfor %}
+                  </div>
+              </div>
+              {% endif %}
+
+              <!-- Group Emission Mode -->
+              {% if dataset.images_grouped.sofia.group.emission %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Emission Mode - Group</h4>
+                  <div class="image-gallery">
+                      {% for img in dataset.images_grouped.sofia.group.emission %}
+                      <div class="img-container">
+                        <img src="{{ img.path }}" alt="{{ img.description }}">
+                        <div class="img-desc">{{ img.description }}</div>
+                      </div>
+                      {% endfor %}
+                  </div>
+              </div>
+              {% endif %}
+              
+              <!-- Placeholder for no images -->
+              {% if not dataset.images_grouped.sofia.regular.absorption and 
+                    not dataset.images_grouped.sofia.regular.emission and
+                    not dataset.images_grouped.sofia.group.absorption and
+                    not dataset.images_grouped.sofia.group.emission %}
+              <div class="image-gallery">
+                  <div class="placeholder">No SoFiA-2 images available</div>
+              </div>
+              {% endif %}
             </div>
-            
 
 
             <!-- Sección SIP con fuentes desplegables por modo -->
             <div class="gallery-section">
-                <h3 class="section-title">SIP Outputs</h3>
-                <!-- Absorption Mode -->
-                {% if dataset.images_grouped.sip.absorption %}
-                <div class="mode-container">
-                    <h4 class="mode-title">Absorption Mode</h4>
-                    {% for source_id, images in dataset.images_grouped.sip.absorption.items()|sort %}
-                    <div class="source-container">
-                        <button class="source-toggle" onclick="toggleSource(this)">
-                            Source {{ source_id }} (Absorption) ▼
-                        </button>
-                        <div class="source-images">
-                            <div class="image-gallery">
-                                {% for img in images %}
-                                <div class="img-container">
-                                    <img src="{{ img.path }}" alt="{{ img.description }}">
-                                    <div class="img-desc">{{ img.description }}</div>
-                                </div>
-                                {% else %}
-                                <div class="placeholder">No images for this source</div>
-                                {% endfor %}
+              <h3 class="section-title">SIP Outputs</h3>
+              
+              <!-- Regular Absorption Mode -->
+              {% if dataset.images_grouped.sip.regular.absorption %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Absorption Mode</h4>
+                  {% for source_id, images in dataset.images_grouped.sip.regular.absorption.items()|sort %}
+                  <div class="source-container">
+                      <button class="source-toggle" onclick="toggleSource(this)">
+                          Source {{ source_id }} (Absorption) ▼
+                      </button>
+                      <div class="source-images">
+                          <div class="image-gallery">
+                              {% for img in images %}
+                              <div class="img-container">
+                                  <img src="{{ img.path }}" alt="{{ img.description }}">
+                                  <div class="img-desc">{{ img.description }}</div>
                               </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
+                              {% else %}
+                              <div class="placeholder">No images for this source</div>
+                              {% endfor %}
+                          </div>
+                      </div>
+                  </div>
+                  {% endfor %}
+              </div>
+              {% endif %}
 
-                <!-- Emission Mode -->
-                {% if dataset.images_grouped.sip.emission %}
-                <div class="mode-container">
-                    <h4 class="mode-title">Emission Mode</h4>
-                    {% for source_id, images in dataset.images_grouped.sip.emission.items()|sort %}
-                    <div class="source-container">
-                        <button class="source-toggle" onclick="toggleSource(this)">
-                            Source {{ source_id }} (Emission) ▼
-                        </button>
-                        <div class="source-images">
-                            <div class="image-gallery">
-                                {% for img in images %}
-                                <div class="img-container">
-                                    <img src="{{ img.path }}" alt="{{ img.description }}">
-                                    <div class="img-desc">{{ img.description }}</div>
-                                </div>
-                                {% else %}
-                                <div class="placeholder">No images for this source</div>
-                                {% endfor %}
+              <!-- Group Absorption Mode -->
+              {% if dataset.images_grouped.sip.group.absorption %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Absorption Mode - Group</h4>
+                  {% for source_id, images in dataset.images_grouped.sip.group.absorption.items()|sort %}
+                  <div class="source-container">
+                      <button class="source-toggle" onclick="toggleSource(this)">
+                          Source {{ source_id }}* (Absorption - Group) ▼
+                      </button>
+                      <div class="source-images">
+                          <div class="image-gallery">
+                              {% for img in images %}
+                              <div class="img-container">
+                                  <img src="{{ img.path }}" alt="{{ img.description }}">
+                                  <div class="img-desc">{{ img.description }}</div>
                               </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                
-                <!-- Placeholder for no images -->
-                {% if not dataset.images_grouped.sip.absorption and not dataset.images_grouped.sip.emission %}
-                <div class="image-gallery">
-                    <div class="placeholder">No SIP sources available</div>
-                </div>
-                {% endif %}
+                              {% else %}
+                              <div class="placeholder">No images for this source</div>
+                              {% endfor %}
+                          </div>
+                      </div>
+                  </div>
+                  {% endfor %}
+              </div>
+              {% endif %}
+
+              <!-- Regular Emission Mode -->
+              {% if dataset.images_grouped.sip.regular.emission %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Emission Mode</h4>
+                  {% for source_id, images in dataset.images_grouped.sip.regular.emission.items()|sort %}
+                  <div class="source-container">
+                      <button class="source-toggle" onclick="toggleSource(this)">
+                          Source {{ source_id }} (Emission) ▼
+                      </button>
+                      <div class="source-images">
+                          <div class="image-gallery">
+                              {% for img in images %}
+                              <div class="img-container">
+                                  <img src="{{ img.path }}" alt="{{ img.description }}">
+                                  <div class="img-desc">{{ img.description }}</div>
+                              </div>
+                              {% else %}
+                              <div class="placeholder">No images for this source</div>
+                              {% endfor %}
+                          </div>
+                      </div>
+                  </div>
+                  {% endfor %}
+              </div>
+              {% endif %}
+
+              <!-- Group Emission Mode -->
+              {% if dataset.images_grouped.sip.group.emission %}
+              <div class="mode-container">
+                  <h4 class="mode-title">Emission Mode - Group</h4>
+                  {% for source_id, images in dataset.images_grouped.sip.group.emission.items()|sort %}
+                  <div class="source-container">
+                      <button class="source-toggle" onclick="toggleSource(this)">
+                          Source {{ source_id }}* (Emission - Group) ▼
+                      </button>
+                      <div class="source-images">
+                          <div class="image-gallery">
+                              {% for img in images %}
+                              <div class="img-container">
+                                  <img src="{{ img.path }}" alt="{{ img.description }}">
+                                  <div class="img-desc">{{ img.description }}</div>
+                              </div>
+                              {% else %}
+                              <div class="placeholder">No images for this source</div>
+                              {% endfor %}
+                          </div>
+                      </div>
+                  </div>
+                  {% endfor %}
+              </div>
+              {% endif %}
+              
+              <!-- Placeholder for no images -->
+              {% if not dataset.images_grouped.sip.regular.absorption and 
+                    not dataset.images_grouped.sip.regular.emission and
+                    not dataset.images_grouped.sip.group.absorption and
+                    not dataset.images_grouped.sip.group.emission %}
+              <div class="image-gallery">
+                  <div class="placeholder">No SIP sources available</div>
+              </div>
+              {% endif %}
             </div>
 
         </div>

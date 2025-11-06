@@ -302,7 +302,7 @@ def reorganize_log(log_path, worker_results):
                                                 ) as sip_log:
                                                 sip_lines = sip_log.readlines()
                                             pid_groups[current_pid].append(
-                                                f"    [INCLUDING SIP LOG: {log_path_sofia}]\n"
+                                                f"    [INCLUDING SIP LOG: {log_path_sip}]\n"
                                             )
                                             pid_groups[current_pid].extend(
                                                 [f"    {l}" for l in sip_lines]
@@ -334,7 +334,7 @@ def reorganize_log(log_path, worker_results):
                                                 ) as sip_log:
                                                 sip_lines = sip_log.readlines()
                                             pid_groups[current_pid].append(
-                                                    f"    [INCLUDING SIP LOG: {log_path_sofia}]\n"
+                                                    f"    [INCLUDING SIP LOG: {log_path_sip}]\n"
                                                 )
                                             pid_groups[current_pid].extend(
                                                 [f"        {l}" for l in sip_lines]
@@ -562,10 +562,10 @@ def process_data(id_number,
                     qa_report.append(abs_qa_report)
             else:
                 logger.warning(
-                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
-                    "performed."
+                    f"'enable_tap_service' is set to False. No ALMA file mask available. "
+                    "Reduced QA image."
                 )
-                abs_qa_report = adpalmap_sopar_emi.quality_assesment()
+                abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                 qa_report.append(abs_qa_report)
 
             emi_sofia_report = adpalmap_sopar_emi.run_sofia(run=0)
@@ -636,18 +636,18 @@ def process_data(id_number,
         else: 
             if adpalmap_config.run_mode == 'emission':         
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config)
+                    adpalmap_sipar.run_sip()
                 )
             elif adpalmap_config.run_mode == 'absorption':
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config)
+                    adpalmap_sipar.run_sip()
                 )
             elif adpalmap_config.run_mode == 'both':
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config)
+                    adpalmap_sipar.run_sip()
                 )
                 sip_report.append(
-                    adpalmap_sipar.run_sip(adpalmap_config, run=0)
+                    adpalmap_sipar.run_sip(run=0)
                 )
 
 
@@ -697,7 +697,6 @@ def process_data(id_number,
                         group_report.append(abs_sip_group_report)
                     
             
-
             if adpalmap_config.run_mode == 'emission':
 
                 Logger.raw("================================") 
@@ -725,6 +724,7 @@ def process_data(id_number,
                         # Execute SIP
                         emi_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
                         group_report.append(emi_sip_group_report)
+
 
             if adpalmap_config.run_mode == 'both':
                 
@@ -793,7 +793,6 @@ def process_data(id_number,
     ##############################################################################################
 
     return sofia_report, sip_report, qa_report, group_report
-
 
 
 def main():
@@ -1060,7 +1059,6 @@ def main():
         finish = time.perf_counter()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
-
 
     finally:
         

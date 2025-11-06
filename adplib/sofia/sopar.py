@@ -421,7 +421,7 @@ class SoPar(dict):
     def update_input_parameters(
             self, sop_par, 
             input_data, primary_beam=None, mask=None,
-            mode=None, tap=None, use_pb=None, use_mask=None, run=-1, 
+            tap=None, use_pb=None, use_mask=None, run=-1, 
             sofia_threads=1
         ):
         """
@@ -439,7 +439,7 @@ class SoPar(dict):
         """
         
         logger.info(
-            f"Reading parameters in {self.sofia_file_path}. Mode: {self.adpalmap_config.run_mode}."
+            f"Reading parameters in {self.sofia_file_path}. Mode: {self.mode}."
             )
         
         ###########################-------------input.data--------------##############################
@@ -565,12 +565,19 @@ class SoPar(dict):
             invert_value_sopar = sop_par.get("input.invert", getattr(self, "input_invert", False))
         else:
             invert_value_sopar = None
+
         
-        if mode == 'emission' and (invert_value_sopar=='true' or self.input_invert=='true'):
-            logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
-                           "Changing 'input.invert' to 'false'.")
-            self.input_invert = 'false'
-        elif mode == 'absorption':
+        # If self.adpalmap_config.run_mode is used elif blocks for both run(==0 or =!0) must be include
+        # If self.mode is used just elif emission and absoption are enough because self.mode is 
+        # previously defined
+        if self.adpalmap_config.run_mode=='emission':
+            # If any other value than true is set, SoFiA will run considering input.invert=false
+            if (invert_value_sopar=='true' or self.input_invert=='true'):
+                logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
+                            "Changing 'input.invert' to 'false'.")
+                self.input_invert = 'false'
+
+        elif self.adpalmap_config.run_mode=='absorption':
             if (invert_value_sopar=='false' or self.input_invert=='false'):
                 logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. "
                                "Changing 'input.invert' to 'true'.")
@@ -579,16 +586,28 @@ class SoPar(dict):
                 self.input_invert = 'true'
             else: 
                 self.input_invert = 'true'
-        elif mode == 'both' and run !=0:
+        
+        elif (self.adpalmap_config.run_mode=='both' and run !=0):
             if (invert_value_sopar=='false' or self.input_invert=='false'):
                 logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for "
                                "the first run. Changing 'input.invert' to 'true'.")
-            self.input_invert = 'true'
-        elif mode == 'both' and run ==0:
+                self.input_invert = 'true'
+            elif (self.input_invert !='false' or self.input_invert is None):
+                self.input_invert = 'true'
+            else: 
+                self.input_invert = 'true'
+
+        elif (self.adpalmap_config.run_mode=='both' and run ==0):
             if (invert_value_sopar=='true' or self.input_invert=='true'):
                 logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
                                "the second run. Changing 'input.invert' to 'false'.")
             self.input_invert = 'false'
+        
+        else:
+            logger.critical("Oops, you should not have come here, Please open an"
+            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+            "case.")
+        
         ##############################################################################################        
         
         #########################-------------scfind.enable--------------#############################
@@ -704,7 +723,7 @@ class SoPar(dict):
                     setattr(self, normalized_key, value)
                     logger.warning(f"Added new parameter '{key}' with value '{value}'.")
 
-        logger.info(f"Parameters updated. Mode: {self.adpalmap_config.run_mode}.")
+        logger.info(f"Parameters updated. Mode: {self.mode}.")
 
 
     def update_group_parameters(self, group_mask):
@@ -721,23 +740,27 @@ class SoPar(dict):
         None: Updates the attributes of the SoPar object directly.
         """
 
-        logger.info(f"Updating SoFiA parameters. Mode: {self.adpalmap_config.run_mode}.")
+        logger.info(f"Updating SoFiA parameters. Mode: {self.mode}.")
         
         self.input_mask = group_mask
 
-        if self.adpalmap_config.run_mode == "absorption":
+        if self.mode == "absorption":
             self.input_invert = "true"
-        elif self.adpalmap_config.run_mode == "emission":
+        elif self.mode == "emission":
             self.input_invert = "false"
 
         self.scfind_enable = "false"
+
+        self.linker_enable = "false" 
+
+        self.reliability_enable = "false"
 
         self.output_filename = f"group_{self.output_filename}"
         
         # '{self.output_filename}' Already contain prefixx 'group_'
         self.sopar_logfile = self.output_directory / f"{self.output_filename}_logfile.log"
 
-        logger.info(f"Parameter ready. Mode: {self.adpalmap_config.run_mode}.")
+        logger.info(f"Parameter ready. Mode: {self.mode}.")
 
 
     def auto_setup(self):
@@ -754,7 +777,7 @@ class SoPar(dict):
         SystemExit: If `self.input_data` is not defined, is empty, or the FITS file does not exist.
         """
 
-        logger.info(f"Auto-setup start. Mode: {self.adpalmap_config.run_mode}")
+        logger.info(f"Auto-setup start. Mode: {self.mode}")
 
         if not hasattr(self, "input_data") or not self.input_data:
             logger.critical(
@@ -817,7 +840,7 @@ class SoPar(dict):
                 
 
         # Otros parámetros pueden ser añadidos según las reglas específicas...
-        logger.info(f"Auto-setup DONE. Mode: {self.adpalmap_config.run_mode}")
+        logger.info(f"Auto-setup DONE. Mode: {self.mode}")
 
 
     def run_sofia(self, run=-1):        
@@ -1101,7 +1124,7 @@ class SoPar(dict):
         sofia_output_dir = Path(self.output_directory)
         input_file_name = Path(self.input_data).stem
         file_2d_mask = (
-            sofia_output_dir / f"{self.adpalmap_config.run_mode}_{input_file_name}_mask-2d.fits"
+            sofia_output_dir / f"{self.mode}_{input_file_name}_mask-2d.fits"
         )
         
         if file_2d_mask.exists():
@@ -1161,14 +1184,14 @@ class SoPar(dict):
 
         qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
         qa_output_dir.mkdir(parents=True, exist_ok=True)  
-        qa_output_file = Path(f"{qa_output_dir / Path(self.input_data).stem}_QA.png")
+        qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename).stem}_QA.png")
 
 
         try:
             plt.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
                 f"QA file saved in {qa_output_dir}. Quality assesment completed "
-                f"successfully. Mode: {self.adpalmap_config.run_mode}"
+                f"successfully. Mode: {self.mode}"
                 )
             
             qa_report['outputs']['images'].append({
@@ -1180,7 +1203,7 @@ class SoPar(dict):
             return qa_report
         except Exception as e:
             logger.warning(f"Something went wrong while saving QA file: {e}")
-            logger.info(f"Quality assement aborted . Mode: {self.adpalmap_config.run_mode}")
+            logger.info(f"Quality assement aborted . Mode: {self.mode}")
             return qa_report
             
 

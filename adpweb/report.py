@@ -144,7 +144,7 @@ class Report:
 
     def parse_report(self):
         datasets = []
-        for dataset_tuple in self.datasets: #Todos los datset disponibles de los diferentes workers
+        for dataset_tuple in self.datasets: # Todos los dataset disponibles de los diferentes workers
 
             all_software = []
             input_data = None
@@ -152,18 +152,21 @@ class Report:
             error_exist = False
             warning_exist = False
             
-            # Los dataset vienen en tuplas de 3: SoFiA, SIP y QA
+            # Los dataset ahora vienen en tuplas de 4: SoFiA, SIP, QA y Group
             for software_list in dataset_tuple: 
                 
                 for sw in software_list: # En cada tupla puede haber absorcion emision
-                    # Busco input.data. Se puede hacer de otra manera 
+                    # Busco input.data
                     if not input_data:
                         if 'sofia_par_changes' in sw and 'input.data' in sw['sofia_par_changes']:
                             input_data = sw['sofia_par_changes']['input.data']
                         elif 'input_name' in sw:
                             input_data = sw['input_name']
 
-                    # To process just SoFIa and SIP
+                    # Determinar si es software de Group
+                    is_group = software_list is dataset_tuple[3]  # La cuarta tupla es Group
+                    
+                    # To process just SoFIa and SIP (no QA)
                     if sw['software_id'] == 'QA':
                         if 'outputs' in sw and 'images' in sw['outputs']:
                             for img in sw['outputs']['images']:
@@ -173,7 +176,7 @@ class Report:
                     
                     # Determino el 'status' del software
                     error = sw.get('error', '')
-                    warnings = 2 
+                    warnings = 2  # Este valor debería venir de los datos reales
                     
                     if error:
                         sw_status = 'error' 
@@ -183,8 +186,7 @@ class Report:
                         warning_exist = True
                     else:
                         sw_status = 'ok'  
-                    
-        
+            
                     # Toda la información de cada software
                     software_info = {
                         'software_id': sw['software_id'],
@@ -198,48 +200,54 @@ class Report:
                             self._read_log_file(sw.get('sofia_parfile', '')),
                             sw.get('sofia_par_changes', {})
                         ),
-                        'command' : ' '.join(sw.get(('command'), ''))
+                        'command': ' '.join(sw.get(('command'), '')),
+                        'is_group': is_group  # Nuevo campo para identificar software de Group
                     }
                     all_software.append(software_info)
                     
                     # Imagenes
-                    # Guardo TODAS las imágenes sin ordenar de todos los softwares y de todos 
-                    # los modos
                     if 'outputs' in sw and 'images' in sw['outputs']:
                         for img in sw['outputs']['images']:
                             img['mode'] = sw.get('mode', None)
                             img['is_qa'] = False  # Marco como no QA
+                            img['is_group'] = is_group  # Marco si es del grupo
                         images.extend(sw['outputs']['images'])
 
-
             # Reorganizar imágenes por tipo y fuente
-            # Aquí las reorganizo por tipo de software. 
             organized_images = {
-                'sofia': {'absorption': [], 'emission': []},
-                'sip': {'absorption': {}, 'emission': {}}, #Pueden haber varias fuentes de ahí que sea {} 
+                'sofia': {
+                    'regular': {'absorption': [], 'emission': []},
+                    'group': {'absorption': [], 'emission': []}
+                },
+                'sip': {
+                    'regular': {'absorption': {}, 'emission': {}},
+                    'group': {'absorption': {}, 'emission': {}}
+                },
                 'qa': []
             }
             
             for img in images:
                 mode = img.get('mode', 'absorption')
-
+                is_group = img.get('is_group', False)
+                
                 if img['software-id'] == 'sofia':
-                    if mode not in organized_images['sofia']:
-                        organized_images['sofia'][mode] = []
-                    organized_images['sofia'][mode].append(img)
+                    category = 'group' if is_group else 'regular'
+                    if mode not in organized_images['sofia'][category]:
+                        organized_images['sofia'][category][mode] = []
+                    organized_images['sofia'][category][mode].append(img)
 
                 elif img['software-id'] == 'sip':
-                    if mode not in organized_images['sip']:
-                        organized_images['sip'][mode] = {}
+                    category = 'group' if is_group else 'regular'
+                    if mode not in organized_images['sip'][category]:
+                        organized_images['sip'][category][mode] = {}
                     
                     source_id = img.get('source_id', 0)
-                    if source_id not in organized_images['sip'][mode]:
-                        organized_images['sip'][mode][source_id] = []
+                    if source_id not in organized_images['sip'][category][mode]:
+                        organized_images['sip'][category][mode][source_id] = []
                     
-                    organized_images['sip'][mode][source_id].append(img)
+                    organized_images['sip'][category][mode][source_id].append(img)
                 elif img['software-id'] == 'qa':
                     organized_images['qa'].append(img)
-
 
             # Determinar status general del dataset
             dataset_status = 'error' if error_exist else 'warning' if warning_exist else 'ok'
@@ -254,7 +262,7 @@ class Report:
         
         return datasets
     
-    
+        
     def generate_html(self):
 
         try:
