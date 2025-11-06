@@ -205,7 +205,7 @@ class Config(dict):
         Validate the attributes for the Config class readed from the configuration file.
 
         """
-        #Tipos esperados en los parámetros
+        # Parameters and values allowed
         expected_types = {
             'html_report': bool,
             'verbose': bool,
@@ -231,10 +231,10 @@ class Config(dict):
             'overlap_threshold': float | None
         }
 
-        #Los parámetros obligatorios, hasta la fecha
+        # Required parameters, up to date
         required_params = list(expected_types.keys())
 
-        #Comprobamos los parámetros obligatorios
+        # Check the required parameters
         missing_params = [param for param in required_params if not hasattr(self, param)]
         if missing_params:
             param_list = ", ".join(missing_params)
@@ -244,7 +244,7 @@ class Config(dict):
                 f"'{self.config_path.name}': {param_list}"
             )
 
-        #Comprobamos el tipo
+        # Check the (type)
         for param, expected_type in expected_types.items():
             if hasattr(self, param):
                 value = getattr(self, param)
@@ -254,9 +254,18 @@ class Config(dict):
                         f"The parameter '{param}' in the config.yaml file must be of "
                         f"type {expected_type}, but is of type {type(value)}."
                     )
-                    
-        # Compruebo específicamente los valores de run_mode y overlap_mode
-        # Valores permitidos para parámetros específicos
+
+
+        # Check for 'overlap_threshold'
+        if hasattr(self, 'overlap_threshold') and self.overlap_threshold is not None:
+            if not (0 <= self.overlap_threshold <= 1):
+                raise ValueError(
+                    f"The parameter 'overlap_threshold' must be a float between 0 and 1. "
+                    f"Value provided: {self.overlap_threshold}."
+                )    
+                     
+        # Check for 'run_mode' y 'overlap_mode'. 
+        # Allowed values for this parameters 
         valid_values = {
             'run_mode': ['emission', 'absorption', 'both'],
             'overlap_mode': ['flux', 'absflux', 'area'],
@@ -271,12 +280,12 @@ class Config(dict):
                         f"Value provided: '{value}'."
                     )
                 
-        # Detecto y manejo parámetros no esperados
-        internal_attributes = ['config_path'] #Parámetros creados dentro de la clase
-        all_params = set(self.__dict__.keys())  # Todos los atributos actuales de la instancia
-        allowed_params = set(expected_types.keys())  # Parámetros esperados
+        # Detect and manage of the unexpected parameters
+        internal_attributes = ['config_path'] # Parameters created inside the class
+        all_params = set(self.__dict__.keys())  # All the atributes in the instance
+        allowed_params = set(expected_types.keys())  # Expected parameters
         allowed_params.update(internal_attributes)
-        unexpected_params = all_params - allowed_params  # Parámetros inesperados
+        unexpected_params = all_params - allowed_params  # Unexpected parameters
 
         for param in unexpected_params:
             raise ValueError(
