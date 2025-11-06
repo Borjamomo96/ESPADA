@@ -604,7 +604,7 @@ class SoPar(dict):
             self.input_invert = 'false'
         
         else:
-            logger.critical("Oops, you should not have come here, Please open an"
+            logger.critical("Oops, you should not have come here. Please open an"
             " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
             "case.")
         

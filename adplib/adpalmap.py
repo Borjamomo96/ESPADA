@@ -893,10 +893,17 @@ def main():
 
             adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
             if adpalmap_datap.query_type=='proposal': TAP_df = adpalmap_datap.proposal_id()
+            elif adpalmap_datap.query_type=='member_ous_id': TAP_df = adpalmap_datap.member_ous_id()
             elif adpalmap_datap.query_type=='conesearch': TAP_df = adpalmap_datap.conesearch()
             elif adpalmap_datap.query_type=='target': TAP_df = adpalmap_datap.target()
             elif adpalmap_datap.query_type=='keysearch': TAP_df = adpalmap_datap.keysearch()
             elif adpalmap_datap.query_type=='free': TAP_df = adpalmap_datap.free()
+            else:
+                logger.critical(
+                    "Oops, you should not have come here, Please open an"
+                    " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git " \
+                    "with your specific case."
+                )
 
             adpalmap_datap.download_data(TAP_df)
             

@@ -788,13 +788,13 @@ class datap(dict):
         )
 
         if self.query_par['public']:
-            query = "{} AND data_rights LIKE '%Public%'".format(query)
+            query = f"{query} AND data_rights LIKE '%Public%'"
 
         elif not self.query_par['public'] and self.query_par['public'] is not None:
-            query = "{} AND data_rights LIKE '%Proprietary%'".format(query)
+            query = f"{query} AND data_rights LIKE '%Proprietary%'"
 
         if self.query_par['print_query']:
-            logger.info("Your query is: {}".format(query))
+            logger.info(f"Your query is: {query}")
 
         
         TAP_df = self.run_query(query)
@@ -816,6 +816,52 @@ class datap(dict):
         
         return TAP_df
         
+
+    def member_ous_id(self):
+        """
+        Query the ALMA archive for specific Member OUS IDs.
+
+        This function allows users to search for data using specific Member OUS IDs,
+        which is one of the most frequent use-cases for running the pipeline on entire MOUS.
+
+        Parameters
+        ----------
+        Self: All the required parameters are part of the attributes of the class itself.
+        The attributes are defined in the download_par.yaml, see README for further details.
+
+        Returns
+        -------
+        'TAP_df' pandas.DataFrame containing the query results.
+        """
+        
+        # Convert single member_ous_id to list for consistent processing
+        if isinstance(self.query_par['member_ous_id'], str):
+            member_ous_ids = [self.query_par['member_ous_id']]
+        else:
+            member_ous_ids = self.query_par['member_ous_id']
+        
+        # Build query with OR logic for multiple member_ous_ids
+        member_ous_conditions = []
+        for mous_id in member_ous_ids:
+            member_ous_conditions.append(f"member_ous_uid LIKE '%{mous_id}%'")
+        
+        query = (
+            "SELECT * FROM ivoa.obscore WHERE "
+            f"({' OR '.join(member_ous_conditions)})"
+        )
+
+        if self.query_par['public']:
+            query = f"{query} AND data_rights LIKE '%Public%'"
+        elif not self.query_par['public'] and self.query_par['public'] is not None:
+            query = f"{query} AND data_rights LIKE '%Proprietary%'"
+
+        if self.query_par['print_query']:
+            logger.info("Your query is: {}".format(query))
+
+        TAP_df = self.run_query(query)
+
+        return TAP_df
+
 
     def conesearch(self):
         """
@@ -1153,10 +1199,11 @@ class datap(dict):
         # Expected parameters for each query
         expected_params = {
             'proposal':   ['proposal_id'],
+            'member_ous_id': ['member_ous_id'],
             'conesearch': ['ra', 'dec', 'search_radius'],
             'target':     ['sources', 'search_radius'],
             'keysearch':  ['search_dict'],
-            'free':       ['query_str'],
+            'free':       ['query_str']
         }
 
         expected_common_types = {  
@@ -1170,6 +1217,7 @@ class datap(dict):
         # Expected types for specific parameters
         expected_types = {
             'proposal_id': str,
+            'member_ous_id': (str, list),
             'ra': (int, float),
             'dec': (int, float),
             'search_radius': (int, float),

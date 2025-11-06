@@ -28,6 +28,8 @@ stored_credentials: False # <bool>
 query_type: 'proposal'
 
 #The query type options available are:
+# 'proposal'
+# 'member_ous_id'
 # 'conesearch' 
 # 'target'
 # 'keysearch'
@@ -36,14 +38,17 @@ query_type: 'proposal'
 ##Specific parameters for the query indicated in 'query_type':
 query_par:
 #-----------------query type = proposal---------------------#
-  proposal_id: 
+  #proposal_id: 2018.1.01852.S
+#---------------query type = member_ous_id------------------#
+  #member_ous_id: A001_X133d_X4226
+
 #----------------query type = conesearch--------------------#
   #ra: 1
   #dec: 1
   #search_radius: 1.
 #------------------query type = target----------------------#
-  #sources: ['NGC4418']
-  #search_radius: 2.
+  #sources: ['NGC4418', 'AB_Aur']
+  #search_radius: 2
 #-----------------query type = keysearch--------------------#
   #search_dict: {'target_name':['NGC4418'], 'proposal_id': ['2022.1.00738.S']}
 #-------------------query type = free-----------------------#
