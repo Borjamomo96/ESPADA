@@ -162,7 +162,9 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
 ###  **SOFIA**:
   - `enable_sofia`: If `True`, allows execution of the module `sofia.py`, which uses external SoFiA software. Type `<bool>`.
   - `run_mode`: Indicates the type of emission that SoFiA should search for in the selected data cube. Available modes are 'emission', 'absorption', and 'both'. If 'both' is selected, SoFiA will first search for absorptions and then run again to search for emissions. See description of 'abs_flag_cube' parameter for more details. Type `<str>`.
-  - `abs_flag_cube`: If `True`, uses the mask obtained during SoFiA's first run in 'both' mode (i.e., absorptions) as a flag mask for emission searches. Type `<bool>`.
+  - `use_pb`: If `True` will use the primary beam file(s) (if any) to run SoFiA. If `False` will NOT use it. No matter if it was indicate in the 'input_dataset' or 'input_file' parameters. Type `<bool>`.
+  - `use_mask`: If `True` will use the mask file(s) (if any) to run SoFiA. If `False` will NOT use it. No matter if it was indicate in the 'input_dataset' or 'input_file' parameters. Type `<bool>`.
+  - `abs_flag_cube`: If `True`, uses the mask obtained during SoFiA's first run in 'both' mode (i.e., absorption) as a flag mask for emission searches. Type `<bool>`.
   - `auto_setup`: If `True`, adjusts certain SoFiA parameters based on specific keywords found in data cube headers. Type `<bool>`.
   - `sofia_abs_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for absorptions. Type `<str>`.
   - `sofia_emi_file`: Path (including filename) to a file containing parameters necessary for running SoFiA to search for emissions. Type `<str>`.
@@ -192,7 +194,13 @@ The pipeline runs using a configuration file named *config.yaml*, which is inclu
     **NOTE:** The argument `-c|--catalog` will only be necessary if the module responsible for running SoFiA is disabled; otherwise, this parameter will be ignored, and the newly obtained catalog from SoFiA will be used.
     If we are in the case mentioned and the number of datasets we are going to use is strictly greater than 1, this parameter must contain a list of catalogs, one for each dataset.
 
+###  **GROUP**:
 
+  - `enable_sofia`: If `True`, allows execution of the module `group.py`. This module is responsible for grouping different sources detected in SoFiA that are actually the same. It then runs SoFiA and SIP again in the same selected mode with the newly grouped sources.Type `<bool>`.
+
+  - `overlap_mode`: Indicates the type of overlap that should be performed on the sources found by SoFiA for the selected `run_mode`. Available modes are 'flux', 'absflux' or 'area'. Type `<str>`.
+
+  - `overlap_threshold`: Set the limit applied to the 'overlap_mode' selected. Must be a number between 0 and 1. Type `<float>`.  
 
 
 ## Download Parameter File
@@ -289,17 +297,16 @@ query_par:
 
 ### **PARAMETERS**:
 - `'download_par'`:
+
+  - **data_dir**: Path of the directory where downloaded data should be placed. Type `<str>`.
   - **fitsonly**: If `True`, download individual FITS files only. This option will not download raw data. Type `<bool>`.
-  - **include_pb**: If `True`, download all `.pb.` files (i.e., all primary beam cubes) without distinction among science cubes. Type `<bool>`.
-  - **include_mask**: If `True`, download all `cube.I.mask` files (i.e., all mask cubes). All the mask from the archive are float type which is not accepted as valid input for the `input.mask` parameter from SoFiA-2. A copies from those downloaded mask will be created with the suffix '_int' to be used by SoFiA-2. Type `<bool>`.
-  - **delete_compressed_file**: If `True`,  delete compressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
-  - **delete_archive_mask**: If `True`,  delete the original mask files from the archive with float type. Type `<bool>`.
+  - **remove_compressed_file**: If `True`, remove compressed files. This applies to primary beam cubes in the ALMA archive. Type `<bool>`.
+  - **remove_archive_mask**: If `True`,  delete the original mask files from the archive with float type values in the cube. This it is done because at some point the mask must be transformed into int value type values to be valid for SoFiA .Type `<bool>`.
   - **dryrun**: If `True`, allows users to perform a test run to check file size and number before downloading data. Type `<bool>`.
   - **print_urls**: If `True`, writes a list of URLs to be downloaded from the archive to the terminal. Type `<bool>`.
   - **filename_must_include**: A list of strings that must be included in the URL filename. Useful for filtering downloads further, such as data corrected for primary beams ('.pbcor') or specific science targets or calibrators (by including their names). Choices depend on reduction type and cycle. Example:  *['A001_X133d_X4226.COSMOS-1189669_sci.spw25.cube']*.  
     Type `<list>`.
 
-  - **data_dir**: Path of the directory where downloaded data should be placed. Type `<str>`.
 
 
 ## Typical errors
