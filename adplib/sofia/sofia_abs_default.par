@@ -84,6 +84,12 @@ threshold.mode             =  relative
 threshold.statistic        =  mad
 threshold.fluxRange        =  negative
 
+# Filter
+
+filter.discardNegative     =  true
+filter.minSNR              =  6.0
+filter.minPixels           =  150
+
 
 # Linker
 
@@ -99,7 +105,6 @@ linker.maxPixels           =  0
 linker.minFill             =  0.05
 linker.maxFill             =  0.0
 linker.positivity          =  false
-linker.keepNegative        =  false
 
 
 # Reliability
@@ -108,14 +113,11 @@ reliability.enable         =  true
 reliability.parameters     =  peak, sum, mean
 reliability.threshold      =  0.9
 reliability.scaleKernel    =  0.3
-reliability.minSNR         =  6.0
-reliability.minPixels      =  150
 reliability.autoKernel     =  true
 reliability.iterations     =  50
 reliability.tolerance      =  0.05
 reliability.catalog        =  
 reliability.plot           =  true
-reliability.plotExtra      =  false
 reliability.debug          =  false
 
 
@@ -140,9 +142,11 @@ parameter.offset           =  false
 
 output.directory           =  
 output.filename            =  
+output.dataFormat          =  
 output.writeCatASCII       =  true
 output.writeCatXML         =  true
 output.writeCatSQL         =  false
+output.writeDiagnosticPlot =  true
 output.writeKarma          =  false
 output.writeNoise          =  false
 output.writeFiltered       =  false
@@ -153,6 +157,7 @@ output.writeMoments        =  true
 output.writeCubelets       =  true
 output.writePV             =  true
 output.marginAperSpec      =  10
-output.marginCubelets      =  10
+output.marginCubeletsXY    =  10
+output.marginCubeletsZ     =  10
 output.thresholdMom12      =  0.0
 output.overwrite           =  true
