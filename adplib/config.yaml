@@ -4,7 +4,7 @@
 #   GENERAL   #
 ###############
 
-html_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
+make_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
 verbose: True                       # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
 num_cores: 12                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ADPALMAP. The minimum number is 1, and the maximum depends on the device.
 
