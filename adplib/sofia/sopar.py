@@ -1131,12 +1131,13 @@ class SoPar(dict):
         
         if file_2d_mask.exists():
             pass
-            qa_report['outputs']['images'].append({
+            # It is not stricly necessary and just cause duplicate in the html report.
+            """qa_report['outputs']['images'].append({
                 "type": "mask2d_sofia",
                 "path": file_2d_mask,
                 "description": "2D Mask from SoFiA",
                 "software-id": "qa"
-            })
+            })"""
         else:
             logger.warning(
                 f"2D-Mask file from SoFia not found in {self.output_directory}."            

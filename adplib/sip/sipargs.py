@@ -621,8 +621,7 @@ class SiPar(dict):
             logger.critical(f"Error running SIP making summary images: {e}")
             sys.exit(-1)'''
 
-
-    
+  
     def generate_command(self, exclude=None, output_dir=None, mode=None, sopar=None):
         """
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 

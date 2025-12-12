@@ -877,7 +877,7 @@ def main():
         logger.info("ADPALMAP start point")
 
         log_flag = True
-        start = time.perf_counter()
+        start, start_date = time.perf_counter(), datetime.now().isoformat()
 
         #--------------------------------------------------------------------------------------------#
 
@@ -1063,7 +1063,7 @@ def main():
         #--------------------------------------------------------------------------------------------#
 
         logger.info("ADPALMAP successfully ended")
-        finish = time.perf_counter()
+        finish, finish_date = time.perf_counter(), datetime.now().isoformat()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
         queue_listener.stop() 
 
@@ -1073,15 +1073,59 @@ def main():
             log_path = Logger.get_log_filename()
             adp_log = reorganize_log(log_path, worker_results)
 
-        if adpalmap_config is not None and adpalmap_config.html_report:
+
+        if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
             
             base_dir = Path(__file__).parent.parent  
             template = base_dir / "adpweb" / "templates" / "report.html"
 
-            adpalmap_report = Report(worker_results, template, adp_log)
+
+            # METADATA 
+            pipeline_metadata = {
+                # Pipeline info
+                'pipeline_name': 'ADP-ALMA-Pipeline',
+                'pipeline_version': 1.0, # get_pipeline_version() to be developed
+                'run_id': f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                
+                # Execution time
+                'start_time': start_date,
+                'end_time': finish_date,
+                'duration_seconds': round(finish-start, 2),
+                
+                # Configuration used
+                'config_used': adpalmap_config.__dict__,
+                
+                # System info
+                'environment': {
+                    'python_version': sys.version,
+                    #'hostname': socket.gethostname(),
+                    'username': os.getenv('USER', 'unknown'),
+                    'working_directory': str(Path.cwd())
+                },
+                
+                # Resources
+                'resource_info': {
+                    'cpus_available': os.cpu_count(),
+                    # 'memory_available': ...,  
+                    # 'disk_space': ...  
+                }
+            }
             
-            adpalmap_report.generate_html()
+            # Crear Report con toda la información
+            adpalmap_report = Report(
+                worker_results=worker_results,  
+                template=template,
+                adp_log=adp_log,
+                pipeline_metadata=pipeline_metadata,
+                config=adpalmap_config  
+            )
+            
+            if adpalmap_config.make_report:
+
+                json_path = adpalmap_report.generate_json()
+
+                html_path = adpalmap_report.generate_html()
             
 
 # Run the main functions

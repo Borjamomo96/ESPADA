@@ -157,8 +157,6 @@ class Config(dict):
         #Check the logic for the input parameters
         self.input_logic()
 
-        self.quality_assesment = True
-
 
     def configure(self, config_path=None, **kwargs):
 
