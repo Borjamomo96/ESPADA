@@ -178,7 +178,7 @@ class Config(dict):
                    
         elif config_path is not None:
             
-            config_path = Path(config_path)
+            self.config_path = Path(config_path)
 
             if not config_path.exists():
                 raise FileNotFoundError(f"Config file {config_path} not found.")
@@ -205,7 +205,7 @@ class Config(dict):
         """
         # Parameters and values allowed
         expected_types = {
-            'html_report': bool,
+            'make_report': bool,
             'verbose': bool,
             'num_cores': int | None,
             'input_data_set': str | list | dict | None,
