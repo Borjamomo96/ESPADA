@@ -180,7 +180,7 @@ class Config(dict):
             
             self.config_path = Path(config_path)
 
-            if not config_path.exists():
+            if not self.config_path.exists():
                 raise FileNotFoundError(f"Config file {self.config_path} not found.")
             else:
                 logger.info(f"The file in {self.config_path} have been loaded successfully")
