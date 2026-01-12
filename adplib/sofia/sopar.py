@@ -950,7 +950,7 @@ class SoPar(dict):
                 )
 
             # Add outputs for the html report
-            if self.adpalmap_config.html_report:
+            if self.adpalmap_config.make_report:
                 try:
                     self.report_outputs(sopar_report)  
                 except Exception as e:

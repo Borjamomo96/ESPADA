@@ -581,7 +581,7 @@ class SiPar(dict):
                 logger.critical(f"Error running SIP making summary images: {e}")"""
 
             # Add output to SIP report 
-            if self.adpalmap_config.html_report:
+            if self.adpalmap_config.make_report:
                 try:
                     self.report_outputs(sip_report, sip_output_dir, sopar=sopar)  
                 except Exception as e:
