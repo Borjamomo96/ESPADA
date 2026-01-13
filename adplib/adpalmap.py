@@ -485,7 +485,8 @@ def process_data(id_number,
                 sofia_file_path=adpalmap_config.sofia_abs_file, 
                 adpalmap_config=adpalmap_config,
                 mode='absorption',
-                pid = pid
+                pid = pid,
+                sofia_threads=sofia_threads
                 )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
@@ -523,13 +524,15 @@ def process_data(id_number,
                 sofia_file_path=adpalmap_config.sofia_abs_file,
                 adpalmap_config=adpalmap_config,
                 mode='absorption',
-                pid = pid
+                pid = pid,
+                sofia_threads=sofia_threads
                 )
             adpalmap_sopar_emi = SoPar(
                 sofia_file_path=adpalmap_config.sofia_emi_file,
                 adpalmap_config=adpalmap_config,
                 mode='emission',
-                pid = pid
+                pid = pid,
+                sofia_threads=sofia_threads
                 )
             #Update sofia abs file with the -sop parameters
             adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
@@ -981,7 +984,6 @@ def main():
         cpu_cores = multiprocessing.cpu_count()
         
         if adpalmap_config.num_cores is not None:
-
             if adpalmap_config.num_cores > cpu_cores:
                 logger.warning(
                     "The number of cores indicated is greater than the number of cores available "
@@ -997,6 +999,7 @@ def main():
         reserved_cores = 0
         available_cores = max_cores - reserved_cores 
 
+    
         max_workers = calculate_workers(data_pack_list, available_cores)
 
         if max_workers < 1:

@@ -423,8 +423,7 @@ class SoPar(dict):
     def update_input_parameters(
             self, sop_par, 
             input_data, primary_beam=None, mask=None,
-            tap=None, use_pb=None, use_mask=None, run=-1, 
-            sofia_threads=1
+            tap=None, use_pb=None, use_mask=None, run=-1,
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params and
@@ -638,7 +637,7 @@ class SoPar(dict):
                 "of the files"
             )
         
-        self.pipeline_threads = sofia_threads
+        self.pipeline_threads = self.sofia_threads
         ##############################################################################################
 
         ########################-------------output.directory--------------###########################
