@@ -805,6 +805,14 @@ def main():
     worker_exceptions = []
     adpalmap_config = None
 
+    start = 0
+    start_date = 0
+    finish = 0
+    finish_date = 0
+    log_path = None
+    adp_log = None
+    queue_listener = None
+
     try:
         # Parse args:
 
@@ -1067,15 +1075,14 @@ def main():
 
         logger.info("ADPALMAP successfully ended")
         finish, finish_date = time.perf_counter(), datetime.now().isoformat()
-        logger.info(f"Execution time: {round(finish-start, 2)} second(s)")
-        queue_listener.stop() 
+        logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
+        queue_listener.stop()
 
     finally:
         
         if log_flag:
             log_path = Logger.get_log_filename()
             adp_log = reorganize_log(log_path, worker_results)
-
 
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
@@ -1110,8 +1117,8 @@ def main():
                 # Resources
                 'resource_info': {
                     'cpus_available': os.cpu_count(),
-                    # 'memory_available': ...,  
-                    # 'disk_space': ...  
+                    # 'memory_available': ,  
+                    # 'disk_space':   
                 }
             }
             
@@ -1129,6 +1136,8 @@ def main():
                 json_path = adpalmap_report.generate_json()
 
                 html_path = adpalmap_report.generate_html()
+
+ 
             
 
 # Run the main functions

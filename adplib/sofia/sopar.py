@@ -423,7 +423,7 @@ class SoPar(dict):
     def update_input_parameters(
             self, sop_par, 
             input_data, primary_beam=None, mask=None,
-            tap=None, use_pb=None, use_mask=None, run=-1,
+            run=-1,
         ):
         """
         Updates the attributes of the SoPar object with the values provided in sop_params and
@@ -472,11 +472,11 @@ class SoPar(dict):
                     f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
                 )
 
-            if tap: 
+            if self.adpalmap_config.enable_tap_service: 
                 logger.info(f"The primary beam '{primary_beam}' set as 'input.primaryBeam'.")
                 self.input_primaryBeam = primary_beam
             else:
-                if use_pb:
+                if self.adpalmap_config.use_pb:
                     self.input_primaryBeam = primary_beam
                 else:
                     logger.warning(
@@ -522,8 +522,8 @@ class SoPar(dict):
                 )
             
             #Comprueba si la máscara es descargada o no. Si no compruebo que sea tipo int()
-            if tap:
-                if use_mask:
+            if self.adpalmap_config.enable_tap_service:
+                if self.adpalmap_config.use_mask:
                     logger.info(f"The mask '{mask}' set as 'input.mask'.")
                     self.input_mask = mask
                 else:
@@ -532,7 +532,7 @@ class SoPar(dict):
                         )
                     self.input_mask = ""
             else:
-                if use_mask:
+                if self.adpalmap_config.use_mask:
                     self.input_mask = mask_float2int(mask)
                 else:
                     logger.warning(
@@ -612,7 +612,7 @@ class SoPar(dict):
         ##############################################################################################        
         
         #########################-------------scfind.enable--------------#############################
-        if (mask and use_mask):
+        if (mask and self.adpalmap_config.use_mask):
             logger.info("The 'scfind_enable' parameter has set to false. Setting a mask in "
                         "'input.mask' parameter assumes that no further sources need to be searched.")
             if (sop_par is not None 
