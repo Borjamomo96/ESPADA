@@ -17,7 +17,8 @@ dependencies = [
     "matplotlib >= 3.9.2",
     "psutil>=5.9.0",
     "rich>=13.0.0",
-    "networkx >= 3.0"
+    "networkx >= 3.0",
+    "jinja2>=3.1.0"
 ]
 
 [build-system]
@@ -27,6 +28,8 @@ build-backend = "setuptools.build_meta"
 [project.scripts]
 adpalmap = "adplib.adpalmap:main"
 
+[tool.setuptools]
+include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["adp*"]

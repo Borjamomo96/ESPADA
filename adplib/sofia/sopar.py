@@ -182,7 +182,7 @@ def moment8_ima(adpalmap_sopar):
 
     # The relevant information about primary beam is on 'primary_beam'
     # the input_primaryBeam parameter is subject to changes
-    if hasattr(adpalmap_sopar, "primary_beam") and adpalmap_sopar.input_primaryBeam:
+    if hasattr(adpalmap_sopar, "input_primaryBeam") and adpalmap_sopar.input_primaryBeam:
 
         pb_path = Path(adpalmap_sopar.input_primaryBeam)
 
