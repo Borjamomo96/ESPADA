@@ -80,6 +80,33 @@ def show_info(topic):
         console.print(f"[red]No information found for '{topic}'[/red]")
 
 
+def get_template_path():
+    
+    try:
+        import adpweb
+        adpweb_dir = Path(adpweb.__file__).parent
+        template_path = adpweb_dir / "templates" / "report.html"
+        
+        if template_path.exists():
+            return template_path
+    except ImportError:
+        pass
+    
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent
+    
+    posibles = [
+        project_root / "adpweb" / "templates" / "report.html",  
+        project_root.parent / "adpweb" / "templates" / "report.html",
+        Path.cwd() / "adpweb" / "templates" / "report.html",  
+    ]
+    
+    for path in posibles:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError("No 'report.html' template could be found.")
+
 def parse_sofia_par(arg):
 
     """
@@ -1087,8 +1114,10 @@ def main():
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
             
-            base_dir = Path(__file__).parent.parent  
-            template = base_dir / "adpweb" / "templates" / "report.html"
+            #base_dir = Path(__file__).parent.parent  
+            #template = base_dir / "adpweb" / "templates" / "report.html"
+
+            template = get_template_path()
 
 
             # METADATA 
