@@ -313,7 +313,7 @@ query_par:
 
 ## Acknowledgements.
 
-Part of the code from the ALMA Archive Mining & Visualization Toolkit (`alminer`, https://github.com/emerge-erc/ALminer.git)[^1] software has been used and suitably adapted.
+Part of the code from the ALMA Archive Mining & Visualization Toolkit (`alminer`, https://github.com/emerge-erc/ALminer.git) [^1] software has been used and suitably adapted.
 [^1]: `alminer` has been developed through a collaboration between Allegro, the ALMA Regional Centre in The Netherlands, and the University of Vienna as part of the EMERGE-StG project. This project has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 851435).
 
 
