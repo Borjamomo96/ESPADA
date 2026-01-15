@@ -12,8 +12,6 @@ This pipeline makes use of the external programs Source Finding Application (SoF
 (https://gitlab.com/SoFiA-Admin/SoFiA-2)  
 (https://github.com/kmhess/SoFiA-image-pipeline)
 
-Additionally, part of the code from the ALMA Archive Mining & Visualization Toolkit (ALMINER, https://github.com/emerge-erc/ALminer.git) software has been used and suitably adapted.
-
 **Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori for each device. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
 
 _Alternatively (not recommended option, under user responsibility)_: the corresponding line of code where each software is executed can be changed. To do this:
@@ -313,6 +311,9 @@ query_par:
 
 - `Old version of python`: It is common for the Python version installed and used by default on your operating system to be 3.8 or older. If it your case and you have not followed the instructions above to created a virtual environment with the minimum required version (3.10), some parts of the code will not work.
 
+## Acknowledgements.
 
+Part of the code from the ALMA Archive Mining & Visualization Toolkit (`alminer`, https://github.com/emerge-erc/ALminer.git)[^1] software has been used and suitably adapted.
+[^1]: `alminer` has been developed through a collaboration between Allegro, the ALMA Regional Centre in The Netherlands, and the University of Vienna as part of the EMERGE-StG project. This project has received funding from the European Research Council (ERC) under the European Union’s Horizon 2020 research and innovation programme (Grant agreement No. 851435).
 
 
