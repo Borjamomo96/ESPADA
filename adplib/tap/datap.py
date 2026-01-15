@@ -301,8 +301,8 @@ class datap(dict):
             if not os.path.exists(Path(self.download_par['data_dir'])):
                 self.alma.cache_location = self.download_par['data_dir']
             else:
-                logger.warning(f"The directory '{self.download_par['data_dir']}' already exits."
-                               " The data from the archive wiil be storaged in this directory.")
+                logger.warning(f"The directory '{self.download_par['data_dir']}' already exists."
+                               " The data from the archive will be stored in this directory.")
                 self.alma.cache_location = self.download_par['data_dir']
         
     
