@@ -613,8 +613,9 @@ class SoPar(dict):
         
         #########################-------------scfind.enable--------------#############################
         if (mask and self.adpalmap_config.use_mask):
-            logger.info("The 'scfind_enable' parameter has set to false. Setting a mask in "
-                        "'input.mask' parameter assumes that no further sources need to be searched.")
+            logger.info("The 'scfind_enable' parameter has set to false. Setting a mask file in "
+                        "'input.mask' and True in 'use_mask' parameter assumes that no further "
+                        "sources need to be searched.")
             if (sop_par is not None 
                     and 'scfind.enable' in sop_par 
                     and sop_par['scfind.enable'] is not None
@@ -1131,13 +1132,6 @@ class SoPar(dict):
         
         if file_2d_mask.exists():
             pass
-            # It is not stricly necessary and just cause duplicate in the html report.
-            """qa_report['outputs']['images'].append({
-                "type": "mask2d_sofia",
-                "path": file_2d_mask,
-                "description": "2D Mask from SoFiA",
-                "software-id": "qa"
-            })"""
         else:
             logger.warning(
                 f"2D-Mask file from SoFia not found in {self.output_directory}."            
@@ -1182,7 +1176,7 @@ class SoPar(dict):
 
         if mask_file:
             ax = axs[2]
-            ax.set_title("Mask ALMA archive")
+            ax.set_title("Mask file")
             ax.imshow(mask_archive_proj, cmap='viridis', origin='lower')
 
         qa_output_dir = Path(self.output_directory) / "quality_assesment_products"

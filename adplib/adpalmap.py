@@ -462,19 +462,17 @@ def process_data(id_number,
 
             sofia_report.append(emi_sofia_report)
 
-            if adpalmap_config.enable_tap_service == True:
-                if mask:
-                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
-                    qa_report.append(emi_qa_report)
-                else:
-                    logger.warning("No ALMA file mask available. Reduced QA image.")
+            if mask:
+                if adpalmap_config.use_mask:
+                    logger.info(f"Mask file available but 'use_mask' set to True. "
+                                "Reduced QA image.")
                     emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                     qa_report.append(emi_qa_report)
+                else:
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
+                    qa_report.append(emi_qa_report)
             else:
-                logger.warning(
-                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
-                    "performed."
-                )
+                logger.warning("No mask file available. Reduced QA image.")
                 emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(emi_qa_report)
 
@@ -498,23 +496,20 @@ def process_data(id_number,
                 adpalmap_sopar_abs.auto_setup()
 
             abs_sofia_report = adpalmap_sopar_abs.run_sofia()
-
             sofia_report.append(abs_sofia_report)
 
-            if adpalmap_config.enable_tap_service == True:
-                if mask:
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
-                    qa_report.append(abs_qa_report)
-                else:
-                    logger.warning("No ALMA file mask available. Reduced QA image.")
+            if mask:
+                if adpalmap_config.use_mask:
+                    logger.info(f"Mask file available but 'use_mask' set to True. "
+                                "Reduced QA image.")
                     abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                     qa_report.append(abs_qa_report)
+                else:
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
+                    qa_report.append(abs_qa_report)
             else:
-                logger.warning(
-                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
-                    "performed."
-                )
-                abs_qa_report = adpalmap_sopar_emi.quality_assesment()
+                logger.warning("No mask file available. Reduced QA image.")
+                abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                 qa_report.append(abs_qa_report)
 
 
@@ -555,38 +550,34 @@ def process_data(id_number,
             abs_sofia_report = adpalmap_sopar_abs.run_sofia()
             sofia_report.append(abs_sofia_report)
             
-            if adpalmap_config.enable_tap_service == True:
-                if mask:
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
-                    qa_report.append(abs_qa_report)
-                else:
-                    logger.warning("No ALMA file mask available. Reduced QA image.")
+            if mask:
+                if adpalmap_config.use_mask:
+                    logger.info(f"Mask file available but 'use_mask' set to True. "
+                                "Reduced QA image.")
                     abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                     qa_report.append(abs_qa_report)
+                else:
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
+                    qa_report.append(abs_qa_report)
             else:
-                logger.warning(
-                    f"'enable_tap_service' is set to False. No ALMA file mask available. "
-                    "Reduced QA image."
-                )
+                logger.warning("No mask file available. Reduced QA image.")
                 abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                 qa_report.append(abs_qa_report)
 
             emi_sofia_report = adpalmap_sopar_emi.run_sofia(run=0)
             sofia_report.append(emi_sofia_report)
 
-            if adpalmap_config.enable_tap_service == True:
-                if mask:
-                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
-                    qa_report.append(emi_qa_report)
-                else:
-                    logger.warning("No ALMA file mask available. Reduced QA image.")
+            if mask:
+                if adpalmap_config.use_mask:
+                    logger.info(f"Mask file available but 'use_mask' set to True. "
+                                "Reduced QA image.")
                     emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                     qa_report.append(emi_qa_report)
+                else:
+                    emi_qa_report = adpalmap_sopar_emi.quality_assesment(mask)
+                    qa_report.append(emi_qa_report)
             else:
-                logger.warning(
-                    f"'enable_tap_service' is set to False. All checks in the QA will not be "
-                    "performed."
-                )
+                logger.warning("No mask file available. Reduced QA image.")
                 emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(emi_qa_report)
 
