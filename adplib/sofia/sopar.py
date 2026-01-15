@@ -684,7 +684,7 @@ class SoPar(dict):
                 sopar_log_path = f"absorption_{self.output_filename}_logfile.log"
             else:
                 self.output_filename = f"absorption_{self.input_data.stem}"
-                sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log" 
+                sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log"
 
         elif self.adpalmap_config.run_mode == 'both' and run==0:
             if self.output_filename:
@@ -693,13 +693,12 @@ class SoPar(dict):
                 self.output_filename = f"emission_{self.output_filename}"
                 sopar_log_path = f"emission_{self.output_filename}_logfile.log"
             else:
-                self.original_output_filename = self.output_filename
+                self.original_output_filename = self.input_data.stem
                 self.output_filename = f"emission_{self.input_data.stem}"
                 sopar_log_path = f"emission_{self.input_data.stem}_logfile.log" 
 
         # Safe the logfile and make sure that is Path() object
         self.sopar_logfile = self.output_directory / sopar_log_path
-
         ##############################################################################################
 
         if sop_par is not None:
@@ -868,15 +867,17 @@ class SoPar(dict):
         
         os.makedirs(self.output_directory, exist_ok=True)
         self.output_directory = Path(self.output_directory)
-
     ##############################################################################################
         # Set source from absorption run as a 'flag_cube' in the emission run in the 'both' mode
         if self.adpalmap_config.run_mode == "both" and run ==0:
-            if (self.adpalmap_config.abs_flag_cube is not None and 
-                self.adpalmap_config.abs_flag_cube==True):                    
-                flag_cube = self.output_directory / f"{self.original_output_filename}_mask.fits"
+
+            if self.adpalmap_config.abs_flag_cube:                    
+                flag_cube = self.output_directory / f"absorption_{self.original_output_filename}_mask.fits"
+
                 if flag_cube.exists():
                     self.flag_cube = flag_cube
+                    logger.info("The mask obtained from the absorption run will be used as"
+                                " input for the 'flag.cube' parameter")
                 else:
                     logger.warning("There is no mask available from the absorption run. "
                                     "The parameter 'flag_cube' will not be used")
