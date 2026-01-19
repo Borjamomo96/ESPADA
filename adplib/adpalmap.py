@@ -1070,7 +1070,7 @@ def main():
         queue_listener.stop()
 
     finally:
-        
+
         if log_flag:
             log_path = Logger.get_log_filename()
             adp_log = reorganize_log(log_path, worker_results)
