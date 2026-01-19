@@ -40,7 +40,6 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml      # <str>
 
 enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
 run_mode: 'both' #'emission', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
-use_pb: True                                                                # <bool> (Default value = True) Determines whether the primary beam either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 use_mask: False                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
 auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
