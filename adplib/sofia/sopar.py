@@ -950,13 +950,6 @@ class SoPar(dict):
                     / f"{self.mode}_{self.input_data.stem}_mask.fits"
                 )
 
-            # Add outputs for the html report
-            if self.adpalmap_config.make_report:
-                try:
-                    self.report_outputs(sopar_report)  
-                except Exception as e:
-                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
-
         except subprocess.CalledProcessError as e:
             if self.adpalmap_config.enable_group:
                 # If this attribute change from None to any other, find_mask_sofia() in group.py
@@ -976,6 +969,15 @@ class SoPar(dict):
                 sys.exit(-1)
 
         finally:
+            # This steo should be here if we want to add outputs from SoFiA-2 no matter if it fails or
+            # not. The reliability and diagnostic plot should always be in the report.  
+            # Add outputs for the html report
+            if self.adpalmap_config.make_report:
+                try:
+                    self.report_outputs(sopar_report)  
+                except Exception as e:
+                    logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
+
             if os.path.exists(temp_file_path):
                 os.remove(temp_file_path)
             sopar_report.update({"error": error})
@@ -1050,6 +1052,12 @@ class SoPar(dict):
         mode = sopar_report["mode"]
 
         sopar_report['outputs']['images'].append({
+            "type": "diag",
+            "path": self.output_directory / f"{mode}_{self.input_data.stem }_diagnostic.eps",
+            "description": "Diagnostic Plot",
+            "software-id": "sofia"
+        })
+        sopar_report['outputs']['images'].append({
             "type": "rel",
             "path": self.output_directory / f"{mode}_{self.input_data.stem }_rel.eps",
             "description": "Realibiliy Plot",
@@ -1058,7 +1066,7 @@ class SoPar(dict):
         sopar_report['outputs']['images'].append({
             "type": "skellman",
             "path": self.output_directory / f"{mode}_{self.input_data.stem}_skellam.eps",
-            "description": "Skellman Plot",
+            "description": "Skellam Plot",
             "software-id": "sofia"
         })
         sopar_report['outputs']['files'].append({

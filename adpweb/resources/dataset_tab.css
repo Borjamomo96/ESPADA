@@ -263,3 +263,9 @@
   margin-left: 5px;
   cursor: help;
 }
+
+/* Cambia el tamaño de las imagenes en SoFiA */
+.mode-container .image-gallery .img-container {
+    width: 400px;
+    margin: 0 auto;
+}
