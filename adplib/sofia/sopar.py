@@ -463,27 +463,22 @@ class SoPar(dict):
                     and sop_par['input.primaryBeam'] is not None):
                 logger.warning(
                     f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided vía '-sop' comand. This must be set in the main configuration "
+                    "file"
                 )
             if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
                is not None and self.input_primaryBeam != ""
             ):
                 logger.warning(
-                    f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
+                    f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' "
+                    f" provided in {self.sofia_file_path}. This must be set in the main configuration"
+                    "file"
                 )
 
-            if self.adpalmap_config.enable_tap_service: 
-                logger.info(f"The primary beam '{primary_beam}' set as 'input.primaryBeam'.")
-                self.input_primaryBeam = primary_beam
-            else:
-                if self.adpalmap_config.use_pb:
-                    self.input_primaryBeam = primary_beam
-                else:
-                    logger.warning(
-                        f"'use_pb' set to False: the primary beam '{primary_beam}' will no be used as "
-                        "'input.primaryBeam'"
-                        )
-                    self.input_primaryBeam = ""
+            # If exist it will always be used
+            logger.info(f"The primary beam '{primary_beam}' set as 'input.primaryBeam'.")
+            self.input_primaryBeam = primary_beam
+
 
         # input.primaryBeam is a key parameter cannot be set via -sop or in the sofia.par file
         else:
@@ -494,14 +489,17 @@ class SoPar(dict):
                 #self.input_primaryBeam = sop_par['input.primaryBeam']
                 logger.warning(
                     f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                    "parameter provided vía '-sop' comand."
+                    "parameter provided vía '-sop' comand. This must be set in the main configuration "
+                    "file"
                 )
 
             if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
                is not None and self.input_primaryBeam != ""
             ):
                 logger.warning(
-                    f"Ignoring value '{self.input_primaryBeam}' provided in {self.sofia_file_path}."
+                    f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' "
+                    f" provided in {self.sofia_file_path}. This must be set in the main configuration"
+                    "file"
                 )
         ##############################################################################################
 

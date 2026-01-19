@@ -216,7 +216,6 @@ class Config(dict):
             'download_par_file': str | None,
             'enable_sofia': bool,
             'run_mode': str,
-            'use_pb': bool,
             'use_mask': bool,
             'abs_flag_cube': bool,
             'auto_setup': bool,
