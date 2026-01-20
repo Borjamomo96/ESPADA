@@ -443,82 +443,92 @@ class SoPar(dict):
             f"Reading parameters in {self.sofia_file_path}. Mode: {self.mode}."
             )
         
+        ##############################################################################################
+        if sop_par is not None:
+
+            for key, value in sop_par.items():
+                normalized_key = key.replace('.', '_')
+
+                if key in {
+                    "input.data",
+                    "input.primaryBeam",
+                    "input.mask",
+                    "pipeline.threads",
+                    "output.directory", 
+                }: continue
+
+                # Actualizar o añadir parámetros
+                if hasattr(self, normalized_key):
+                    setattr(self, normalized_key, value)
+                else:
+                    # Añadir como nuevo atributo si no existe
+                    setattr(self, normalized_key, value)
+                    logger.warning(f"Added new parameter '{key}' with value '{value}'.")
+        ##############################################################################################
+        
         ###########################-------------input.data--------------##############################
         # The parameter 'input.data' is managed in the main function.
-        # No require action is needeed here
+        if (sop_par is not None 
+                    and 'input.data' in sop_par 
+                    and sop_par['input.data'] is not None):
+                logger.warning(
+                    f"Ignoring value '{sop_par['input.data']}' for the 'input_data' parameter "
+                    "provided vía '-sop' comand. This must be set in the "
+                    "'input_dataset' or 'input_file' parameters in the main configuration file"
+                )
         if hasattr(self, 'input_data') and getattr(self, 'input_data') is not None:
             logger.warning(
-                f"Ignoring parameter 'input.data' provided in the parameter file " 
-                f"{self.sofia_file_path}. If you want to "
-                "change this, specify it in the input_data_set or input_data_file parameter in "
-                "the configuration file."
+                f"Ignoring value '{self.input_data}' for the 'input.data' parameter provided "
+                f"in the parameter file {self.sofia_file_path}.  This must be set in the "
+                "'input_dataset' or 'input_file' parameters in the main configuration file"
             )
+                
         self.input_data = input_data
         ##############################################################################################
 
         #######################-------------input.primaryBeam--------------###########################
-        if primary_beam:      
-            if (sop_par is not None 
-                    and 'input.primaryBeam' in sop_par 
-                    and sop_par['input.primaryBeam'] is not None):
-                logger.warning(
-                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                    "parameter provided vía '-sop' comand. This must be set in the main configuration "
-                    "file"
-                )
-            if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
-               is not None and self.input_primaryBeam != ""
-            ):
-                logger.warning(
-                    f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' "
-                    f" provided in {self.sofia_file_path}. This must be set in the main configuration"
-                    "file"
-                )
-
-            # If exist it will always be used
+             
+        if (sop_par is not None 
+                and 'input.primaryBeam' in sop_par 
+                and sop_par['input.primaryBeam'] is not None):
+            logger.warning(
+                f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
+                "parameter provided vía '-sop' comand. This must be set in the 'input_dataset'"
+                " or 'input_file' parameters in the main configuration file"
+            )
+        if(hasattr(self, "input_primaryBeam") and  self.input_primaryBeam):
+            logger.warning(
+                f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' parameter"
+                f" provided in {self.sofia_file_path}. This must be set in the 'input_dataset'"
+                " or 'input_file' parameters in the main configuration file"
+            )
+            
+        # If exist it will always be used
+        if primary_beam: 
             logger.info(f"The primary beam '{primary_beam}' set as 'input.primaryBeam'.")
             self.input_primaryBeam = primary_beam
-
-
-        # input.primaryBeam is a key parameter cannot be set via -sop or in the sofia.par file
         else:
-            if (sop_par is not None 
-                    and 'input.primaryBeam' in sop_par 
-                    and sop_par['input.primaryBeam'] is not None
-            ):
-                #self.input_primaryBeam = sop_par['input.primaryBeam']
-                logger.warning(
-                    f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                    "parameter provided vía '-sop' comand. This must be set in the main configuration "
-                    "file"
-                )
-
-            if(hasattr(self, "input_primaryBeam") and getattr(self, "input_primaryBeam") 
-               is not None and self.input_primaryBeam != ""
-            ):
-                logger.warning(
-                    f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' "
-                    f" provided in {self.sofia_file_path}. This must be set in the main configuration"
-                    "file"
-                )
+            # It should be "" at this point. No changes need it
+            pass
         ##############################################################################################
 
-        ###########################-------------input.mask--------------##############################
-        if mask:      
-            if (sop_par is not None 
-                    and 'input.mask' in sop_par 
-                    and sop_par['input.mask'] is not None):
-                logger.warning(
-                    f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask' "
-                    "parameter provided in vía '-sop' comand."
-                )
-            if(hasattr(self, "input_mask") and getattr(self, "input_mask") 
-               is not None and self.input_mask != ""
-            ):
-                logger.warning(
-                    f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
-                )
-            
+        ###########################-------------input.mask--------------##############################     
+        if (sop_par is not None 
+                and 'input.mask' in sop_par 
+                and sop_par['input.mask'] is not None):
+            logger.warning(
+                f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask' parameter provided "
+                "vía '-sop' comand. This must be set in the 'input_dataset'"
+                " or 'input_file' parameters in the main configuration file"
+            )
+        if(hasattr(self, "input_mask") and self.input_mask):
+            logger.warning(
+                f"Ignoring value '{self.input_mask}' for the 'input.mask' parameter provided "
+                f"in the parameter file {self.sofia_file_path}. This must be set in the "
+                "'input_dataset' or 'input_file' parameters in the main configuration file"
+            )
+        
+        if mask:
             #Comprueba si la máscara es descargada o no. Si no compruebo que sea tipo int()
             if self.adpalmap_config.enable_tap_service:
                 if self.adpalmap_config.use_mask:
@@ -537,87 +547,63 @@ class SoPar(dict):
                         f"'use_mask' set to False: the mask '{mask}' will no be used as 'input.mask'"
                         )
                     self.input_mask = ""                    
-
-        # input.mask is a key parameter cannot be set via -sop or in the sofia.par file
         else:
-            if (sop_par is not None 
-                    and 'input.mask' in sop_par 
-                    and sop_par['input.mask'] is not None
-            ):
-                #self.input_mask = sop_par['input.mask']
-                logger.warning(
-                    f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask "
-                    "parameter provided in vía '-sop' comand."
-                )
-
-            if(hasattr(self, "input_mask") and getattr(self, "input_mask") 
-               is not None and self.input_mask != ""
-            ):
-                logger.warning(
-                    f"Ignoring value '{self.input_mask}' provided in {self.sofia_file_path}."
-                )
+            pass
 
         ##############################################################################################
 
         ##########################-------------input.invert--------------#############################
-        if sop_par is not None:
-            invert_value_sopar = sop_par.get("input.invert", getattr(self, "input_invert", False))
+        if sop_par is not None and "input.invert" in sop_par:
+            input_invert_value = sop_par["input.invert"]
         else:
-            invert_value_sopar = None
+            input_invert_value = getattr(self, "input_invert")
 
         
-        # If self.adpalmap_config.run_mode is used elif blocks for both run(==0 or =!0) must be include
-        # If self.mode is used just elif emission and absoption are enough because self.mode is 
-        # previously defined
-        if self.adpalmap_config.run_mode=='emission':
-            # If any other value than true is set, SoFiA will run considering input.invert=false
-            if (invert_value_sopar=='true' or self.input_invert=='true'):
+        if self.adpalmap_config.run_mode == 'emission':
+            if input_invert_value == 'true':
                 logger.warning("Parameter 'input.invert=true' is not allowed in 'emission' mode. "
-                            "Changing 'input.invert' to 'false'.")
+                            "Setting 'input.invert' to 'false'.")
                 self.input_invert = 'false'
+            else:
+                self.input_invert = 'false'   
 
-        elif self.adpalmap_config.run_mode=='absorption':
-            if (invert_value_sopar=='false' or self.input_invert=='false'):
+        elif self.adpalmap_config.run_mode == 'absorption':
+            if input_invert_value == 'false':
                 logger.warning("Parameter 'input.invert=false' is not allowed in 'absorption' mode. "
-                               "Changing 'input.invert' to 'true'.")
+                            "Setting 'input.invert' to 'true'.")
                 self.input_invert = 'true'
-            elif (self.input_invert !='false' or self.input_invert is None):
+            else:
                 self.input_invert = 'true'
-            else: 
-                self.input_invert = 'true'
-        
-        elif (self.adpalmap_config.run_mode=='both' and run !=0):
-            if (invert_value_sopar=='false' or self.input_invert=='false'):
+          
+        elif self.adpalmap_config.run_mode == 'both' and run != 0:
+            if input_invert_value == 'false':
                 logger.warning("Parameter 'input.invert=false' is not allowed in 'both' mode for "
-                               "the first run. Changing 'input.invert' to 'true'.")
+                            "the first run. Setting 'input.invert' to 'true'.")
                 self.input_invert = 'true'
-            elif (self.input_invert !='false' or self.input_invert is None):
+            else:
                 self.input_invert = 'true'
-            else: 
-                self.input_invert = 'true'
-
-        elif (self.adpalmap_config.run_mode=='both' and run ==0):
-            if (invert_value_sopar=='true' or self.input_invert=='true'):
+                
+        elif self.adpalmap_config.run_mode == 'both' and run == 0:
+            if input_invert_value == 'true':
                 logger.warning("Parameter 'input.invert=true' is not allowed in 'both' mode for "
-                               "the second run. Changing 'input.invert' to 'false'.")
-            self.input_invert = 'false'
-        
+                            "the second run. Setting 'input.invert' to 'false'.")
+                self.input_invert = 'false'
+            else:
+                self.input_invert = 'false'
+                
         else:
             logger.critical("Oops, you should not have come here. Please open an"
-            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-            "case.")
+                            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with "
+                            "your specific case.")
         
         ##############################################################################################        
         
         #########################-------------scfind.enable--------------#############################
         if (mask and self.adpalmap_config.use_mask):
-            logger.info("The 'scfind_enable' parameter has set to false. Setting a mask file in "
+            logger.info("The 'scfind_enable' parameter has set to 'false'. Setting a mask file in "
                         "'input.mask' and True in 'use_mask' parameter assumes that no further "
                         "sources need to be searched.")
-            if (sop_par is not None 
-                    and 'scfind.enable' in sop_par 
-                    and sop_par['scfind.enable'] is not None
-            ):
+            if (sop_par and 'scfind.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
                     "parameter provided in vía '-sop' comand."
@@ -629,11 +615,11 @@ class SoPar(dict):
         ########################-------------pipeline.threads--------------###########################
         if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
             logger.warning(
-                "The parameter 'self.pipeline_threads' indicated in the terminal or in the "
-                f" {self.sofia_file_path} will be ignored, this pipeline controls the flow "
-                "of threds used with the parameter 'num_cores' and estimated the optimal"
-                "use of these based on the number of cores and RAM available and the size "
-                "of the files"
+                "The parameter 'self.pipeline_threads' indicated via -sop or in the "
+                f" {self.sofia_file_path} will be ignored. This pipeline manages the threads "
+                "used based on the 'num_cores' parameter, the number of datasets, and their size. "
+                "Based on this, the optimal thread usage is estimated according to the number of "
+                "available cores and RAM."
             )
         
         self.pipeline_threads = self.sofia_threads
@@ -645,52 +631,40 @@ class SoPar(dict):
         elif hasattr(self, "output_directory") and self.output_directory:  
             self.output_directory = Path(self.output_directory)
         else:
-            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
-    
-        self.base_output_directory = self.output_directory
-
+            self.output_directory = Path.cwd().resolve() / f"adpalmap_{input_data.stem}"
         ##############################################################################################
 
-        ########################--------------output.filename--------------###########################
-        if sop_par and "output.directory" in sop_par: 
-            self.output_directory = Path(sop_par["output.directory"])
-        elif hasattr(self, "output_directory") and self.output_directory:  
-            self.output_directory = Path(self.output_directory)
-        else:
-            self.output_directory = f"{Path.cwd().resolve()}/adpalmap_{input_data.stem}"
-    
-        self.base_output_directory = self.output_directory
-
+        ########################--------------output.filename--------------###########################       
         if self.adpalmap_config.run_mode == 'absorption':
-            if self.output_filename:
+            if hasattr(self, "output_filename") and self.output_filename:
                 self.output_filename = f"absorption_{self.output_filename}"
-                sopar_log_path = f"absorption_{self.output_filename}_logfile.log"
+                sopar_log_path = f"{self.output_filename}_logfile.log"
             else:
                 self.output_filename = f"absorption_{self.input_data.stem}"
                 sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log"
 
         if self.adpalmap_config.run_mode == 'emission':
-            if self.output_filename:
+            if hasattr(self, "output_filename") and self.output_filename:
                 self.output_filename = f"emission_{self.output_filename}"
-                sopar_log_path = f"emission_{self.output_filename}_logfile.log"
+                sopar_log_path = f"{self.output_filename}_logfile.log"
             else:
                 self.output_filename = f"emission_{self.input_data.stem}"
                 sopar_log_path = f"emission_{self.input_data.stem}_logfile.log"  
 
         if self.adpalmap_config.run_mode == 'both' and run!=0:
-            if self.output_filename:
+            if hasattr(self, "output_filename") and self.output_filename:
                 self.output_filename = f"absorption_{self.output_filename}"
-                sopar_log_path = f"absorption_{self.output_filename}_logfile.log"
+                sopar_log_path = f"{self.output_filename}_logfile.log"
             else:
                 self.output_filename = f"absorption_{self.input_data.stem}"
                 sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log"
 
         elif self.adpalmap_config.run_mode == 'both' and run==0:
-            if self.output_filename:
+            if hasattr(self, "output_filename") and self.output_filename:
                 # Safe the original 'output.filename' for 'flag.cube'
                 self.original_output_filename = self.output_filename
                 self.output_filename = f"emission_{self.output_filename}"
-                sopar_log_path = f"emission_{self.output_filename}_logfile.log"
+                sopar_log_path = f"{self.output_filename}_logfile.log"
             else:
                 self.original_output_filename = self.input_data.stem
                 self.output_filename = f"emission_{self.input_data.stem}"
@@ -700,27 +674,21 @@ class SoPar(dict):
         self.sopar_logfile = self.output_directory / sopar_log_path
         ##############################################################################################
 
-        if sop_par is not None:
+        ########################--------------output.writeCAT---------------##########################
+        if (self.adpalmap_config.enable_sip and 
+            self.output_writeCatASCII=='false' and 
+            self.output_writeCatXML=='false'):
+            logger.warning("Parameter combination not allowed. Either 'self.output_writeCatASCII' or"
+                           " 'self.output_writeCatXML' parameters must be set to 'true' if " 
+                           "'enable_sip' is set to True. "
+                           "By default 'self.output_writeCatASCII' parameter will be set to 'true'")
+            
+            self.output_writeCatASCII = 'true'
 
-            for key, value in sop_par.items():
-                normalized_key = key.replace('.', '_')
+        else:
+            pass
+        ##############################################################################################
 
-                if key in {"input.data"}:
-                    logger.warning(
-                        f"Ignoring parameter '{key}={value}' provided via -sop. If you "
-                        "want to change this, specify it in the input_data_set or " \
-                        "input_datafile parameter in the configuration file."
-                    )
-                    continue
-                if key in {"output.directory", "input.invert"}: continue
-
-                # Actualizar o añadir parámetros
-                if hasattr(self, normalized_key):
-                    setattr(self, normalized_key, value)
-                else:
-                    # Añadir como nuevo atributo si no existe
-                    setattr(self, normalized_key, value)
-                    logger.warning(f"Added new parameter '{key}' with value '{value}'.")
 
         logger.info(f"Parameters updated. Mode: {self.mode}.")
 
@@ -990,9 +958,8 @@ class SoPar(dict):
 
         This method generates a temporary file in the same directory as the object's 
         `path` attribute (or the current directory if `path` is not defined). The file 
-        will include all attributes of the object, except for those explicitly excluded 
-        (`sofia_file_path`, `path`, and `base_output_directory`). Attribute names are 
-        transformed by replacing underscores with dots.
+        will include all parameters defined in SOFIA_PARAMETER and the values of the 
+        corresponding attribute in self.
 
         Returns:
         ----------
