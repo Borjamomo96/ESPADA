@@ -205,7 +205,7 @@ class SiPar(dict):
 
             elif self.adpalmap_config.run_mode == "emission":
                 sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.txt"
-                sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.xml"              
+                sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.xml"             
                 emi_cat_file = self.set_catalog(
                     sofia_catalog_txt, 
                     sofia_catalog_xml,
@@ -227,7 +227,7 @@ class SiPar(dict):
                 # will show wrong errors. (Check if within set_catalog for more information)
                 abs_cat_file = self.set_catalog(
                     abs_sofia_catalog_txt, 
-                    abs_sofia_catalog_xml, 
+                    abs_sofia_catalog_xml,
                     cwd_file/ f"adpalmap_{input_name}"
                 )
                 if not abs_cat_file:
@@ -424,7 +424,7 @@ class SiPar(dict):
             sip_output_dir = Path(sopar.output_directory) / f"{sopar.output_filename}_figures"
                     
             sofia_catalog_txt = sofia_output_dir / f"{sopar.output_filename}_cat.txt"
-            sofia_catalog_xml = sofia_output_dir / f"{sopar.output_filename}_xml.fits"
+            sofia_catalog_xml = sofia_output_dir / f"{sopar.output_filename}_cat.xml"
 
             if sofia_catalog_txt.exists() or sofia_catalog_xml.exists():
                 pass
@@ -437,11 +437,9 @@ class SiPar(dict):
             sip_report["log_path"] = sopar.output_directory / f"{sopar.output_filename}_sip.log"
 
     
-            if sofia_catalog_txt and sofia_catalog_xml:
+            if sofia_catalog_txt:
                 self.catalog_file = sofia_catalog_txt
-            elif sofia_catalog_txt:
-                self.catalog_file = sofia_catalog_txt
-            elif sofia_catalog_xml: 
+            elif sofia_catalog_xml:
                 self.catalog_file = sofia_catalog_xml
             else:
                 error_msg = (
@@ -752,6 +750,7 @@ class SiPar(dict):
 
 
         existing_files = [file for file in [sofia_catalog_txt, sofia_catalog_xml] if file.exists()]
+
         if existing_files:
             logger.info(
                 "Valid catalog from previous runs found for the dataset. Catalog: "
@@ -761,7 +760,8 @@ class SiPar(dict):
         else:
             logger.warning(
                 f"No valid .txt or .xml catalog for SIP found within the {output_directory} directory "
-                f"from previous runs. Catalogs searched: {sofia_catalog_txt} || {sofia_catalog_xml}"
+                "from previous runs. "
+                f"Catalogs searched: {sofia_catalog_txt} || {sofia_catalog_xml}"
             )
             #Si no hay en sip_args.yaml y no hay sargs
             if self.catalog_file is None and not self.sargs:
