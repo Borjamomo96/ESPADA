@@ -1064,7 +1064,7 @@ def main():
 
         #--------------------------------------------------------------------------------------------#
 
-        logger.info("ADPALMAP successfully ended")
+        logger.info("ADPALMAP ended")
         finish, finish_date = time.perf_counter(), datetime.now().isoformat()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
         queue_listener.stop()
@@ -1122,11 +1122,9 @@ def main():
                 config=adpalmap_config  
             )
             
-            if adpalmap_config.make_report:
+            json_path = adpalmap_report.generate_json()
 
-                json_path = adpalmap_report.generate_json()
-
-                html_path = adpalmap_report.generate_html()
+            html_path = adpalmap_report.generate_html()
 
  
             

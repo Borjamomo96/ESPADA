@@ -23,7 +23,6 @@ _Alternatively (not recommended option, under user responsibility)_: the corresp
   - Look for the function `generate_command` inside the _sipagrs.py_ module.
   - Look for the line `cmd = ["sofia_image_pipeline"]` 
   - Change the (str) _"sofia_image_pipeline"_ for the corresponding command used to run SIP on the device.
----
 
 There is an additional dependency on the Ghostscript program. This is simply used to generate the final HTML report and convert some results from SoFiA-2, from .eps format to .png format. The latter has greater compatibility and can be viewed in any browser. To install it, simply use:
 

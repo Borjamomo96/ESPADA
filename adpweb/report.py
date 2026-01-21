@@ -227,7 +227,7 @@ class Report:
             #######################################################################################
 
             #######################################################################################
-            # ESTRUCTURA COMPLETA DEL DATASET 
+            # COMPLETE STRUCTURE OF THE DATASET 
             dataset_complete = {
                 # Identificación
                 'dataset_id': input_data or f"dataset_{len(parsed_data['datasets'])}",
@@ -463,17 +463,39 @@ class Report:
         """
         Extract metadata from FITS files.
         """
-        
-        # CAMBIAR. Por ahora devolvemos variables vacías
-        return {
-            'file_path': str(input_data) if input_data else None,
-            'file_exists': Path(input_data) and Path(input_data).exists(),
-            'header_info': {},  
-            'observational_parameters': {},
-            'telescope_info': {},
-            'data_dimensions': {},
-            'wcs_info': {}
-        }
+        if input_data is None:
+            return {
+                'file_path': None,
+                'file_exists': False,
+                'header_info': {},  
+                'observational_parameters': {},
+                'telescope_info': {},
+                'data_dimensions': {},
+                'wcs_info': {}
+            }      
+        try:
+            input_path = Path(input_data) if isinstance(input_data, (str, Path)) else input_data
+            
+            return {
+                'file_path': str(input_path) if input_path else None,
+                'file_exists': input_path.exists() if input_path else False,
+                'header_info': {},  
+                'observational_parameters': {},
+                'telescope_info': {},
+                'data_dimensions': {},
+                'wcs_info': {}
+            }
+        except Exception as e:
+            logger.error(f"Error extracting FITS metadata from {input_data}: {str(e)}")
+            return {
+                'file_path': str(input_data) if input_data else None,
+                'file_exists': False,
+                'header_info': {},  
+                'observational_parameters': {},
+                'telescope_info': {},
+                'data_dimensions': {},
+                'wcs_info': {}
+            }
 
 
     def _convert_eps_to_png(self, eps_path, png_path):
