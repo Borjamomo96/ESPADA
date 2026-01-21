@@ -25,6 +25,16 @@ _Alternatively (not recommended option, under user responsibility)_: the corresp
   - Change the (str) _"sofia_image_pipeline"_ for the corresponding command used to run SIP on the device.
 ---
 
+There is an additional dependency on the Ghostscript program. This is simply used to generate the final HTML report and convert some results from SoFiA-2, from .eps format to .png format. The latter has greater compatibility and can be viewed in any browser. To install it, simply use:
+
+```
+    $ apt-get install ghostscript
+    or 
+    $ brew install ghostscript
+```
+
+If you don't want to install Ghostscript, there are alternative options for viewing .eps images in different browsers.
+
 ## Installation
 
 **DISCLAIMER**: The steps provided here are RECOMMENDATION only, there may be other ways to install ADPALMAP that will also work.
