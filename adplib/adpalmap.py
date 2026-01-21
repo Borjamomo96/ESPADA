@@ -786,6 +786,20 @@ def process_data(id_number,
 
     ##############################################################################################
 
+    if adpalmap_config.enable_sofia == False and adpalmap_config.enable_sip == False:
+
+        empty_report = {
+            "software_id": "TAP",
+            "PID": pid,
+            "input_name": input_data.stem if input_data else f"dataset_{id_number}",
+            "input_data": input_data if input_data else None,
+            "mode": "download_only",
+            "log_path": "",
+            "error": "",
+            "outputs": {"images": [], "files": []}
+        }
+        return ([empty_report], [], [], [])
+
     return sofia_report, sip_report, qa_report, group_report
 
 
