@@ -306,9 +306,7 @@ class Report:
                     # Convert EPS to PNG if it does not exist
                     if not png_dest.exists():
                         if self._convert_eps_to_png(src, png_dest):
-                            
                             img['path'] = os.path.join("images", png_filename)
-                            logger.info(f"Convert EPS to PNG: {filename} -> {png_filename}")
                         else:
                             # If the conversion fails, copy the original EPS
                             shutil.copy2(src, dest)

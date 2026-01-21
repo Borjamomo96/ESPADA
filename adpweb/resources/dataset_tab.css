@@ -78,6 +78,7 @@
     align-items: center; /* vertical centering */
 }
 
+/*###########################################################################*/
 .image-gallery-qa {
     display: flex;
      flex-direction: column; 
@@ -86,6 +87,27 @@
     justify-content: center; /* horizzontal centering */
     align-items: center; /* vertical centering */
 }
+
+.img-container-qa img {
+    height: auto;
+    width: 100%;
+    max-height: 400px; 
+    object-fit: contain; /* Mantiene proporciones */
+}
+
+/* Descripción en QA */
+.img-container-qa .img-desc {
+    margin-top: 15px;
+    padding: 12px 15px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    font-size: 1.1em; /* Texto más grande */
+    color: #333;
+    text-align: center;
+    font-weight: 500;
+}
+
+/*###########################################################################*/
 
 .img-container {
     border: 1px solid #e0e0e0;
