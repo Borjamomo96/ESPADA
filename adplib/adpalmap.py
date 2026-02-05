@@ -2,7 +2,7 @@
 Contact: Borja Montoro Molina (borjamomo96@gmail.com)
 """
 #Configuration
-from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
+from adplib.exceptions import RecoverableError, ConfigurationError
 from adplib.config import Config
 
 import os
@@ -106,6 +106,39 @@ def parse_sofia_par(arg):
         raise argparse.ArgumentTypeError("--sofia-parameters must be in par=val format")
 
 
+def convert_if_number(s):
+    """
+    Converts strings to int, float, or a list of numbers if possible.
+    Handles formats: '5', '5.5', '[1,2,3]', '1,2,3', '1 2 3'
+    """
+
+    if isinstance(s, list):
+        s = ' '.join(str(item) for item in s)
+    s = str(s).replace('[', '').replace(']', '').strip()
+
+    if not s: # Empty 
+        return s
+    
+    # If is a list with empty spaces or comas
+    if ',' in s or ' ' in s:
+        parts = s.replace(',', ' ').split()
+        converted_parts = []
+        for part in parts:
+            if part: # Ignore empty strings
+                try:
+                    converted_parts.append(int(part) if '.' not in part else float(part))
+                except ValueError:       
+                    return s #return original string        
+        # If all parts were converted, return list
+        return converted_parts if len(converted_parts) > 1 else converted_parts[0]
+    
+    # Simple string: try to convert to int or float
+    try:
+        return int(s) if '.' not in s else float(s)
+    except ValueError:
+        return s
+
+
 def sipargs_to_dict(args_list):
 
     """
@@ -125,6 +158,11 @@ def sipargs_to_dict(args_list):
 
     args_dict = {}
     key = None
+
+    if not any(item.startswith('-') for item in args_list):
+        raise ValueError(
+            "No SIP parameter shortcuts found in -sarg arguments."
+        )
     
     for item in args_list:
         if item.startswith('-'): 
@@ -139,9 +177,9 @@ def sipargs_to_dict(args_list):
                 args_dict[key] = [args_dict[key], item] 
     
     for k, v in args_dict.items():
-        if isinstance(v, list) and len(v) == 1:
-            args_dict[k] = v[0]
-    
+        if isinstance(v, (str, list)) and v is not True:
+            args_dict[k] = convert_if_number(v)
+
     return args_dict
 
 
@@ -586,7 +624,7 @@ def process_data(id_number,
         sofia_report = []
         qa_report = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
-                    "Skipping Sofia runs.")
+                    "SoFiA execution skipped")
 
 
     ##############################################################################################
@@ -647,7 +685,7 @@ def process_data(id_number,
 
     else:
         sip_report = []
-        logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. Skipping SIP runs.")
+        logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. SIP execution skipped")
     
     ##############################################################################################
 
@@ -781,7 +819,7 @@ def process_data(id_number,
 
     else: 
         group_report = []
-        f"'enable_sip' set to {adpalmap_config.enable_group}. Skipping grouping."
+        f"'enable_sip' set to {adpalmap_config.enable_group}. Group execution skipped"
     
 
     ##############################################################################################
@@ -800,7 +838,7 @@ def process_data(id_number,
         }
         return ([empty_report], [], [], [])
 
-    return sofia_report, sip_report, qa_report, group_report
+    return id_number, (sofia_report, sip_report, qa_report, group_report)
 
 
 def main():
@@ -861,9 +899,9 @@ def main():
             show_info(args.info)
             sys.exit(-1)
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
         ini_logger = Initial_Logger.get_initial_logger()
         
@@ -873,9 +911,9 @@ def main():
         else:
             adpalmap_config = Config(config_path=args.config_file)    
         
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
         
         log_queue = Queue()  
         queue_listener = QueueListener(log_queue, *logging.getLogger().handlers) 
@@ -889,13 +927,13 @@ def main():
 
 
 
-        #--------------------------------------------------------------------------------------------# 
+        ############################################################################################## 
         logger.info("ADPALMAP start point")
 
         log_flag = True
         start, start_date = time.perf_counter(), datetime.now().isoformat()
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
         #Optionally download data from ALMA archive
         from adplib.tap.datap import datap
@@ -927,9 +965,9 @@ def main():
             adpalmap_datap = None
             logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
                         "Skipping data download")
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
         # ALMA archive data
         if adpalmap_config.enable_tap_service == True:
@@ -964,10 +1002,10 @@ def main():
         for (data, primary_beam, mask), ancillary in zip(data_pack_list, ancillary_pack_list)
         ]
         number_list = list(range(len(data_pack_list)))
-
-        #--------------------------------------------------------------------------------------------#
+    
+        ##############################################################################################
         
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
         '''#Número máx de cores dinámico
         cpu_cores = multiprocessing.cpu_count()
@@ -1029,9 +1067,9 @@ def main():
             f"The worker number has been set to {max_workers}"
         )
 
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
         
-        #--------------------------------------------------------------------------------------------#
+        ##############################################################################################
 
         with ProcessPoolExecutor(max_workers=max_workers) as pool:
     
@@ -1046,11 +1084,11 @@ def main():
                 for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
             ]
             
-
+            results_dict = {}
             for future in as_completed(futures):  
                 try:
-                    result = future.result()
-                    worker_results.append(result)
+                    id_number, result_tuple = future.result()
+                    results_dict[id_number] = result_tuple
                 #Este primero porque python lee Excepciones de arriba a abajo
                 #Errores salvables. El resto de procesos sigue corriendo
                 except RecoverableError as e:  
@@ -1058,6 +1096,10 @@ def main():
                     #Quitando esta línea eliminamos el traceback
                     Logger.raw(format_exc())
                 #Errores criticos
+                except ConfigurationError as e:  
+                    worker_exceptions.append(e)
+                    logger.error(f"Configuration error: {e}")
+                    raise 
                 except (ValueError, FileNotFoundError) as e:
                     worker_exceptions.append(e)
                     raise 
@@ -1071,14 +1113,20 @@ def main():
                     logger.critical(
                         f"Unexpected error: {e}. "
                          "Please open an issue on GitHub "
-                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-                         "case."
+                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                         "specific case."
                     )
                     raise 
+            worker_results = [results_dict[i] for i in range(len(complete_pack_list))]
 
-        #--------------------------------------------------------------------------------------------#
+    ##############################################################################################
 
         logger.info("ADPALMAP ended")
+        if adpalmap_config is not None and adpalmap_config.make_report:
+            logger.info(
+                "See the final reports for an overview of the results obtained during the "
+                "pipeline execution."
+            )
         finish, finish_date = time.perf_counter(), datetime.now().isoformat()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
         queue_listener.stop()
@@ -1091,7 +1139,7 @@ def main():
 
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
-            
+
             base_dir = Path(__file__).parent.parent  
             template = base_dir / "adpweb" / "templates" / "report.html"
 
@@ -1140,7 +1188,36 @@ def main():
 
             html_path = adpalmap_report.generate_html()
 
- 
+    ##############################################################################################
+        # Shutdown of the ProcessPoolExecutor if it exists
+        try:
+            if 'pool' in locals() and pool is not None:
+                pool.shutdown(wait=True, cancel_futures=True)
+        except Exception as e:
+            logger.debug(f"Error shutting down pool: {e}")
+        
+        # Stop QueueListener before anything else
+        if queue_listener is not None:
+            try:
+                queue_listener.stop()
+                time.sleep(0.5)
+            except Exception as e:
+                logger.debug(f"Error stopping queue listener: {e}")
+        
+        # Clear the queue explicitly
+        if 'log_queue' in locals() and log_queue is not None:
+            try:
+                while not log_queue.empty():
+                    try:
+                        log_queue.get_nowait()
+                    except:
+                        break
+                log_queue.close()
+                log_queue.join_thread()
+            except Exception as e:
+                logger.debug(f"Error cleaning queue: {e}")
+        
+    ##############################################################################################
             
 
 # Run the main functions

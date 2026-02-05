@@ -474,13 +474,15 @@ class SoPar(dict):
                 logger.warning(
                     f"Ignoring value '{sop_par['input.data']}' for the 'input_data' parameter "
                     "provided vía '-sop' comand. This must be set in the "
-                    "'input_dataset' or 'input_file' parameters in the main configuration file"
+                    "'input_dataset' or 'input_file' parameters in the "
+                    f"{self.adpalmap_config.config_path} file"
                 )
         if hasattr(self, 'input_data') and getattr(self, 'input_data') is not None:
             logger.warning(
                 f"Ignoring value '{self.input_data}' for the 'input.data' parameter provided "
                 f"in the parameter file {self.sofia_file_path}.  This must be set in the "
-                "'input_dataset' or 'input_file' parameters in the main configuration file"
+                f"'input_dataset' or 'input_file' parameters in the {self.adpalmap_config.config_path}"
+                " file"
             )
                 
         self.input_data = input_data
@@ -494,13 +496,13 @@ class SoPar(dict):
             logger.warning(
                 f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
                 "parameter provided vía '-sop' comand. This must be set in the 'input_dataset'"
-                " or 'input_file' parameters in the main configuration file"
+                f" or 'input_file' parameters in the {self.adpalmap_config.config_path} file"
             )
         if(hasattr(self, "input_primaryBeam") and  self.input_primaryBeam):
             logger.warning(
                 f"Ignoring value '{self.input_primaryBeam}' for the 'input.primaryBeam' parameter"
                 f" provided in {self.sofia_file_path}. This must be set in the 'input_dataset'"
-                " or 'input_file' parameters in the main configuration file"
+                f" or 'input_file' parameters in the {self.adpalmap_config.config_path} file"
             )
             
         # If exist it will always be used
@@ -519,13 +521,14 @@ class SoPar(dict):
             logger.warning(
                 f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask' parameter provided "
                 "vía '-sop' comand. This must be set in the 'input_dataset'"
-                " or 'input_file' parameters in the main configuration file"
+                f" or 'input_file' parameters in the {self.adpalmap_config.config_path} file"
             )
         if(hasattr(self, "input_mask") and self.input_mask):
             logger.warning(
                 f"Ignoring value '{self.input_mask}' for the 'input.mask' parameter provided "
                 f"in the parameter file {self.sofia_file_path}. This must be set in the "
-                "'input_dataset' or 'input_file' parameters in the main configuration file"
+                "'input_dataset' or 'input_file' parameters in the "
+                f"{self.adpalmap_config.config_path} file"
             )
         
         if mask:
@@ -606,10 +609,9 @@ class SoPar(dict):
             logger.info("The 'reliability.enable' parameter has set to 'false'. Setting a mask file in "
                         "'input.mask' and True in 'use_mask' parameter assumes that no further "
                         "sources need to be searched or discarded.")
-            
+            logger.warning("Carefully review the parameters set in the linker section")
             self.scfind_enable = 'false'
-            self.reliability_enable= 'false'
-
+            self.reliability_enab
             if (sop_par and 'scfind.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
@@ -794,27 +796,27 @@ class SoPar(dict):
                 f"{self.linker_minSizeXY}"
             )
 
-        # reliability.minSNR
+        # filter.minSNR
         if "BMAJ" in header and "BMIN" in header:
-            self.reliability_minSNR = 3.0 
+            self.filter_minSNR = 3.0 
             logger.info(
-                "The 'self.reliability_minSNR' parameter has been update to: "
-                f"{self.reliability_minSNR}"
+                "The 'self.filter_minSNR' parameter has been update to: "
+                f"{self.filter_minSNR}"
             ) 
 
         else:            
             a = 3
             b = 3
             x = (3 / 2) * np.sqrt((np.pi * a * b) / np.log(2))
-            self.reliability_minSNR = x
+            self.filter_minSNR = x
             logger.info(
-                "The 'self.reliability_minSNR' parameter has been update to: "
-                f"{self.reliability_minSNR}"
+                "The 'self.filter_minSNR' parameter has been update to: "
+                f"{self.filter_minSNR}"
             )
                 
 
         # Otros parámetros pueden ser añadidos según las reglas específicas...
-        logger.info(f"Auto-setup DONE. Mode: {self.mode}")
+        logger.info(f"Auto-setup done. Mode: {self.mode}")
 
 
     def run_sofia(self, run=-1):        

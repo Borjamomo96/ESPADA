@@ -167,7 +167,11 @@
                   {% for source_id, images in dataset.images_grouped.sip.regular.absorption.items()|sort %}
                   <div class="source-container">
                       <button class="source-toggle" onclick="toggleSource(this)">
-                          Source {{ source_id }} (Absorption) ▼
+                          {% if source_id|string == '-1' %}
+                              All Sources ▼
+                          {% else %}
+                              Source {{ source_id }} ▼
+                          {% endif %}
                       </button>
                       <div class="source-images">
                           <div class="image-gallery">
@@ -193,7 +197,7 @@
                   {% for source_id, images in dataset.images_grouped.sip.group.absorption.items()|sort %}
                   <div class="source-container">
                       <button class="source-toggle" onclick="toggleSource(this)">
-                          Source {{ source_id }}* (Absorption - Group) ▼
+                          Source {{ source_id }}* ▼
                       </button>
                       <div class="source-images">
                           <div class="image-gallery">
@@ -219,7 +223,11 @@
                   {% for source_id, images in dataset.images_grouped.sip.regular.emission.items()|sort %}
                   <div class="source-container">
                       <button class="source-toggle" onclick="toggleSource(this)">
-                          Source {{ source_id }} (Emission) ▼
+                          {% if source_id|string == '-1' %}
+                              All Sources ▼
+                          {% else %}
+                              Source {{ source_id }} ▼
+                          {% endif %}
                       </button>
                       <div class="source-images">
                           <div class="image-gallery">
@@ -245,7 +253,7 @@
                   {% for source_id, images in dataset.images_grouped.sip.group.emission.items()|sort %}
                   <div class="source-container">
                       <button class="source-toggle" onclick="toggleSource(this)">
-                          Source {{ source_id }}* (Emission - Group) ▼
+                          Source {{ source_id }}* ▼
                       </button>
                       <div class="source-images">
                           <div class="image-gallery">

@@ -415,6 +415,9 @@ class datap(dict):
                     logger.info("File ancillary URLs to download: ")
                     for url in al_link_list:
                         Logger.raw(f"[{self.pid}] {url}")
+                    logger.info(
+                        "No need to worry about repeated downloads of duplicate files in URLs "
+                        "and ancillary URLs; they will be downloaded only once.")
                 
         else:
             logger.warning("Nothing to download. Check 'filename_must_inlude' parameter, often this comes from a "
@@ -590,6 +593,7 @@ class datap(dict):
         if not any(cont_files):
             logger.warning(
                 "No continuum file matching 'mfs.I.pbcor' was found for any spectral window. "
+                "The 'filename_must_include parameter' was likely too restrictive. "
                 "Older data cycles may use different naming conventions not currently supported."
             )
         self.cont_list = cont_files

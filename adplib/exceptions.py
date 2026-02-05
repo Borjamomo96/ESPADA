@@ -1,11 +1,15 @@
 class RecoverableError(Exception):
-    """Base para errores que permiten continuar la ejecución"""
+    """Basis for errors that allow execution to continue"""
     pass
 
 class RecoverableValueError(ValueError, RecoverableError):
-    """ValueError que no detiene el programa"""
+    """ValueError that does not stop the program"""
     pass
 
 class RecoverableFileNotFoundError(FileNotFoundError, RecoverableError):
-    """FileNotFoundError recuperable"""
+    """Recoverable FileNotFoundError"""
+    pass
+
+class ConfigurationError(Exception):
+    """Exception for errors in configuration files (YAML)"""
     pass

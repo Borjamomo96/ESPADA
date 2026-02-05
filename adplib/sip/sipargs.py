@@ -1,17 +1,42 @@
 from pathlib import Path
 import yaml
+import re
 import subprocess
 import sys
 import os
 from traceback import format_exc
-from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
+from adplib.exceptions import ConfigurationError, RecoverableFileNotFoundError
 from astropy.io.votable import parse_single_table
 
-from traceback import format_exc
 # Logger:
 import logging
 from adplib.logger import Logger
 logger = Logger.get_logger()
+
+def get_union_args(union_type):
+    if hasattr(union_type, '__args__'):
+        args = union_type.__args__
+        # Convertir None -> type(None)
+        return {arg if arg is not None else type(None) for arg in args}
+    return {union_type}
+
+def strict_isinstance(value, union_type):
+    """isinstance() sin confusión bool<->int"""
+    if not isinstance(value, union_type):
+        return False
+    
+    # Casos especiales bool<->int
+    union_args = get_union_args(union_type)
+    
+    if isinstance(value, bool) and int in union_args:
+        # bool cuando se permite int → rechazar
+        return False
+    if isinstance(value, int) and bool in union_args and type(value) is not bool:
+        # int cuando se permite bool → rechazar (excepto si es realmente bool)
+        return False
+    
+    return True
+
 
 class CatalogResult:
     def __init__(self, catalog_path=None, error_msg=None):
@@ -29,18 +54,45 @@ class SiPar(dict):
     # Diccionario estático que mapea nombres de atributos a shortcuts
     ATTRIBUTE_SHORTCUTS = {
          "catalog_file": ["-c", "--catalog"],
-         "source_id": ["-id", "--source-id"],
-         "output_image_file_type": ["-x", "--suffix"],
-         "spec_full_range": ["-o", "--original"],
-         "syn_beam_dimensions": ["-b", "--beam"],
          "channel_width": ["-cw",  "--chan_width"],
          "min_size": ["-i", "--image-size"],
+         "source_id": ["-id", "--source-id"],
+         "syn_beam_dimensions": ["-b", "--beam"],
          "snr_range": ["-snr", "--snr-range"],
          "surveys_list": ["-s", "--surveys"],
-         "combo": ["-m", "--imagemagick"],
-         "user_image": ["-ui", "--user-image"],
          "percentile_range": ["-ur", "--user-range"],
-         "spec_line": ["-line", "--spectral-line"]
+         "user_image": ["-ui", "--user-image"],
+         "spec_line": ["-line", "--spectral-line"],
+         "output_image_file_type": ["-x", "--suffix"],
+         "combo": ["-m", "--imagemagick"],
+         "spec_full_range": ["-o", "--original"],
+         "no_source_id": ["-noid", "--no-source-id"],
+         "channel_maps": ["-cm", "--chan-maps"],
+         "spec_only": ["-spec", "--spec-only"],
+         "plot_units": ["-j", "--jy-kms"],
+         "overwrite": ["-ow", "--overwrite "]
+    }
+
+    #Tipos esperados en los parámetros
+    EXPECTED_TYPES = {
+        'catalog_file': str | list | None,
+        'channel_width': float | None,
+        'min_size': float| int | None,
+        'source_id': int | list | None,
+        'syn_beam_dimensions': list | None,
+        'snr_range': list | None,
+        'surveys_list': list | None,
+        'percentile_range': list | None,
+        'user_image': str | list | None,
+        'spec_line': str | list | None,
+        'output_image_file_type': str | None,
+        'combo': bool | str | None,
+        'spec_full_range': bool, # | str | list | None,
+        'no_source_id': bool | None,
+        'channel_maps': bool | None,
+        'spec_only': bool | None,
+        'plot_units': bool | None,
+        'overwrite': bool | None
     }
 
 
@@ -96,15 +148,29 @@ class SiPar(dict):
             self.sip_file_path = sip_file_path
 
             if not sip_file_path.exists():
-                error_msg = f"Sip arguments file {sip_file_path} not found."
+                error_msg = f"Sip parameter file {sip_file_path} not found."
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise FileNotFoundError(error_msg)
             else:
                 logger.info(f"The file in {sip_file_path} have been loaded successfully")
 
             
-        with open(sip_file_path, 'r') as f:
-            sip_args_dict = yaml.safe_load(f)
+        try:
+            with open(sip_file_path, 'r') as f:
+                sip_args_dict = yaml.safe_load(f)
+        
+        except yaml.YAMLError as e:
+            error_msg = (
+                f"Error parsing YAML configuration file '{sip_file_path}': {str(e)}. "
+                "Please check the file syntax. Common issues include: "
+                "- Missing quotes around strings with special characters\n"
+                "- Incorrect indentation\n"
+                "- Invalid list/array syntax (use [value1, value2] not [value1,,value2])\n"
+                "- Unclosed quotes or brackets"
+            )
+            Logger.log_to_file(logging.ERROR, error_msg)
+            # Crea una excepción específica para errores de configuración
+            raise ConfigurationError(error_msg) from e
         
         for k, v in sip_args_dict.items():
             
@@ -119,26 +185,19 @@ class SiPar(dict):
         ----------
             ValueError: If any parameter is missing or does not have the expected type.
         """
-        #Tipos esperados en los parámetros
-        expected_types = {
-            'source_id': int | list | None,
-            'output_image_file_type': str | None,
-            'spec_full_range': bool | str | None,
-            'syn_beam_dimensions': list | None,
-            'channel_width': float | None,
-            'min_size': int | float | None,
-            'snr_range': list | None,
-            'surveys_list': list | None,
-            'combo': bool | str | None,
-            'user_image': str | None,
-            'percentile_range': list | None,
-            'spec_line': str | None,
+
+        # Parameters expected
+        required_params = list(self.EXPECTED_TYPES.keys())
+
+        # Values allowed for 'output_image_file_type' and 'spec_line'
+        valid_values = {
+            'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
+            'spec_line': ['HI', 
+                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
+                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
         }
 
-        #Los parámetros obligatorios, hasta la fecha
-        required_params = list(expected_types.keys())
-
-        #Comprobamos los parámetros obligatorios
+        # Check the parameters in sip arguments file. 
         missing_params = [param for param in required_params if not hasattr(self, param)]
         if missing_params:
             param_list = ", ".join(missing_params)
@@ -149,16 +208,16 @@ class SiPar(dict):
             )
 
         if (len(self.number_list)>1):
-            expected_types['catalog_file'] =  list | None
-        else:
-            expected_types['catalog_file'] =  str | list | None
+            self.EXPECTED_TYPES['catalog_file'] =  list | None
+            self.EXPECTED_TYPES['user_image'] =  list | None
+            
 
 
-       # Valido tipos de datos
-        for param, expected_type in expected_types.items():
+        # Check argument type
+        for param, expected_type in self.EXPECTED_TYPES.items():
             if hasattr(self, param):
                 value = getattr(self, param)
-                if not isinstance(value, expected_type):
+                if not strict_isinstance(value, expected_type):
                     error_msg = (
                         f"The parameter '{param}' in the sip_args.yaml file must be of "
                         f"type {expected_type}, but is of type {type(value)}."
@@ -173,22 +232,19 @@ class SiPar(dict):
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise ValueError(error_msg)
 
-
-        #-----------------catalog_file---------------------# 
+        # Extra check for specific parameters
+        ###########################------------catalog_file-------------##############################
         if self.adpalmap_config.enable_sofia:
             if self.catalog_file is not None:
                 logger.warning(
                     "The catalog(s) specified in the 'catalog_file' parameter in "
-                    "'sip_args.yaml' will be ignore. Those obtained from "
+                    f"{self.sip_file_path} will be ignore. Those obtained from "
                     "SoFiA will be used instead, if any"
                 ) 
 
         else:
             input_name = self.input_data.stem
             cwd_file = Path.cwd().resolve()
-            # Basically this parameter is to discern if the self.cataloge comes from 'sip_args.yaml'
-            # or from previous run
-            legacy = False 
 
             if self.adpalmap_config.run_mode == "absorption":
                 sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.txt"
@@ -250,60 +306,145 @@ class SiPar(dict):
                     logger.error(error_msg)
                     logger.info("1")
                     raise RecoverableFileNotFoundError(abs_cat_file.error_msg) 
+        ##############################################################################################
 
-
-        #--------------------------------------------------# 
-
-        # Valido valores permitidos en ciertos parámetros
-        valid_values = {
-            'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-            'spec_line': ['HI', 
-                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
-                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
-        }
-
-        for param, valid_values_list in valid_values.items():
-            if hasattr(self, param):
-                value = getattr(self, param)
-                
-                if value not in valid_values_list:
-                    if param == 'spec_line':
-                        logger.warning(
-                            f"The value '{value}' is not valid for parameter '{param}'. " 
-                            "It will be set as 'Unknown'"
-                        )
-                        self.spec_line = 'Unknown'
-                    else:
+        ###########################---------source_id---------##############################        
+        if hasattr(self, 'source_id') and getattr(self, 'source_id') is not None:
+            attr_value = getattr(self, 'source_id')
+            if isinstance(attr_value, list):
+                cleaned_values = []
+                for item in attr_value:
+                    # Convert str just to avoid mixed cases ["[2", "int(3)"]
+                    str_item = str(item)
+                    cleaned = str_item.replace('[', '').replace(']', '').replace(',', '').strip()
+                    try:
+                        cleaned_values.append(int(cleaned))
+                    except ValueError:
                         error_msg = (
-                            f"The parameter '{param}' must have one of the following values:"
-                            f" {valid_values_list}. Value provided: '{value}'."
+                            f"'source_id' contains non-integer value: '{item}'"
                         )
                         Logger.log_to_file(logging.ERROR, error_msg)
                         raise ValueError(error_msg)
+                attr_value = cleaned_values
+                # Extra checks for values: -1 or 0
 
-        # Valido parámetros que solo admiten listas con una cierta longitud
-        if hasattr(self, 'snr_range') and getattr(self, 'snr_range') is not None:
-            snr_range = getattr(self, 'snr_range')
-            if not (isinstance(snr_range, list) and len(snr_range) == 2):
+        ############################################################################################## 
+        
+        ###########################---------syn_beam_dimensions---------##############################
+        if hasattr(self, 'syn_beam_dimensions') and getattr(self, 'syn_beam_dimensions') is not None:
+            attr_value = getattr(self, 'syn_beam_dimensions')
+            if len(attr_value) > 3:
                 error_msg = (
-                        f"The 'snr_range' parameter must be a list of two values."
-                        f" Provided value: {snr_range}."
+                        f"The 'syn_beam_dimensions' parameter must be a list of a maximum of three "
+                        f"values. Provided value: {attr_value}."
                     )
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise ValueError(error_msg)
-                
+            elif not all(strict_isinstance(x, (int, float)) for x in attr_value):
+                error_msg = f"'source_id' must contain only integers or floats: {attr_value}"
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
+        ##############################################################################################
+
+        ###########################-------------snr_range---------------##############################
+        if hasattr(self, 'snr_range') and getattr(self, 'snr_range') is not None:
+            attr_value = getattr(self, 'snr_range')
+            if len(attr_value) != 2:
+                error_msg = (
+                        f"The 'snr_range' parameter must be a list of two values."
+                        f" Provided value: {attr_value}."
+                    )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
+        ##############################################################################################
+
+        ###########################----------percentile_range-----------##############################
         if hasattr(self, 'percentile_range') and getattr(self, 'percentile_range') is not None:
-            percentile_range = getattr(self, 'percentile_range')
-            if not (isinstance(percentile_range, list) and len(percentile_range) == 2):
+            attr_value = getattr(self, 'percentile_range')
+            if len(attr_value) != 2:
                 error_msg = (
                     f"The 'percentile_range' parameter must be a list of two values."
-                    f" Provided value: {percentile_range}."
+                    f" Provided value: {attr_value}."
                 )
                 Logger.log_to_file(logging.ERROR, error_msg)
                 raise ValueError(error_msg)
+        ##############################################################################################
+        
+        ##########################--------------user_image---------------#############################
+        if hasattr(self, 'user_image') and getattr(self, 'user_image') is not None:
+            attr_value = getattr(self, 'user_image')
+            if self.adpalmap_config.enable_tap_service and self.ancillary_data:
+                logger.warning(
+                    f"The continuous images provided in the 'user_image' parameter in "
+                    f"{self.sip_file_path} will be ignored. Those obtained from the archive "
+                    "will be used."
+                )
+                self.user_image = self.ancillary_data
 
-        #logger.info("All parameters are valid.")
+            else:
+                if isinstance(attr_value, list):
+                    if len(self.number_list) != len(attr_value):
+                        error_msg = (
+                            f"The number of continuum images provided in {self.sip_file_path} is "
+                            " different from the number of datasets. There must be one images per "
+                            "dataset. Use "" if you do not want to include an image for a dataset"
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+                    else:
+                        self.user_image = attr_value[self.id_number]
+                        if not Path(self.user_image).exists():
+                            error_msg = (
+                                f"The continuum image '{self.user_image}' does not exist."
+                            )
+                            Logger.log_to_file(logging.ERROR, error_msg)
+                            raise FileNotFoundError(error_msg)
+                        if self.adpalmap_config.run_mode == "both":
+                            logger.warning(
+                                "In both mode, SIP will run twice with the same continuum image"
+                                f" provided in {self.sip_file_path}, for each dataset."
+                            )    
+                else:
+                    if not Path(self.user_image).exists():
+                        error_msg = (
+                            f"The continuum image  '{self.user_image}' does not exist."
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise FileNotFoundError(error_msg)
+        ##############################################################################################
 
+        ###########################-------------spec_line---------------##############################
+        if hasattr(self, 'spec_line') and getattr(self, 'spec_line') is not None:
+            attr_value = getattr(self, 'spec_line')
+            if isinstance(attr_value, list):
+                if len(attr_value) > 3:
+                    logger.warning(
+                        f"The 'spec_line' parameter if it is a list, must contain no more than 3 "
+                        "values (molecule, rest frequency in GHz, label)." 
+                        f" Provided value: {attr_value}. Alternatively, a small subset of lines "
+                        "can be accessed  by only providing one entry"
+                    )
+            elif isinstance(attr_value, str):
+                if attr_value not in valid_values['spec_line']:
+                    logger.warning(
+                        f"The line '{attr_value}' provide for the 'spec_line' parameter is not among"
+                        " the small subset of lines that can be accessed by providing one entry. "
+                        "See the documentation for more details."
+                    )
+        ##############################################################################################
+
+        ###########################-------output_image_file_type--------##############################
+        if hasattr(self, 'output_image_file_type') and getattr(self, 'output_image_file_type') is not None:
+            attr_value = getattr(self, 'output_image_file_type')
+            if attr_value not in valid_values['output_image_file_type']:
+                error_msg = (
+                    f"The parameter 'output_image_file_type' must have one of the following values:"
+                    f" {valid_values['output_image_file_type']}. Value provided: '{attr_value}'."
+                )
+                Logger.log_to_file(logging.ERROR, error_msg)
+                raise ValueError(error_msg)
+        ##############################################################################################
+        
 
     def update_input_parameters(self):
         """
@@ -319,63 +460,195 @@ class SiPar(dict):
         ----------
         None: Directly updates the class attributes.
         """
-    
-        
+
         if self.sargs is not None:
+            
+            valid_values = {
+                'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
+                'spec_line': ['HI', 
+                            'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
+                            'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
+            }
+
             for key, value in self.sargs.items():
-                #Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
+                # Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
                 matched_attr = None
                 for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
                     if key in shortcut:  
                         matched_attr = attr_name
                         break
+                
+                if matched_attr is None:
+                    logger.warning(f"Unknown parameter '{key}' provided. It will be ignored.")
+                    continue
+                
+                expected_type = self.EXPECTED_TYPES.get(matched_attr)
 
-                if matched_attr is not None:
-                    # Special case for 'catalog_file' or '-c'
-                    if matched_attr == "catalog_file" and self.adpalmap_config.enable_sofia:
+                if not strict_isinstance(value, expected_type):
+                    error_msg = (
+                        f"The parameter '{matched_attr}' via -sarg as '{key}' must be of "
+                        f"type {expected_type}, but is of type {type(value)}. Consider None as not "
+                        "entered in the terminal."
+                    )
+                    Logger.log_to_file(logging.ERROR, error_msg)
+                    raise ValueError(error_msg)
+        
+        ###########################------------catalog_file-------------##############################
+                if matched_attr == "catalog_file" and not self.adpalmap_config.enable_sofia:
+                    # Quiere decir que ha encontrado catalogos previos, tienen prioriodad
+                    if(self.catalog_file is not None):
                         logger.warning(
-                            f"The catalog(s) provide via -sarg will be ignored because those provided by"
-                            f" SoFiA have priority"
+                            "The catalog(s) provide via -sarg will be ignored because those found from"
+                            " previous run have priority"
                         )
-                        continue  
-                    elif matched_attr == "catalog_file" and not self.adpalmap_config.enable_sofia:
-                        #Quiere decir que ha encontrado catalogos previos, tienen prioriodad
-                        if(self.catalog_file is not None):
-                            logger.warning(
-                                "The catalog(s) provide via -sarg will be ignored because those found from"
-                                " previous run have priority"
+                        continue
+                    #Esto se da porque en check args en este caso específico cuadno hay sarg
+                    #y nada maś simplemente se pasa y self.catalog_file permanece None
+                    elif(self.catalog_file is None):
+                        if len(self.number_list) != len(value):
+                            error_msg = (
+                                "The number of catalogs provided in via -sarg argument is "
+                                " different from the number of datasets. There must be one "
+                                "catalog per dataset."
                             )
+                            Logger.log_to_file(logging.ERROR, error_msg)
+                            raise ValueError(error_msg)
+                        else:
+                            setattr(self, matched_attr, value[self.id_number])
+                            if self.adpalmap_config.run_mode == "both":
+                                logger.warning(
+                                    "In both mode, SIP will run twice with the same catalogs provided"
+                                    f" via -sarg, for each dataset."
+                                )
+                                catalog_file = []
+                                # Lo duplico para que no haya conflicto con el resto de casos en run_sip.
+                                catalog_file.append(self.catalog_file)
+                                catalog_file.append(self.catalog_file)
+                                self.catalog_file = catalog_file     
                             continue
-                        #Esto se da porque en check args en este caso específico cuadno hay sarg
-                        #y nada maś simplemente se pasa y self.catalog_file permanece None
-                        elif(self.catalog_file is None):
+        ##############################################################################################
+
+        ###########################---------source_id---------##############################        
+                elif matched_attr == "source_id":
+                    if not all(isinstance(x, int) for x in value):
+                        error_msg = f"'source_id' must contain only integers: {value}"
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+        ##############################################################################################        
+
+        ###########################---------syn_beam_dimensions---------##############################        
+                elif matched_attr == "syn_beam_dimensions":
+                    if len(value) > 3:
+                        error_msg = (
+                                f"The 'syn_beam_dimensions' parameter must be a list of a maximum of "
+                                f"three values. Provided value: {value}"
+                            )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+                    elif not all(strict_isinstance(x, (int, float)) for x in value):
+                        error_msg = f"'source_id' must contain only integers or floats: {value}"
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+        ##############################################################################################
+
+        ##########################--------------user_image---------------#############################
+                elif matched_attr == "user_image":
+                    if self.adpalmap_config.enable_tap_service and self.ancillary_data:
+                        logger.warning(
+                            f"The continuous images provided in the 'user_image' parameter via "
+                            f"-sargs will be ignored. Those obtained from the archive "
+                            "will be used"
+                        )
+                        self.user_image = self.ancillary_data
+
+                    else:
+                        if isinstance(value, list):
                             if len(self.number_list) != len(value):
                                 error_msg = (
-                                    "The number of catalogs provided in via -sarg argument is "
-                                    " different from the number of datasets. There must be one "
-                                    "catalog per dataset."
+                                    f"The number of continuum images provided via -sargs is "
+                                    " different from the number of datasets. There must be one images per"
+                                    " dataset. Use "" if you do not want to include an image for a dataset"
                                 )
                                 Logger.log_to_file(logging.ERROR, error_msg)
                                 raise ValueError(error_msg)
                             else:
-                                setattr(self, matched_attr, value[self.id_number])
+                                self.user_image = value[self.id_number]
+                                if not Path(self.user_image).exists():
+                                    error_msg = (
+                                        f"The continuum image '{self.user_image}' does not exist."
+                                    )
+                                    Logger.log_to_file(logging.ERROR, error_msg)
+                                    raise FileNotFoundError(error_msg)
                                 if self.adpalmap_config.run_mode == "both":
                                     logger.warning(
-                                        "SIP will be run twice with the same catalogs, provided via -sarg" 
-                                        ", for the 'both' mode selected."
-                                    )
-                                    catalog_file = []
-                                    # Lo duplico para que no haya conflicto con el resto de casos en run_sip.
-                                    catalog_file.append(self.catalog_file)
-                                    catalog_file.append(self.catalog_file)
-                                    self.catalog_file = catalog_file     
-                                continue
+                                        "In both mode, SIP will run twice with the same continuum image"
+                                        f" provided in {self.sip_file_path}, for each dataset."
+                                    )   
+                        else:
+                            if not Path(self.user_image).exists():
+                                error_msg = (
+                                    f"The continuum image  '{self.user_image}' does not exist."
+                                )
+                                Logger.log_to_file(logging.ERROR, error_msg)
+                                raise FileNotFoundError(error_msg)                                 
+        ##############################################################################################
 
-                    # Update the attribute with the new value
-                    setattr(self, matched_attr, value)
-                else:
-                    logger.warning(f"Unknown argument '{key}' provided. Ignoring it.")
+        ###########################-------------snr_range---------------##############################
+                elif matched_attr == "snr_range":
+                    if len(value) != 2:
+                        error_msg = (
+                                f"The 'snr_range' parameter must be a list of two values."
+                                f" Provided value: {value}."
+                            )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+        ##############################################################################################
+
+        ###########################----------percentile_range-----------##############################
+                elif matched_attr == "percentile_range":
+                    if len(value) != 2:
+                        error_msg = (
+                            f"The 'percentile_range' parameter must be a list of two values."
+                            f" Provided value: {value}."
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+        ##############################################################################################
         
+        ###########################-------------spec_line---------------##############################
+                elif matched_attr == 'spec_line':
+                    if isinstance(value, list):
+                        if len(value) > 3:
+                            logger.warning(
+                                f"The 'spec_line' parameter if it is a list, must contain no more "
+                                "than 3 values (molecule, rest frequency in GHz, label)." 
+                                f" Provided value: {value}. Alternatively, a small subset of lines "
+                                "can be accessed  by only providing one entry"
+                            )
+                    elif isinstance(value, str):
+                        if value not in valid_values['spec_line']:
+                            logger.warning(
+                                f"The line '{value}' provide for the 'spec_line' parameter is not among"
+                                " the small subset of lines that can be accessed by providing one entry. "
+                                "See the documentation for more details."
+                            )
+        ##############################################################################################
+
+        ###########################-------output_image_file_type--------##############################
+                elif matched_attr =='output_image_file_type':
+                    if value not in valid_values['output_image_file_type']:
+                        error_msg = (
+                            f"The parameter 'output_image_file_type' must have one of the following "
+                            f"values: {valid_values['output_image_file_type']}. Value provided: " 
+                            f"'{value}'"
+                        )
+                        Logger.log_to_file(logging.ERROR, error_msg)
+                        raise ValueError(error_msg)
+        ##############################################################################################
+
+                # Update the attribute with the new value
+                setattr(self, matched_attr, value)
+
 
     def run_sip(self, sopar=None, run=-1):
         """
@@ -404,7 +677,6 @@ class SiPar(dict):
 
         
         """
-        cwd_file = Path.cwd().resolve()
 
         # Create SIP report
         sip_report = {
@@ -418,13 +690,14 @@ class SiPar(dict):
         
         ##############################################################################################
         # Check the catalog files availables|set 
-        
+
         if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
-            sofia_output_dir = Path(sopar.output_directory)
-            sip_output_dir = Path(sopar.output_directory) / f"{sopar.output_filename}_figures"
+            
+            base_name = sopar.output_filename
+            sip_output_dir = sopar.output_directory / f"{base_name}_figures"
                     
-            sofia_catalog_txt = sofia_output_dir / f"{sopar.output_filename}_cat.txt"
-            sofia_catalog_xml = sofia_output_dir / f"{sopar.output_filename}_cat.xml"
+            sofia_catalog_txt = sopar.output_directory / f"{base_name}_cat.txt"
+            sofia_catalog_xml = sopar.output_directory / f"{base_name}_cat.xml"
 
             if sofia_catalog_txt.exists() or sofia_catalog_xml.exists():
                 pass
@@ -434,7 +707,7 @@ class SiPar(dict):
 
             # Update SIP report
             sip_report["mode"]     = sopar.mode
-            sip_report["log_path"] = sopar.output_directory / f"{sopar.output_filename}_sip.log"
+            sip_report["log_path"] = sopar.output_directory / f"{base_name}_sip.log"
 
     
             if sofia_catalog_txt:
@@ -456,20 +729,19 @@ class SiPar(dict):
                     sip_report.update({'command': '', 'error': error_msg})
                     return sip_report
 
-
         else:
             if self.adpalmap_config.run_mode == "both":             
                 if run != 0:
                     #En 0 guardo el catalago de absorciones
                     self.aux_catalog_file = self.catalog_file
-                    self.catalog_file = self.catalog_file[0]                
-                    output_dir = (
-                        cwd_file / f"adpalmap_{self.input_data.stem}" / f"absorption_{self.input_data.stem}_figures"
-                    )
+                    self.catalog_file = self.catalog_file[0]  
+
+                    base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
+                    sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
                     
                     #Update SIP report
                     sip_report["mode"]     = "absorption"
-                    sip_report["log_path"] = output_dir.parent / f"absorption_{self.input_data.stem}_sip.log"
+                    sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"
                     
                     if self.catalog_file is None:
                         logger.info("SIP execution skipped. Mode: absorption")
@@ -480,13 +752,13 @@ class SiPar(dict):
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.aux_catalog_file
                     self.catalog_file = self.catalog_file[1]
-                    output_dir = (
-                        cwd_file / f"adpalmap_{self.input_data.stem}" / f"emission_{self.input_data.stem}_figures"
-                    )
+                    
+                    base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
+                    sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
 
                     #Update SIP report
                     sip_report["mode"]     = "emission"
-                    sip_report["log_path"] = output_dir.parent / f"emission_{self.input_data.stem}_sip.log"
+                    sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"
                     
                     if self.catalog_file is None:
                         logger.info("SIP execution skipped. Mode: emission")
@@ -494,26 +766,20 @@ class SiPar(dict):
                         return sip_report
                     
             elif self.adpalmap_config.run_mode == "absorption":
-                output_dir = (
-                    cwd_file / f"adpalmap_{self.input_data.stem}" / f"absorption_{self.input_data.stem}_figures"
-                )
+                base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
+                sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
 
                 #Update SIP report
                 sip_report["mode"]     = "absorption"
-                sip_report["log_path"] = output_dir.parent / f"absorption_{self.input_data.stem}_sip.log"
+                sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"
            
             elif self.adpalmap_config.run_mode == "emission":
-                output_dir = (
-                    cwd_file / f"adpalmap_{self.input_data.stem}" / f"emission_{self.input_data.stem}_figures"
-                )
+                base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
+                sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
 
                 #Update SIP report
                 sip_report["mode"]     = "emission"
-                sip_report["log_path"] = output_dir.parent / f"emission_{self.input_data.stem}_sip.log"            
-
-            # At the end of this case it needs to save output_dir as sip_output_dir for the 
-            # html outputs
-            sip_output_dir = output_dir
+                sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"            
 
         ##############################################################################################
 
@@ -531,7 +797,8 @@ class SiPar(dict):
 
         # Generate the command
         cmd = self.generate_command(
-            exclude=["aux_catalog_file"], output_dir=sip_output_dir, mode=sip_report["mode"], sopar=sopar
+            exclude=["aux_catalog_file"], 
+            log_path=sip_report["log_path"]
         )
 
         # Update the report
@@ -553,7 +820,7 @@ class SiPar(dict):
             Logger.raw("================================")
 
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
-
+            
             # Execute SIP
             subprocess.run(
                 cmd, 
@@ -581,7 +848,7 @@ class SiPar(dict):
             # Add output to SIP report 
             if self.adpalmap_config.make_report:
                 try:
-                    self.report_outputs(sip_report, sip_output_dir, sopar=sopar)  
+                    self.report_outputs(sip_report, sip_output_dir, base_name)  
                 except Exception as e:
                     logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
@@ -611,16 +878,8 @@ class SiPar(dict):
             sip_report.update({'error': error})
             return sip_report
         
-        #DESCOMENTAR Cuando hable con Kelley
-        '''try: 
-            cmd = self.make_summary(cmd)
-            subprocess.run(cmd, text=True, check=True, not capture_output= not adpalmap_config.verbose)  
-        except subprocess.CalledProcessError as e:
-            logger.critical(f"Error running SIP making summary images: {e}")
-            sys.exit(-1)'''
-
   
-    def generate_command(self, exclude=None, output_dir=None, mode=None, sopar=None):
+    def generate_command(self, exclude=None, log_path=None):
         """
         Generates a command based on the shortcuts defined in ATTRIBUTE_SHORTCUTS and 
         the non-None attributes of the instance.
@@ -643,84 +902,91 @@ class SiPar(dict):
             
             if attr_name in exclude:  
                 continue
-
-            if attr_name == "combo":  # Special case for the 'combo' attribute
-                value = getattr(self, attr_name, None)
-                if value:  # If True, add only '-m'
-                    cmd.append(shortcut[0])
-                elif isinstance(value, str):  # If a string (path), add '-m' followed by the value
-                    cmd.append(shortcut[0])
-                    cmd.append(value)
-                continue  #Skip further processing for 'combo
-
-            elif attr_name in {
-                "snr_range", "surveys_list", "percentile_range"
-                } and getattr(self, attr_name) is not None:
-                
-                cmd.append(shortcut[0])
-                for value in getattr(self, attr_name):
-                    cmd.append(str(value))
-
-            elif attr_name == "source_id" and getattr(self, attr_name) is not None:
-                cmd.append(shortcut[0])
+        ###########################--------------bool-type--------------##############################
+            if attr_name == "combo" and getattr(self, attr_name) is not None:  
                 attr_value = getattr(self, attr_name)
-                if isinstance(attr_value, list):
-                    for value in attr_value:
-                        cmd.append(str(value))
-                else: 
-                    cmd.append(str(attr_value))  
-            
-            elif attr_name == "spec_full_range" and getattr(self, attr_name) is not None:
-                attr_value =  getattr(self, attr_name)
+                if isinstance(attr_value, bool) and attr_value: 
+                    cmd.append(shortcut[0])
+                elif isinstance(attr_value, str): 
+                    cmd.append(shortcut[0])
+                    cmd.append(attr_value)
+                continue  
 
-                if self.adpalmap_config.enable_sofia or self.adpalmap_config.enable_tap_service: 
-                    
-                    if isinstance(attr_value, bool) and attr_value:
-                        cmd.append(shortcut[0])
-                        cmd.append(str(self.input_data))
-                    elif isinstance(attr_value, str):
-                        cmd.append(shortcut[0]) 
-                        cmd.append(str(attr_value))  
-                    else:
-                        continue
-                else:
-                    
-                    if isinstance(attr_value, bool) and attr_value:
-                        logger.warning(
-                            f"'spec_full_range' parameter in {self.sip_file_path} "
-                            "cannot be set to True while the 'enable_sofia' and 'enable_tap' "
-                            f"parameters in the {self.adpalmap_config.config_path}. file parameter "
-                            " are set to False."
-                        )
-                    elif isinstance(attr_value, str):
-                        cmd.append(shortcut[0]) 
-                        cmd.append(str(attr_value))  
-                    else: 
-                        continue
+            elif attr_name in {"no_source_id", "channel_maps", "spec_only", "plot_units", "overwrite"}:
+                attr_value = getattr(self, attr_name)
+                if attr_value:
+                    cmd.append(shortcut[0])
+
+            elif attr_name == "spec_full_range":
+                attr_value = getattr(self, attr_name)
+                if attr_value:
+                    cmd.append(shortcut[0])
+                    cmd.append(str(self.input_data))
+        ##############################################################################################
             
+        ###########################--------------list-type--------------##############################
+            elif attr_name == "source_id":
+                attr_value = getattr(self, attr_name, None) 
+                if attr_value:
+                    cmd.append(shortcut[0])
+                    if isinstance(attr_value, list):
+                        for value in attr_value:
+                            cmd.append(str(value))
+                    else: 
+                        cmd.append(str(attr_value))  
+                else:
+                    cmd.append(shortcut[0])
+                    cmd.append(str(-1))
+                    logger.info(
+                        "No value set for 'source_id' parameter. Setting 'source_id' to -1 " 
+                        "to get images for all sources and summary images"
+                    )
+            
+            elif attr_name == "syn_beam_dimensions":               
+                attr_value = getattr(self, attr_name, None) 
+                if attr_value:
+                    cmd.append(shortcut[0])
+                    cmd.append(",".join(str(x) for x in attr_value))# Must be comma-separated no space     
+
+            elif (attr_name in {"snr_range", "surveys_list", "percentile_range"} and 
+                getattr(self, attr_name) is not None):
+                    cmd.append(shortcut[0])
+                    for value in getattr(self, attr_name):
+                        cmd.append(str(value))
+          
+        ##############################################################################################
+
+        ###########################-------------catalog-type------------##############################
             # The cont image is set only if the TAP service is used and the user does 
             # not specify any value.
-            elif (attr_name == "user_image" and 
-                  getattr(self, attr_name) is not None and 
-                  self.adpalmap_config.enable_tap_service
-            ):  
-                logger.info(
-                    f"Continuum image '{self.ancillary}' from the archive loaded into 'user_image' "
-                    "parameter."
-                )
-                cmd.append(shortcut[0])
-                cmd.append(str(self.ancillary)) 
+            elif (attr_name == "user_image"): 
+                attr_value = getattr(self, attr_name, None) 
+                if attr_value is not None:
+                    cmd.append(shortcut[0])
+                    cmd.append(str(attr_value))
+                    if self.adpalmap_config.enable_tap_service and self.ancillary_data:
+                        logger.info(
+                            f"Continuum image set for the 'user_image' parameter in {self.sip_args_path} "
+                            "or via -sarg. It will be used instead of the one available from the archive"
+                        )
+                else:
+                    if self.adpalmap_config.enable_tap_service and self.ancillary_data:  
+                        logger.info(
+                            f"Continuum image '{self.ancillary_data}' from the archive loaded into "
+                            "'user_image' parameter."
+                        )
+                        cmd.append(shortcut[0])
+                        cmd.append(str(self.ancillary_data))                 
+        ##############################################################################################
 
+        ###########################----------------no-type--------------##############################
             elif hasattr(self, attr_name) and getattr(self, attr_name) is not None:  
                 cmd.append(shortcut[0])  
                 cmd.append(str(getattr(self, attr_name))) 
-
+        ##############################################################################################
+        
         cmd.append("-log")
-        if sopar:
-            log__name = str(output_dir.parent / f"{sopar.output_filename}_sip.log")
-        else:
-            log__name = str(output_dir.parent / f"{mode}_{self.input_data.stem}_sip.log")
-        cmd.append(log__name)
+        cmd.append(str(log_path))
 
         return cmd
 
@@ -806,6 +1072,11 @@ class SiPar(dict):
                     logger.info(
                         f"Valid lenth for the 'catalog_file' parameter in 'sip_args.yaml'."
                     )
+                    if self.adpalmap_config.run_mode == "both":
+                        logger.warning(
+                            "In both mode, SIP will run twice with the same catalogs provided in "
+                            f"{self.sip_file_path}, for each dataset."
+                        )
                     missing_cat = [cat for cat in catalog_list if not Path(cat).exists()]
                     if missing_cat:
                         missing_list = "--".join(str(p) for p in missing_cat)
@@ -817,7 +1088,6 @@ class SiPar(dict):
                     else:
                         return CatalogResult(catalog_path=catalog_list[self.id_number])
                 else:
-                    #QUE PASA SI NO ES UN LISTA?
                     pass
             else:
                 logger.critical(
@@ -826,112 +1096,130 @@ class SiPar(dict):
                     "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
                 )
                 raise
+              
 
-
-    def report_outputs(self, sip_report, output_dir, sopar):
+    def report_outputs(self, sip_report, output_dir, base_name):
         
         num_sources = self.detect_source_count() 
-        mode = sip_report["mode"]
-    
-        if sopar:
-            for i in range(num_sources):
-                source_prefix = f"_{i+1}"
-                sip_report['outputs']['images'].append({
-                    "type": "mom0",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom0.png",
-                    "source_id": i+1,
-                    "description": "Momment 0 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "mom1",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom1.png",
-                    "source_id": i+1,
-                    "description": "Momment 1 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "mom2",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_mom2.png",
-                    "source_id": i+1,
-                    "description": "Momment 2 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "spec",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_spec.png",
-                    "source_id": i+1,
-                    "description": "Spectrum plot",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "pv",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_pv.png",
-                    "source_id": i+1,
-                    "description": "Position-Velociy (major axis) plot",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "pv_min",
-                    "path": output_dir / f"{sopar.output_filename}{source_prefix}_pv_min.png",
-                    "source_id": i+1,
-                    "description": "Position-Velociy (minor axis) plot",
-                    "software-id": "sip"
-                })
+
+        if self.source_id is None:
+            individual_sources = range(1, num_sources+1)
+            create_summary = False
+        elif self.source_id == -1:
+            individual_sources = range(1, num_sources+1)
+            create_summary = True     
+        elif self.source_id == 0:
+            individual_sources = []
+            create_summary = True       
+        elif isinstance(self.source_id, list):
+            if -1 in self.source_id:
+                individual_sources = range(1, num_sources+1)
+                create_summary = True 
+            else: # In case of 0 or id > number of sources
+                create_summary = 0 in self.source_id
+                cleaned_sources = [s for s in self.source_id if s != 0]
+                valid_sources = [s for s in cleaned_sources if 1 <= s <= num_sources]
+                individual_sources = valid_sources
+
+        for i in individual_sources:
+            source_prefix = f"_{i}"
+            sip_report['outputs']['images'].append({
+                "type": "mom0",
+                "path": output_dir / f"{base_name}{source_prefix}_mom0.png",
+                "source_id": i,
+                "description": "Momment 0 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom1",
+                "path": output_dir / f"{base_name}{source_prefix}_mom1.png",
+                "source_id": i,
+                "description": "Momment 1 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "mom2",
+                "path": output_dir / f"{base_name}{source_prefix}_mom2.png",
+                "source_id": i,
+                "description": "Momment 2 image",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "spec",
+                "path": output_dir / f"{base_name}{source_prefix}_spec.png",
+                "source_id": i,
+                "description": "Spectrum plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "spec_full",
+                "path": output_dir / f"{base_name}{source_prefix}_specfull.png",
+                "source_id": i,
+                "description": "Full spectrum plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "spec_both",
+                "path": output_dir / f"{base_name}{source_prefix}_specboth.png",
+                "source_id": i,
+                "description": "Both spectrum plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv",
+                "path": output_dir / f"{base_name}{source_prefix}_pv.png",
+                "source_id": i,
+                "description": "Major axis Position-Velociy plot",
+                "software-id": "sip"
+            })
+            sip_report['outputs']['images'].append({
+                "type": "pv_min",
+                "path": output_dir / f"{base_name}{source_prefix}_pv_min.png",
+                "source_id": i,
+                "description": "Minor axis Position-Velociy plot",
+                "software-id": "sip"
+            })
         
-        else:
-            for i in range(num_sources):
-                source_prefix = f"_{i+1}"
-                sip_report['outputs']['images'].append({
-                    "type": "mom0",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom0.png",
-                    "source_id": i+1,
-                    "description": "Momment 0 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "mom1",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom1.png",
-                    "source_id": i+1,
-                    "description": "Momment 1 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "mom2",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_mom2.png",
-                    "source_id": i+1,
-                    "description": "Momment 2 image",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "spec",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_spec.png",
-                    "source_id": i+1,
-                    "description": "Spectrum plot",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "pv",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv.png",
-                    "source_id": i+1,
-                    "description": "Position-Velociy (major axis) plot",
-                    "software-id": "sip"
-                })
-                sip_report['outputs']['images'].append({
-                    "type": "pv_min",
-                    "path": output_dir / f"{mode}_{self.input_data.stem}{source_prefix}_pv_min.png",
-                    "source_id": i+1,
-                    "description": "Position-Velociy (minor axis) plot",
+        if create_summary:
+            sip_report['outputs']['images'].append({
+                    "type": "all_mom0",
+                    "path": output_dir.parent / f"{base_name}_mom0.png",
+                    "source_id": -1,
+                    "description": "Momment 0 image of all sources",
                     "software-id": "sip"
                 })
             
+            sip_report['outputs']['images'].append({
+                    "type": "all_mom1",
+                    "path": output_dir.parent / f"{base_name}_mom1.png",
+                    "source_id": -1,
+                    "description": "Momment 1 image of all sources",
+                    "software-id": "sip"
+                })
+            
+            sip_report['outputs']['images'].append({
+                    "type": "all_mom2",
+                    "path": output_dir.parent / f"{base_name}_mom2.png",
+                    "source_id": -1,
+                    "description": "Momment 2 image of all sources",
+                    "software-id": "sip"
+                })
+            
+            sip_report['outputs']['images'].append({
+                    "type": "all_sources",
+                    "path": output_dir.parent / f"{base_name}_sources.png",
+                    "source_id": -1,
+                    "description": "Identifying image of all sources",
+                    "software-id": "sip"
+                })
+
             sip_report['outputs']['files'].append({
                     "type": "par_file",
                     "path": self.sip_file_path,
                     "format": ".par",
                     "software-id": "sip"
                 })
-                    
+            
 
     def detect_source_count(self):
         if not self.catalog_file:
