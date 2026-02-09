@@ -127,7 +127,7 @@ SOFIA_PARAMETER = [
 ]
 
 
-def moment8_ima(adpalmap_sopar):
+def moment8_ima(adpalmap_sopar, mode):
 
     """
     Reads a FITS file containing a data cube and creates a 2D image by
@@ -226,9 +226,16 @@ def moment8_ima(adpalmap_sopar):
         final_data_cube = data_cube
 
 
-    max_projection = np.max(final_data_cube, axis=0)
+    if mode == "absorption":
+        logger.info(f"Creating moment 8 image for absorption (minimum along z-axis)")
+        projection = np.min(final_data_cube, axis=0)
+        projection_viz = -projection  
+    else:  
+        logger.info(f"Creating moment 8 image for emission (maximum along z-axis)")
+        projection = np.max(final_data_cube, axis=0)
+        projection_viz = projection
 
-    return max_projection
+    return projection_viz
 
 
 def run_and_log(command):
@@ -939,12 +946,9 @@ class SoPar(dict):
             if self.adpalmap_config.run_mode == 'both' and run!=0:
                 # Exits the function without propagating an error to run in 'absorption'
                 logger.info(f"SoFiA will try to run again in mode: emission.")
-                return 
-            else:
-                sys.exit(-1)
 
         finally:
-            # This steo should be here if we want to add outputs from SoFiA-2 no matter if it fails or
+            # This step should be here if we want to add outputs from SoFiA-2 no matter if it fails or
             # not. The reliability and diagnostic plot should always be in the report.  
             # Add outputs for the html report
             if self.adpalmap_config.make_report:
@@ -1103,7 +1107,7 @@ class SoPar(dict):
             }
 
         #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
-        mom8_ima = moment8_ima(self)
+        mom8_ima = moment8_ima(self, self.mode)
 
         #Máscara de lo obtenido por SoFiA
         sofia_output_dir = Path(self.output_directory)
@@ -1147,7 +1151,11 @@ class SoPar(dict):
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
         
         ax = axs[0]
-        ax.set_title("Moment 8 Image")
+        if self.mode == "absorption":
+            ax.set_title("Moment 8 Image (Absorption - Min Projection)")
+        else:
+            ax.set_title("Moment 8 Image (Emission - Max Projection)")
+        ax.imshow(mom8_ima, cmap='viridis', origin='lower')
         ax.imshow(mom8_ima, cmap='viridis', origin='lower')
         #ax.colorbar(label="Intensity")
 

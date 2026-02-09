@@ -17,7 +17,7 @@ input.gain                 =
 input.noise                =  
 input.weights              =  
 input.mask                 =  
-input.invert               =  falseee
+input.invert               =  true
 
 
 # Flagging

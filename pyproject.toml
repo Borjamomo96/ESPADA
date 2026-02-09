@@ -33,3 +33,15 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 include = ["adp*"]
+
+[tool.setuptools.package-data]
+"adpweb" = [
+    "images/*",
+    "resources/*",
+    "resources/**/*",  # Incluye subdirectorios
+    "static/*",
+    "static/**/*",     # Incluye subdirectorios
+    "templates/*",
+    "templates/**/*",  # Incluye subdirectorios
+    "*.py",            # Incluye report.py
+]

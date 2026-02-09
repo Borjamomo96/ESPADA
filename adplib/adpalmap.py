@@ -514,7 +514,6 @@ def process_data(id_number,
                 emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(emi_qa_report)
 
-
         elif adpalmap_config.run_mode == 'absorption':
 
             adpalmap_sopar_abs = SoPar(
@@ -549,7 +548,6 @@ def process_data(id_number,
                 logger.warning("No mask file available. Reduced QA image.")
                 abs_qa_report = adpalmap_sopar_abs.quality_assesment()
                 qa_report.append(abs_qa_report)
-
 
         elif adpalmap_config.run_mode == 'both':
 
@@ -619,18 +617,16 @@ def process_data(id_number,
                 emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(emi_qa_report)
 
-
     else:
         sofia_report = []
         qa_report = []
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "SoFiA execution skipped")
-
-
+    ##############################################################################################
+    
     ##############################################################################################
     #Run SIP
     
-
     if adpalmap_config.enable_sip == True:
 
         from adplib.sip.sipargs import SiPar
@@ -646,7 +642,6 @@ def process_data(id_number,
         
         adpalmap_sipar.update_input_parameters()
               
-        
         if adpalmap_config.enable_sofia == True:
             
             if adpalmap_config.run_mode == 'emission':         
@@ -665,6 +660,7 @@ def process_data(id_number,
                 sip_report.append(
                     adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi, run=0)
                 )
+        
         else: 
             if adpalmap_config.run_mode == 'emission':         
                 sip_report.append(
@@ -682,13 +678,12 @@ def process_data(id_number,
                     adpalmap_sipar.run_sip(run=0)
                 )
 
-
     else:
         sip_report = []
         logger.info(f"'enable_sip' set to {adpalmap_config.enable_sip}. SIP execution skipped")
+    ##############################################################################################
     
     ##############################################################################################
-
     if adpalmap_config.enable_group:
 
         from adplib.group import group      
@@ -820,8 +815,6 @@ def process_data(id_number,
     else: 
         group_report = []
         f"'enable_sip' set to {adpalmap_config.enable_group}. Group execution skipped"
-    
-
     ##############################################################################################
 
     if adpalmap_config.enable_sofia == False and adpalmap_config.enable_sip == False:
@@ -838,7 +831,7 @@ def process_data(id_number,
         }
         return ([empty_report], [], [], [])
 
-    return id_number, (sofia_report, sip_report, qa_report, group_report)
+    return sofia_report, sip_report, qa_report, group_report
 
 
 def main():
@@ -899,21 +892,23 @@ def main():
             show_info(args.info)
             sys.exit(-1)
 
-        ##############################################################################################
+    ##############################################################################################
 
-        ##############################################################################################
+    ##############################################################################################
 
         ini_logger = Initial_Logger.get_initial_logger()
         
         if (args.config_file is None):
-            ini_logger.warning("No config.yaml file specified, default config.yaml file will be used")
+            ini_logger.warning(
+                "No config.yaml file specified, default config.yaml file will be used"
+            )
             adpalmap_config = Config()
         else:
             adpalmap_config = Config(config_path=args.config_file)    
         
-        ##############################################################################################
+    ##############################################################################################
 
-        ##############################################################################################
+    ##############################################################################################
         
         log_queue = Queue()  
         queue_listener = QueueListener(log_queue, *logging.getLogger().handlers) 
@@ -927,13 +922,13 @@ def main():
 
 
 
-        ############################################################################################## 
+    ############################################################################################## 
         logger.info("ADPALMAP start point")
 
         log_flag = True
         start, start_date = time.perf_counter(), datetime.now().isoformat()
 
-        ##############################################################################################
+    ##############################################################################################
 
         #Optionally download data from ALMA archive
         from adplib.tap.datap import datap
@@ -965,9 +960,9 @@ def main():
             adpalmap_datap = None
             logger.info(f"'enable_tap_service' set to {adpalmap_config.enable_tap_service}. "
                         "Skipping data download")
-        ##############################################################################################
+    ##############################################################################################
 
-        ##############################################################################################
+    ##############################################################################################
 
         # ALMA archive data
         if adpalmap_config.enable_tap_service == True:
@@ -1003,9 +998,9 @@ def main():
         ]
         number_list = list(range(len(data_pack_list)))
     
-        ##############################################################################################
+    ##############################################################################################
         
-        ##############################################################################################
+    ##############################################################################################
 
         '''#Número máx de cores dinámico
         cpu_cores = multiprocessing.cpu_count()
@@ -1067,9 +1062,9 @@ def main():
             f"The worker number has been set to {max_workers}"
         )
 
-        ##############################################################################################
+    ##############################################################################################
         
-        ##############################################################################################
+    ##############################################################################################
 
         with ProcessPoolExecutor(max_workers=max_workers) as pool:
     
@@ -1084,11 +1079,11 @@ def main():
                 for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
             ]
             
-            results_dict = {}
             for future in as_completed(futures):  
                 try:
-                    id_number, result_tuple = future.result()
-                    results_dict[id_number] = result_tuple
+                    result = future.result()
+                    worker_results.append(result)
+
                 #Este primero porque python lee Excepciones de arriba a abajo
                 #Errores salvables. El resto de procesos sigue corriendo
                 except RecoverableError as e:  
@@ -1117,7 +1112,7 @@ def main():
                          "specific case."
                     )
                     raise 
-            worker_results = [results_dict[i] for i in range(len(complete_pack_list))]
+            #worker_results = [results_dict[i] for i in range(len(complete_pack_list))]
 
     ##############################################################################################
 

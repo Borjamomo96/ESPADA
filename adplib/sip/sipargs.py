@@ -211,8 +211,6 @@ class SiPar(dict):
             self.EXPECTED_TYPES['catalog_file'] =  list | None
             self.EXPECTED_TYPES['user_image'] =  list | None
             
-
-
         # Check argument type
         for param, expected_type in self.EXPECTED_TYPES.items():
             if hasattr(self, param):
@@ -276,7 +274,7 @@ class SiPar(dict):
                 emi_sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.txt"
                 emi_sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.xml"
                 abs_sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.txt"
-                abs_sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"absorption{input_name}_cat.xml"
+                abs_sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.xml"
                 
         
                 # Check before set any value to self.catalogue. Otherwise the second set_catalog
@@ -304,7 +302,6 @@ class SiPar(dict):
                 if all(cat is None for cat in self.catalog_file):
                     error_msg = "No catalog could be set in any mode to run SIP. SIP execution aborted."
                     logger.error(error_msg)
-                    logger.info("1")
                     raise RecoverableFileNotFoundError(abs_cat_file.error_msg) 
         ##############################################################################################
 
@@ -736,22 +733,27 @@ class SiPar(dict):
                     self.aux_catalog_file = self.catalog_file
                     self.catalog_file = self.catalog_file[0]  
 
+                    if self.catalog_file is None:
+                        logger.info("SIP execution skipped. Mode: absorption")
+                        sip_report.update({'command': '', 'error': ''})
+                        return sip_report
+
                     base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
                     sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
                     
                     #Update SIP report
                     sip_report["mode"]     = "absorption"
                     sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"
-                    
-                    if self.catalog_file is None:
-                        logger.info("SIP execution skipped. Mode: absorption")
-                        sip_report.update({'command': '', 'error': ''})
-                        return sip_report
-                    
+                            
                 else:
                     #En 1 guardo el catalago de emisiones
                     self.catalog_file = self.aux_catalog_file
                     self.catalog_file = self.catalog_file[1]
+
+                    if self.catalog_file is None:
+                        logger.info("SIP execution skipped. Mode: emission")
+                        sip_report.update({'command': '', 'error': ''})
+                        return sip_report
                     
                     base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
                     sip_output_dir = self.catalog_file.parent / f"{base_name}_figures"
@@ -759,11 +761,6 @@ class SiPar(dict):
                     #Update SIP report
                     sip_report["mode"]     = "emission"
                     sip_report["log_path"] = self.catalog_file.parent / f"{base_name}_sip.log"
-                    
-                    if self.catalog_file is None:
-                        logger.info("SIP execution skipped. Mode: emission")
-                        sip_report.update({'command': '', 'error': ''})
-                        return sip_report
                     
             elif self.adpalmap_config.run_mode == "absorption":
                 base_name = self.catalog_file.name.replace('_cat.txt', '').replace('_cat.xml', '')
@@ -833,18 +830,6 @@ class SiPar(dict):
             logger.info(f"SIP finished.")
             Logger.raw("================================")
             
-            #Intentamos correr una segunda vez SIP para generar el plot resumen por fuente
-            """try:
-                cmd = self.make_summary(cmd)
-                subprocess.run(
-                    cmd, 
-                    text=True, 
-                    check=True, 
-                    capture_output= not adpalmap_config.verbose
-                )  
-            except subprocess.CalledProcessError as e:
-                logger.critical(f"Error running SIP making summary images: {e}")"""
-
             # Add output to SIP report 
             if self.adpalmap_config.make_report:
                 try:
@@ -860,18 +845,16 @@ class SiPar(dict):
         except subprocess.CalledProcessError as e:
             error = str(e)
 
+            # sip_report["mode"] contains the right mode name but if some error occurs before this
+            # will cause another error here. This way will always works
             if self.adpalmap_config.run_mode == "both" and run!=0:
-                logger.error(f"Error running SIP. Mode: absorption. Error: {e}")
-                logger.info(f"SIP execution skipped.")
-                return
+                logger.error(f"Error running SIP. Mode: absorption. Error: {e}")         
             elif self.adpalmap_config.run_mode == "both" and run==0:
                 logger.error(f"Error running SIP. Mode: emission. Error: {e}")
-                logger.info(f"SIP execution aborted.")
-                sys.exit(-1)
             else:
                 logger.error(f"Error running SIP. Mode: {self.adpalmap_config.run_mode}. Error: {e}")
-                logger.info(f"SIP execution aborted.")
-                sys.exit(-1)
+
+            logger.info(f"SIP execution aborted.")
 
 
         finally:
@@ -937,6 +920,7 @@ class SiPar(dict):
                 else:
                     cmd.append(shortcut[0])
                     cmd.append(str(-1))
+                    self.source_id = int(-1)
                     logger.info(
                         "No value set for 'source_id' parameter. Setting 'source_id' to -1 " 
                         "to get images for all sources and summary images"
@@ -1087,8 +1071,20 @@ class SiPar(dict):
                         return CatalogResult(error_msg=error_msg)
                     else:
                         return CatalogResult(catalog_path=catalog_list[self.id_number])
+                
+                elif isinstance(catalog_list, str):
+                    if Path(catalog_list).exists():
+                        return CatalogResult(catalog_path=catalog_list)
+                    else:
+                        error_msg = f"The catalog file '{catalog_list}' does not exist."
+                        return CatalogResult(error_msg=error_msg)
                 else:
-                    pass
+                    logger.critical(
+                        "You have found a case that has not been taken into "
+                        "account and may be misleading. Please open an issue on "
+                        "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
+                    )
+                    raise
             else:
                 logger.critical(
                     "You have found a case that has not been taken into "
