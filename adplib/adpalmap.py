@@ -240,7 +240,7 @@ def reorganize_log(log_path, worker_results):
                 # Iniciate the flag for this PID (False = before group)
                 pid_group_flags[current_pid] = False
 
-            if "ADPALMAP successfully ended" in line:
+            if "ADPALMAP ended" in line:
                 main_final.append(line)
                 final_block = True
             else:    
@@ -443,14 +443,35 @@ def calculate_workers(data_pack_list, max_cores):
     avg_size = (total_size / total_files) if total_files > 0 else 0
     #Memoria disponible en GB
     mem_available = psutil.virtual_memory().available / 1024**3  
-    #Heurística:1.5x tamaño + 1GB base
+    #Heurística: 2.25 x tamaño + 1GB base
     relative_memory_used_sofia = 2.25
     mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
-    
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
-    max_workers = min(max_cores, max_workers_mem, total_files)
+    
+    # CPU efficiency limit
+    efficiency_factor = 0.7
+    max_cores_cpu = max_cores * efficiency_factor
+    
+    max_workers = min(max_cores_cpu, max_workers_mem, total_files)
     
     return max_workers
+
+
+def calculate_sofia_threads(max_cores, max_workers):
+
+    cores_for_python = max_workers  # 1 core per worker
+    #cores_for_system = max(1, max_cores // 10)  # 10% for the system
+    
+    available_for_sofia = max_cores - cores_for_python #- cores_for_system
+    available_for_sofia = max(1, available_for_sofia)
+    
+    # Threads per worker
+    base_threads = max(1, available_for_sofia // max_workers)
+
+    # SoFiA efficiency limit
+    MAX_SOFIA_THREADS = 8
+    threads = min(base_threads, MAX_SOFIA_THREADS)
+    return threads
 
 
 def process_data(id_number,
@@ -1045,7 +1066,6 @@ def main():
         reserved_cores = 0
         available_cores = max_cores - reserved_cores 
 
-    
         max_workers = calculate_workers(data_pack_list, available_cores)
 
         if max_workers < 1:
@@ -1056,11 +1076,10 @@ def main():
             )
             max_workers = 1
 
-        sofia_threads = max(1, available_cores // max_workers) if max_workers > 0 else 1
+        sofia_threads = calculate_sofia_threads(max_cores, max_workers)
 
-        logger.info(
-            f"The worker number has been set to {max_workers}"
-        )
+        logger.info(f"The number of worker has been set to {max_workers}")
+        logger.info(f"The number of SoFiA threads has been set to {sofia_threads}")
 
     ##############################################################################################
         
@@ -1112,7 +1131,6 @@ def main():
                          "specific case."
                     )
                     raise 
-            #worker_results = [results_dict[i] for i in range(len(complete_pack_list))]
 
     ##############################################################################################
 
