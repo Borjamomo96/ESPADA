@@ -7,13 +7,14 @@
 make_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
 verbose: True                       # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
 num_cores: 12                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ADPALMAP. The minimum number is 1, and the maximum depends on the device.
+output_dir:                         # <str> (Default espada_run/) Create a directory where all products obtained during an ADPALMAP run will be stored. This directory overrides all other directory variables.
 
 ################
 #    LOGGER    #
 ################
 
 clear_logs: True                    # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
-log_file: log_dir/adpalmap.log      # <str> (Default value = 'log_dir/adpalmap.log') Creates a directory with the final and sorted log file for the run.
+log_file: log_dir/adpalmap.log      # <str> (Default value = 'log_dir/adpalmap.log') Creates a subdirectory within the 'output_dir' with the final and sorted log file for the run.
 
 ##################
 #   INPUT DATA   #

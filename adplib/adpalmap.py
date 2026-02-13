@@ -139,6 +139,66 @@ def convert_if_number(s):
         return s
 
 
+def parse_sip_value(value):
+    """
+    Converts list-formatted strings to actual string lists.
+
+    Does NOT convert numbers
+    """
+    if not isinstance(value, str):
+        return value
+    
+    value = value.strip()
+    
+    # Formato [a, b, c] o [a,b,c]
+    if value.startswith('[') and value.endswith(']'):
+        content = value[1:-1].strip()
+        if not content:
+            return []
+        
+        items = []
+        current = []
+        in_quotes = False
+        quote_char = None
+        
+        for char in content:
+            if char in ['"', "'"] and not in_quotes:
+                in_quotes = True
+                quote_char = char
+            elif char == quote_char and in_quotes:
+                in_quotes = False
+                quote_char = None
+            elif char == ',' and not in_quotes:
+                items.append(''.join(current).strip())
+                current = []
+            else:
+                current.append(char)
+        
+        if current:
+            items.append(''.join(current).strip())
+        # Limpiar comillas
+        cleaned = []
+        for item in items:
+            item = item.strip()
+            if (item.startswith('"') and item.endswith('"')) or \
+               (item.startswith("'") and item.endswith("'")):
+                item = item[1:-1]
+            cleaned.append(item)
+        return cleaned 
+    
+    # Formato separado por comas (sin corchetes)
+    elif ',' in value:
+        parts = [p.strip() for p in value.split(',')]
+        # Quitar comillas
+        parts = [p[1:-1] if (p.startswith('"') and p.endswith('"')) or 
+                           (p.startswith("'") and p.endswith("'")) else p for p in parts]
+        return parts
+    
+    # Valor simple
+    else:
+        return value
+
+
 def sipargs_to_dict(args_list):
 
     """
@@ -169,17 +229,28 @@ def sipargs_to_dict(args_list):
             key = item
             args_dict[key] = True  
         elif key:
+            processed_value = parse_sip_value(item)   
+            
             if args_dict[key] is True:
-                args_dict[key] = item  
+                args_dict[key] = processed_value
             elif isinstance(args_dict[key], list):
-                args_dict[key].append(item) 
+                if isinstance(processed_value, list):
+                    args_dict[key].extend(processed_value)
+                else:
+                    args_dict[key].append(processed_value)
             else:
-                args_dict[key] = [args_dict[key], item] 
+                if isinstance(processed_value, list):
+                    args_dict[key] = [args_dict[key]] + processed_value
+                else:
+                    args_dict[key] = [args_dict[key], processed_value]
     
+    print(processed_value, type(processed_value))
     for k, v in args_dict.items():
         if isinstance(v, (str, list)) and v is not True:
             args_dict[k] = convert_if_number(v)
-
+            print(type(args_dict[k]))
+    print(args_dict)
+    sys.exit(-1)
     return args_dict
 
 
@@ -471,6 +542,7 @@ def calculate_sofia_threads(max_cores, max_workers):
     # SoFiA efficiency limit
     MAX_SOFIA_THREADS = 8
     threads = min(base_threads, MAX_SOFIA_THREADS)
+
     return threads
 
 
@@ -936,12 +1008,11 @@ def main():
         queue_listener.start() 
 
         logger = Logger.get_logger(
+            output_dir=adpalmap_config.output_dir,
             log_path=adpalmap_config.log_file, 
             clear_logs=adpalmap_config.clear_logs,
             queue=log_queue
         )
-
-
 
     ############################################################################################## 
         logger.info("ADPALMAP start point")
@@ -952,9 +1023,8 @@ def main():
     ##############################################################################################
 
         #Optionally download data from ALMA archive
-        from adplib.tap.datap import datap
-
         if adpalmap_config.enable_tap_service == True:
+            from adplib.tap.datap import datap
 
             if adpalmap_config.input_data_set is not None or adpalmap_config.input_file is not None:
                 logger.warning("The paremeter input_data or input_file specified in the "
@@ -1190,6 +1260,7 @@ def main():
             
             # Crear Report con toda la información
             adpalmap_report = Report(
+                output_dir=adpalmap_config.output_dir,
                 worker_results=worker_results,  
                 template=template,
                 adp_log=adp_log,

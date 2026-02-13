@@ -1,11 +1,10 @@
 
-import os, yaml, logging, sys
+import os, yaml
 from pathlib import Path
 
 # Logger:
 from adplib.logger import Initial_Logger
 logger = Initial_Logger.get_initial_logger()
-
 
 
 def parse_single_dataset(data_set, id):
@@ -69,7 +68,6 @@ def parse_single_dataset(data_set, id):
     
     return expanded_files
     
-
 
 def validate_fits_files(data_set_list, id_list):
     """
@@ -157,6 +155,9 @@ class Config(dict):
         #Check the logic for the input parameters
         self.input_logic()
 
+        # Create the global directory for the run
+        self.init_directory()
+
 
     def configure(self, config_path=None, **kwargs):
 
@@ -197,7 +198,18 @@ class Config(dict):
         for k, v in config_dict.items():
             setattr(self, k, v)
                 
-       
+
+    def init_directory(self):
+        
+        if self.output_dir is None:
+            script_dir = Path(__file__).parent.parent
+            self.output_dir = script_dir / "espada_run"
+        else:
+            self.output_dir = Path(self.output_dir).expanduser().resolve()
+        
+        self.output_dir.mkdir(parents=True, exist_ok=True)   
+
+
     def check_config_par(self):
         """
         Validate the attributes for the Config class readed from the configuration file.
@@ -208,6 +220,7 @@ class Config(dict):
             'make_report': bool,
             'verbose': bool,
             'num_cores': int | None,
+            'output_dir': str | None,
             'input_data_set': str | list | dict | None,
             'input_file': str | None,
             'clear_logs': bool,
@@ -273,8 +286,8 @@ class Config(dict):
                 
                 if value not in valid_values_list:
                     raise ValueError(
-                        f"The parameter '{param}' must have one of the following values: {valid_values_list}. "
-                        f"Value provided: '{value}'."
+                        f"The parameter '{param}' must have one of the following values:" 
+                        f" {valid_values_list}. Value provided: '{value}'."
                     )
                 
         # Detect and manage of the unexpected parameters

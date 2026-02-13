@@ -242,15 +242,15 @@ class SiPar(dict):
 
         else:
             input_name = self.input_data.stem
-            cwd_file = Path.cwd().resolve()
+            output_dir = self.adpalmap_config.output_dir
 
             if self.adpalmap_config.run_mode == "absorption":
-                sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.txt"
-                sofia_catalog_xml = cwd_file / "adpalmap_{input_name}" / f"absorption_{input_name}_cat.xml"
+                sofia_catalog_txt = output_dir / f"espada_{input_name}" / f"absorption_{input_name}_cat.txt"
+                sofia_catalog_xml = output_dir / "espada_{input_name}" / f"absorption_{input_name}_cat.xml"
                 abs_cat_file = self.set_catalog(
                     sofia_catalog_txt, 
                     sofia_catalog_xml,
-                    cwd_file / f"adpalmap_{input_name}"
+                    output_dir / f"espada_{input_name}"
                 )
                 if not abs_cat_file:
                     logger.error(abs_cat_file.error_msg)
@@ -258,12 +258,12 @@ class SiPar(dict):
                 self.catalog_file = abs_cat_file.catalog_path
 
             elif self.adpalmap_config.run_mode == "emission":
-                sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.txt"
-                sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.xml"             
+                sofia_catalog_txt = output_dir / f"espada_{input_name}" / f"emission_{input_name}_cat.txt"
+                sofia_catalog_xml = output_dir / f"espada_{input_name}" / f"emission_{input_name}_cat.xml"             
                 emi_cat_file = self.set_catalog(
                     sofia_catalog_txt, 
                     sofia_catalog_xml,
-                    cwd_file / f"adpalmap_{input_name}" 
+                    output_dir / f"espada_{input_name}" 
                 )
                 if not emi_cat_file:
                     logger.error(emi_cat_file.error_msg)
@@ -271,10 +271,10 @@ class SiPar(dict):
                 self.catalog_file = emi_cat_file.catalog_path  
 
             elif self.adpalmap_config.run_mode == "both":
-                emi_sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.txt"
-                emi_sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"emission_{input_name}_cat.xml"
-                abs_sofia_catalog_txt = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.txt"
-                abs_sofia_catalog_xml = cwd_file / f"adpalmap_{input_name}" / f"absorption_{input_name}_cat.xml"
+                emi_sofia_catalog_txt = output_dir / f"espada_{input_name}" / f"emission_{input_name}_cat.txt"
+                emi_sofia_catalog_xml = output_dir / f"espada_{input_name}" / f"emission_{input_name}_cat.xml"
+                abs_sofia_catalog_txt = output_dir / f"espada_{input_name}" / f"absorption_{input_name}_cat.txt"
+                abs_sofia_catalog_xml = output_dir / f"espada_{input_name}" / f"absorption_{input_name}_cat.xml"
                 
         
                 # Check before set any value to self.catalogue. Otherwise the second set_catalog
@@ -282,7 +282,7 @@ class SiPar(dict):
                 abs_cat_file = self.set_catalog(
                     abs_sofia_catalog_txt, 
                     abs_sofia_catalog_xml,
-                    cwd_file/ f"adpalmap_{input_name}"
+                    output_dir/ f"espada_{input_name}"
                 )
                 if not abs_cat_file:
                     logger.warning(abs_cat_file.error_msg)
@@ -290,7 +290,7 @@ class SiPar(dict):
                 emi_cat_file = self.set_catalog(
                     emi_sofia_catalog_txt, 
                     emi_sofia_catalog_xml,
-                    cwd_file / f"adpalmap_{input_name}"
+                    output_dir / f"espada_{input_name}"
                 )
                 if not emi_cat_file:
                     logger.warning(emi_cat_file.error_msg)
@@ -543,7 +543,7 @@ class SiPar(dict):
                         Logger.log_to_file(logging.ERROR, error_msg)
                         raise ValueError(error_msg)
                     elif not all(strict_isinstance(x, (int, float)) for x in value):
-                        error_msg = f"'source_id' must contain only integers or floats: {value}"
+                        error_msg = f"'syn_beam_dimensions' must contain only integers or floats: {value}"
                         Logger.log_to_file(logging.ERROR, error_msg)
                         raise ValueError(error_msg)
         ##############################################################################################
@@ -1096,6 +1096,11 @@ class SiPar(dict):
 
     def report_outputs(self, sip_report, output_dir, base_name):
         
+        if self.output_image_file_type:
+            suffix = self.output_image_file_type
+        else:
+            suffix = 'png'
+
         num_sources = self.detect_source_count() 
 
         if self.source_id is None:
@@ -1121,60 +1126,75 @@ class SiPar(dict):
             source_prefix = f"_{i}"
             sip_report['outputs']['images'].append({
                 "type": "mom0",
-                "path": output_dir / f"{base_name}{source_prefix}_mom0.png",
+                "path": output_dir / f"{base_name}{source_prefix}_mom0.{suffix}",
                 "source_id": i,
                 "description": "Momment 0 image",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "mom1",
-                "path": output_dir / f"{base_name}{source_prefix}_mom1.png",
+                "path": output_dir / f"{base_name}{source_prefix}_mom1.{suffix}",
                 "source_id": i,
                 "description": "Momment 1 image",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "mom2",
-                "path": output_dir / f"{base_name}{source_prefix}_mom2.png",
+                "path": output_dir / f"{base_name}{source_prefix}_mom2.{suffix}",
                 "source_id": i,
                 "description": "Momment 2 image",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "spec",
-                "path": output_dir / f"{base_name}{source_prefix}_spec.png",
+                "path": output_dir / f"{base_name}{source_prefix}_spec.{suffix}",
                 "source_id": i,
                 "description": "Spectrum plot",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "spec_full",
-                "path": output_dir / f"{base_name}{source_prefix}_specfull.png",
+                "path": output_dir / f"{base_name}{source_prefix}_specfull.{suffix}",
                 "source_id": i,
                 "description": "Full spectrum plot",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "spec_both",
-                "path": output_dir / f"{base_name}{source_prefix}_specboth.png",
+                "path": output_dir / f"{base_name}{source_prefix}_specboth.{suffix}",
                 "source_id": i,
                 "description": "Both spectrum plot",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "pv",
-                "path": output_dir / f"{base_name}{source_prefix}_pv.png",
+                "path": output_dir / f"{base_name}{source_prefix}_pv.{suffix}",
                 "source_id": i,
                 "description": "Major axis Position-Velociy plot",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "pv_min",
-                "path": output_dir / f"{base_name}{source_prefix}_pv_min.png",
+                "path": output_dir / f"{base_name}{source_prefix}_pv_min.{suffix}",
                 "source_id": i,
                 "description": "Minor axis Position-Velociy plot",
                 "software-id": "sip"
             })
+
+            if self.surveys_list:
+                for survey in self.surveys_list:
+                    
+                    survey_nospace = survey.replace(" ", "").lower()
+                    survey_path = (
+                        output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
+                    )
+                    sip_report['outputs']['images'].append({
+                        "type": f"mom0_{survey_nospace}",
+                        "path": survey_path,
+                        "source_id": i,
+                        "description": f"Momment 0 image ({survey})",
+                        "software-id": "sip"
+                    })                
         
         if create_summary:
             sip_report['outputs']['images'].append({
@@ -1215,6 +1235,21 @@ class SiPar(dict):
                     "format": ".par",
                     "software-id": "sip"
                 })
+            
+            if self.surveys_list:
+                for survey in self.surveys_list:
+                    
+                    survey_nospace = survey.replace(" ", "").lower()
+                    survey_path = (
+                        output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
+                    )
+                    sip_report['outputs']['images'].append({
+                        "type": f"mom0_{survey_nospace}",
+                        "path": survey_path,
+                        "source_id": -1,
+                        "description": f"Momment 0 image ({survey})",
+                        "software-id": "sip"
+                    }) 
             
 
     def detect_source_count(self):
@@ -1270,6 +1305,5 @@ class SiPar(dict):
             return 0
         
         
-
-    
+   
 

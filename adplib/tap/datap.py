@@ -267,8 +267,9 @@ class datap(dict):
 
         Logger.raw("================================")
         #CHANGE. Definir asi el directorio puede provocar problemas
-        default_location = './archive_data'
-    
+
+        base_dir = Path(__file__).resolve().parents[2]
+        default_location = base_dir / "archive_data"
         
         #Check the input Dataframe
         

@@ -18,7 +18,7 @@ logger= Logger.get_logger()
 
 class Report:
 
-    def __init__(self, worker_results, template, adp_log, pipeline_metadata=None, config=None):
+    def __init__(self, output_dir, worker_results, template, adp_log, pipeline_metadata=None, config=None):
 
         self.worker_results = worker_results
         self.template = template
@@ -31,7 +31,7 @@ class Report:
 
 
         # Directories
-        base_dir = Path.cwd().resolve() / "report"
+        base_dir = output_dir / "report"
         timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
 
         if base_dir.exists():

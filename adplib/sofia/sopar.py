@@ -641,13 +641,23 @@ class SoPar(dict):
         self.pipeline_threads = self.sofia_threads
         ##############################################################################################
 
-        ########################-------------output.directory--------------###########################
+        ########################-------------output.directory--------------########################### 
+            
         if sop_par and "output.directory" in sop_par: 
-            self.output_directory = Path(sop_par["output.directory"])
-        elif hasattr(self, "output_directory") and self.output_directory:  
-            self.output_directory = Path(self.output_directory)
-        else:
-            self.output_directory = Path.cwd().resolve() / f"adpalmap_{input_data.stem}"
+            logger.warning(
+                    f"Ignoring value '{sop_par['output.directory']}' for the 'input_data' parameter "
+                    "provided vía '-sop' comand. This must be set in the "
+                    f"'output.directory' parameter in the {self.adpalmap_config.config_path} file"
+            )
+        if hasattr(self, "output_directory") and self.output_directory:  
+            logger.warning(
+                f"Ignoring value '{self.output_directory}' for the 'output.directory' parameter" 
+                f" provided in the parameter file {self.sofia_file_path}.  This must be set in " 
+                f"the 'output_directory' parameter in the {self.adpalmap_config.config_path}"
+                " file"
+            )
+
+        self.output_directory = self.adpalmap_config.output_dir / f"espada_{input_data.stem}"
         ##############################################################################################
 
         ########################--------------output.filename--------------###########################       
