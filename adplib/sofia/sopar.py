@@ -610,18 +610,25 @@ class SoPar(dict):
         
         #########################-------------scfind.enable--------------#############################
         if (mask and self.adpalmap_config.use_mask):
-            logger.info("The 'scfind.enable' parameter has set to 'false'. Setting a mask file in "
-                        "'input.mask' and True in 'use_mask' parameter assumes that no further "
+            logger.info("The 'scfind.enable' parameter has set to 'false'. If a mask file is "
+                        " available and 'use_mask' parameter is set to True, it assumes that no further "
                         "sources need to be searched or discarded.")
-            logger.info("The 'reliability.enable' parameter has set to 'false'. Setting a mask file in "
-                        "'input.mask' and True in 'use_mask' parameter assumes that no further "
+            logger.info("The 'reliability.enable' parameter has set to 'false'. If a mask file is "
+                        "available and 'use_mask' parameter is set to True, it assumes that no further "
                         "sources need to be searched or discarded.")
             logger.warning("Carefully review the parameters set in the linker section")
+            
             self.scfind_enable = 'false'
-            self.reliability_enab
+            self.reliability_enable = 'false'
+            
             if (sop_par and 'scfind.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if (sop_par and 'reliability.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['reliability.enable']}' for the 'reliability.enable' "
                     "parameter provided in vía '-sop' comand."
                 )
             
