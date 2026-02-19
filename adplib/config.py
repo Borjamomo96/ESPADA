@@ -357,11 +357,6 @@ class Config(dict):
             elif not self.input_data_set:
                 self.parse_input_file()
         
-        if not self.enable_sofia and self.enable_group:
-
-            raise ValueError(
-                    "Error in 'config.yaml': 'enable_group' can only be executed if 'enable_sofia' is True"
-                )
             
 
     def parse_input_data_set(self):

@@ -560,16 +560,54 @@ def process_data(id_number,
     
     pid = os.getpid()
 
+    # Must be defined after define the logger and before Group
+    from adplib.sofia.sopar import SoPar
+    from adplib.sip.sipargs import SiPar
+    from adplib.group import group
     ##############################################################################################
     #Run SoFia
-    from adplib.sofia.sopar import SoPar
 
     if adpalmap_config.enable_sofia == True:
 
         sofia_report = []
         qa_report = []
 
-        if adpalmap_config.run_mode == 'emission':
+        if adpalmap_config.run_mode == 'absorption':
+
+            adpalmap_sopar_abs = SoPar(
+                sofia_file_path=adpalmap_config.sofia_abs_file, 
+                adpalmap_config=adpalmap_config,
+                mode='absorption',
+                pid = pid,
+                sofia_threads=sofia_threads
+                )
+            #Update sofia abs file with the -sop parameters
+            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       mask=mask
+                                                       )  
+            if adpalmap_config.auto_setup == True:
+                adpalmap_sopar_abs.auto_setup()
+
+            abs_sofia_report = adpalmap_sopar_abs.run_sofia()
+            sofia_report.append(abs_sofia_report)
+
+            if mask:
+                if adpalmap_config.use_mask:
+                    logger.info(f"Mask file available but 'use_mask' set to True. "
+                                "Reduced QA image.")
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                    qa_report.append(abs_qa_report)
+                else:
+                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
+                    qa_report.append(abs_qa_report)
+            else:
+                logger.warning("No mask file available. Reduced QA image.")
+                abs_qa_report = adpalmap_sopar_abs.quality_assesment()
+                qa_report.append(abs_qa_report)
+
+        elif adpalmap_config.run_mode == 'emission':
             
             # 'mode' variable has only 'emission' or 'absorption' while adpalmap_config.run_mode
             # has also 'both' which has no sense for logs. The 'mode' variable is needed.
@@ -606,41 +644,6 @@ def process_data(id_number,
                 logger.warning("No mask file available. Reduced QA image.")
                 emi_qa_report = adpalmap_sopar_emi.quality_assesment()
                 qa_report.append(emi_qa_report)
-
-        elif adpalmap_config.run_mode == 'absorption':
-
-            adpalmap_sopar_abs = SoPar(
-                sofia_file_path=adpalmap_config.sofia_abs_file, 
-                adpalmap_config=adpalmap_config,
-                mode='absorption',
-                pid = pid,
-                sofia_threads=sofia_threads
-                )
-            #Update sofia abs file with the -sop parameters
-            adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
-                                                       input_data=input_data, 
-                                                       primary_beam=primary_beam, 
-                                                       mask=mask
-                                                       )  
-            if adpalmap_config.auto_setup == True:
-                adpalmap_sopar_abs.auto_setup()
-
-            abs_sofia_report = adpalmap_sopar_abs.run_sofia()
-            sofia_report.append(abs_sofia_report)
-
-            if mask:
-                if adpalmap_config.use_mask:
-                    logger.info(f"Mask file available but 'use_mask' set to True. "
-                                "Reduced QA image.")
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment()
-                    qa_report.append(abs_qa_report)
-                else:
-                    abs_qa_report = adpalmap_sopar_abs.quality_assesment(mask)
-                    qa_report.append(abs_qa_report)
-            else:
-                logger.warning("No mask file available. Reduced QA image.")
-                abs_qa_report = adpalmap_sopar_abs.quality_assesment()
-                qa_report.append(abs_qa_report)
 
         elif adpalmap_config.run_mode == 'both':
 
@@ -722,8 +725,6 @@ def process_data(id_number,
     
     if adpalmap_config.enable_sip == True:
 
-        from adplib.sip.sipargs import SiPar
-
         sip_report = []
         
         adpalmap_sipar = SiPar(
@@ -778,139 +779,295 @@ def process_data(id_number,
     
     ##############################################################################################
     if adpalmap_config.enable_group:
-
-        from adplib.group import group      
-
+    
         group_report = []
+        adpalmap_group = group(adpalmap_config=adpalmap_config, input_data=input_data)
 
-        adpalmap_group = group(adpalmap_config=adpalmap_config)
-
-        # Check if SoFiA is on, otherwise group is not necessary
-        if adpalmap_config.enable_sofia:
-
+        try:
             if adpalmap_config.run_mode == 'absorption':
                 
-                Logger.raw("================================") 
-                logger.info(f"Source Grouping start. Mode: absorption. Input data: {input_data.stem}")
-                Logger.raw("================================")
-                # Find the 3D mask from SoFiA-2
-                abs_group_mask = adpalmap_group.find_mask_sofia(
-                    sopar=adpalmap_sopar_abs, mode="absorption"
-                )
-
-                if abs_group_mask:
-                    # Execute group and create a new mask
-                    group_mask = adpalmap_group.group_sofia_detections(
-                        adpalmap_sopar_abs.input_data, abs_group_mask
+                do_group = True
+                try:
+                    adpalmap_sopar_abs
+                except NameError:
+                    adpalmap_sopar_abs = SoPar(
+                    sofia_file_path=adpalmap_config.sofia_abs_file, 
+                    adpalmap_config=adpalmap_config,
+                    mode='absorption',
+                    pid = pid,
+                    sofia_threads=sofia_threads
                     )
-                    Logger.raw("================================")
-                    logger.info("Source Grouping finished")
-                    Logger.raw("================================")
-                    if group_mask is not None:
-                        # Update the parameters for execute SoFiA-2 again
-                        adpalmap_sopar_abs.update_group_parameters(group_mask)
-                        # Execute SoFiA-2 
-                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
-                        group_report.append(abs_sopar_group_report)
-                        # Execute SIP
-                        abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
-                        group_report.append(abs_sip_group_report)
-                    
-            
-            if adpalmap_config.run_mode == 'emission':
+                    adpalmap_sopar_abs.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       mask=mask
+                                                       ) 
 
-                Logger.raw("================================") 
-                logger.info(f"Source Grouping start. Mode: emission. Input data: {input_data.stem}")
-                Logger.raw("================================")
-                # Find the 3D mask from SoFiA-2
-                emi_group_mask = adpalmap_group.find_mask_sofia(
-                    sopar=adpalmap_sopar_emi, mode="emission"
-                )
-                
-                if emi_group_mask:
-                    # Execute group and create a new mask
-                    group_mask = adpalmap_group.group_sofia_detections(
-                        adpalmap_sopar_emi.input_data, emi_group_mask
-                    )
-                    Logger.raw("================================")
-                    logger.info("Source Grouping finished")
-                    Logger.raw("================================")
-                    if group_mask is not None:
-                        # Update the parameters for execute SoFiA-2 again
-                        adpalmap_sopar_emi.update_group_parameters(group_mask)
-                        # Execute SoFiA-2
-                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
-                        group_report.append(emi_sopar_group_report)
-                        # Execute SIP
-                        emi_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
-                        group_report.append(emi_sip_group_report)
-
-
-            if adpalmap_config.run_mode == 'both':
-                
-                Logger.raw("================================") 
-                logger.info(f"Source Grouping start. Mode: absorption. Input data: {input_data.stem}")
-                Logger.raw("================================")
-                # Find the 3D mask from SoFiA-2
-                abs_group_mask = adpalmap_group.find_mask_sofia(
-                    sopar=adpalmap_sopar_abs, mode="absorption"
-                )
-                if abs_group_mask:
-                    # Execute group and create a new mask
-                    group_mask = adpalmap_group.group_sofia_detections(
-                        adpalmap_sopar_abs.input_data, abs_group_mask
-                    )
-                    Logger.raw("================================")
-                    logger.info("Source Grouping finished")
-                    Logger.raw("================================")
-                    if group_mask is not None:
-                        # Update the parameters for execute SoFiA-2 again
-                        adpalmap_sopar_abs.update_group_parameters(group_mask)
-                        # Execute SoFiA-2
-                        abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
-                        group_report.append(abs_sopar_group_report)
-                        # Execute SIP
-                        abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
-                        group_report.append(abs_sip_group_report)
-
-                Logger.raw("================================") 
-                logger.info(f"Source Grouping start. Mode: emission. Input data: {input_data.stem}")
-                Logger.raw("================================")
-                # Find the 3D mask from SoFiA-2
-                emi_group_mask = adpalmap_group.find_mask_sofia(
-                    sopar=adpalmap_sopar_emi, mode="emission"
-                )
-                
-                if emi_group_mask:
-                    # Execute group and create a new mask
-                    group_mask = adpalmap_group.group_sofia_detections(
-                        adpalmap_sopar_emi.input_data, emi_group_mask
-                    )
-                    Logger.raw("================================")
-                    logger.info("Source Grouping finished")
-                    Logger.raw("================================")
-                    if group_mask is not None:
-                        # Update the parameters for execute SoFiA-2 again
-                        adpalmap_sopar_emi.update_group_parameters(group_mask)
-                        # Execute SoFiA-2
-                        emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
-                        group_report.append(emi_sopar_group_report)
-                        # Execute SIP
-                        emi_sip_group_report = adpalmap_sipar.run_sip(
-                            sopar=adpalmap_sopar_emi,
-                            run=0
+                try:
+                    adpalmap_sipar
+                except NameError:
+                    try:
+                        adpalmap_sipar = SiPar(
+                            sip_file_path = adpalmap_config.sip_par_file, 
+                            adpalmap_config = adpalmap_config,
+                            input_data = input_data,  ancillary_data = ancillary_data,
+                            sargs = args.sip_args,
+                            number_list = number_list, id_number = id_number, pid = pid
+                            )   
+                    except RecoverableError as e:
+                        logger.warning(
+                            f"Group execution aborted. Error: {e}"
                         )
-                        group_report.append(emi_sip_group_report)               
+                        do_group = False
+                    except ValueError as e:
+                        raise  
+                    except Exception as e:
+                        raise     
+                
+                if do_group:
+                    Logger.raw("================================") 
+                    logger.info(
+                        f"Source Grouping start. Mode: absorption. Input data: {input_data}"
+                    )
+                    Logger.raw("================================")
+                    # Find the 3D mask from SoFiA-2
+                    abs_group_mask = adpalmap_group.find_mask_sofia(
+                        sopar=adpalmap_sopar_abs, mode="absorption"
+                    )
 
-        else:
-            logger.warning(f"No suitable 2D mask from SoFiA were found. Group execution aborted")        
+                    if abs_group_mask:
+                        # Execute group and create a new mask
+                        group_mask = adpalmap_group.group_sofia_detections(
+                            input_data, abs_group_mask
+                        )
+                        Logger.raw("================================")
+                        logger.info("Source Grouping finished")
+                        Logger.raw("================================")
+                        if group_mask is not None:
+                            # Update the parameters for execute SoFiA-2 again
+                            adpalmap_sopar_abs.update_group_parameters(group_mask)
+                            # Execute SoFiA-2 
+                            abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            group_report.append(abs_sopar_group_report)
+                            # Execute SIP
+                            abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
+                            group_report.append(abs_sip_group_report)
+                    else:
+                        logger.warning(
+                            "Group execution aborted. mode: 'absorption'"
+                        ) 
+           
+            elif adpalmap_config.run_mode == 'emission':
+                
+                do_group = True
+                try:
+                    adpalmap_sopar_emi
+                except NameError:
+                    adpalmap_sopar_emi = SoPar(
+                    sofia_file_path=adpalmap_config.sofia_emi_file, 
+                    adpalmap_config=adpalmap_config,
+                    mode='emission',
+                    pid = pid,
+                    sofia_threads=sofia_threads
+                    )
+                    adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       mask=mask
+                                                       ) 
+                
+                try:
+                    adpalmap_sipar
+                except NameError:
+                    try:
+                        adpalmap_sipar = SiPar(
+                            sip_file_path = adpalmap_config.sip_par_file, 
+                            adpalmap_config = adpalmap_config,
+                            input_data = input_data,  ancillary_data = ancillary_data,
+                            sargs = args.sip_args,
+                            number_list = number_list, id_number = id_number, pid = pid
+                            )     
+                    except RecoverableError as e:
+                        logger.warning(
+                            f"Group execution aborted. Error: {e}"
+                        )
+                        do_group = False
+                    except ValueError as e:
+                        print("ASJASAK")
+                        raise  
+                    except Exception as e:
+                        print(e)
+                        raise     
+                
+                if do_group:       
+                    Logger.raw("================================") 
+                    logger.info(
+                        f"Source Grouping start. Mode: emission. Input data: {input_data}"
+                    )
+                    Logger.raw("================================")
+                    # Find the 3D mask from SoFiA-2
+                    emi_group_mask = adpalmap_group.find_mask_sofia(
+                        sopar=adpalmap_sopar_emi, mode="emission"
+                    )
+                    
+                    if emi_group_mask:
+                        # Execute group and create a new mask
+                        group_mask = adpalmap_group.group_sofia_detections(
+                            adpalmap_sopar_emi.input_data, emi_group_mask
+                        )
+                        Logger.raw("================================")
+                        logger.info("Source Grouping finished")
+                        Logger.raw("================================")
+                        if group_mask is not None:
+                            # Update the parameters for execute SoFiA-2 again
+                            adpalmap_sopar_emi.update_group_parameters(group_mask)
+                            # Execute SoFiA-2
+                            emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
+                            group_report.append(emi_sopar_group_report)
+                            # Execute SIP
+                            emi_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
+                            group_report.append(emi_sip_group_report)
+                    else:
+                        logger.warning(
+                            "Group execution aborted. mode: 'emission'"
+                        )    
+
+            elif adpalmap_config.run_mode == 'both':
+                
+                do_group_absorption = True
+                try:
+                    adpalmap_sopar_abs
+                except NameError:
+                    adpalmap_sopar_abs= SoPar(
+                    sofia_file_path=adpalmap_config.sofia_abs_file, 
+                    adpalmap_config=adpalmap_config,
+                    mode='absorption',
+                    pid = pid,
+                    sofia_threads=sofia_threads
+                    )
+                    adpalmap_sopar_abs.update_input_parameters(
+                        args.sofia_par, 
+                        input_data=input_data, 
+                        primary_beam=primary_beam, 
+                        mask=mask
+                    ) 
+
+                do_group_emission = True
+                try:
+                    adpalmap_sopar_emi
+                except NameError:
+                    adpalmap_sopar_emi = SoPar(
+                    sofia_file_path=adpalmap_config.sofia_emi_file, 
+                    adpalmap_config=adpalmap_config,
+                    mode='emission',
+                    pid = pid,
+                    sofia_threads=sofia_threads
+                    )
+                    adpalmap_sopar_emi.update_input_parameters(args.sofia_par, 
+                                                       input_data=input_data, 
+                                                       primary_beam=primary_beam, 
+                                                       mask=mask,
+                                                       run=0
+                                                       )                 
+
+                try:
+                    adpalmap_sipar
+                except NameError:
+                    try:
+                        adpalmap_sipar = SiPar(
+                            sip_file_path = adpalmap_config.sip_par_file, 
+                            adpalmap_config = adpalmap_config,
+                            input_data = input_data,  ancillary_data = ancillary_data,
+                            sargs = args.sip_args,
+                            number_list = number_list, id_number = id_number, pid = pid
+                            )   
+                    except RecoverableError as e:
+                        logger.warning(
+                        f"SIP catalog not available. "
+                        f"Absorption group will be skipped. Error: {e}"
+                        )
+                        do_group_absorption = False
+                    except ValueError as e:
+                        raise  
+                    except Exception as e:
+                        raise     
+         
+                if do_group_absorption:
+                    Logger.raw("================================") 
+                    logger.info(
+                        f"Source Grouping start. Mode: absorption. Input data: {input_data}"
+                    )
+                    Logger.raw("================================")
+                    # Find the 3D mask from SoFiA-2
+                    abs_group_mask = adpalmap_group.find_mask_sofia(
+                        sopar=adpalmap_sopar_abs, mode="absorption"
+                    )
+                    if abs_group_mask:
+                        # Execute group and create a new mask
+                        group_mask = adpalmap_group.group_sofia_detections(
+                            adpalmap_sopar_abs.input_data, abs_group_mask
+                        )
+                        Logger.raw("================================")
+                        logger.info("Source Grouping finished")
+                        Logger.raw("================================")
+                        if group_mask is not None:
+                            # Update the parameters for execute SoFiA-2 again
+                            adpalmap_sopar_abs.update_group_parameters(group_mask)
+                            # Execute SoFiA-2
+                            abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            group_report.append(abs_sopar_group_report)
+                            # Execute SIP
+                            abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
+                            group_report.append(abs_sip_group_report)
+
+                
+                if do_group_emission:
+                    Logger.raw("================================") 
+                    logger.info(
+                        f"Source Grouping start. Mode: emission. Input data: {input_data}"
+                    )
+                    Logger.raw("================================")
+                    # Find the 3D mask from SoFiA-2
+                    emi_group_mask = adpalmap_group.find_mask_sofia(
+                        sopar=adpalmap_sopar_emi, mode="emission"
+                    )
+                    
+                    if emi_group_mask:
+                        # Execute group and create a new mask
+                        group_mask = adpalmap_group.group_sofia_detections(
+                            adpalmap_sopar_emi.input_data, emi_group_mask
+                        )
+                        Logger.raw("================================")
+                        logger.info("Source Grouping finished")
+                        Logger.raw("================================")
+                        if group_mask is not None:
+                            # Update the parameters for execute SoFiA-2 again
+                            adpalmap_sopar_emi.update_group_parameters(group_mask)
+                            # Execute SoFiA-2
+                            emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
+                            group_report.append(emi_sopar_group_report)
+                            # Execute SIP
+                            emi_sip_group_report = adpalmap_sipar.run_sip(
+                                sopar=adpalmap_sopar_emi,
+                                run=0
+                            )
+                            group_report.append(emi_sip_group_report)               
+
+        except Exception as e:    
+            logger.error(f"Unexpected error trying to group sources: {e}. Group execution aborted")
+            Logger.raw(format_exc())
+            pass   
 
     else: 
         group_report = []
         f"'enable_sip' set to {adpalmap_config.enable_group}. Group execution skipped"
     ##############################################################################################
 
-    if adpalmap_config.enable_sofia == False and adpalmap_config.enable_sip == False:
+    if (
+        adpalmap_config.enable_sofia == False and 
+        adpalmap_config.enable_sip == False and
+        adpalmap_config.enable_group == False
+    ):
 
         empty_report = {
             "software_id": "TAP",

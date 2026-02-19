@@ -39,7 +39,7 @@ class group(dict):
         ):
             mask = sopar.mask3d
             if mask.exists():
-                logger.info(f"Found mask from SoFiA for mode '{mode}': {mask}")
+                logger.info(f"SoFiA mask found for '{mode}' mode: {mask}")
                 return mask
             else:
                 logger.critical(
@@ -48,12 +48,25 @@ class group(dict):
                 "case."
             )
                 return None  
-        
+            
         else:
-            logger.warning(
-                f"No mask from SoFiA found for mode: '{mode}'. Group execution aborted"
+            logger.warning(f"SoFiA mask not found for '{mode}' mode in this run")
+            logger.info(f"Trying to find a valid mask from previous runs")
+
+            input_data = self.input_data.stem
+            mask = (
+                self.adpalmap_config.output_dir / f"espada_{input_data}"
+                / f"{mode}_{input_data}_mask.fits"
             )
-      
+            
+            if mask.exists():
+                logger.info(f"SoFiA mask found from previous run for '{mode}' mode: {mask}")
+                return mask
+            else:
+                logger.warning(f"SoFiA mask not found for '{mode}' mode from previous run")
+                return None
+
+
     def group_sofia_detections(self, cube_file, mask_file):
 
         print_all       = True      # prints overlap metrics for all source pairs;

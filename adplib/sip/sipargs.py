@@ -239,6 +239,11 @@ class SiPar(dict):
                     f"{self.sip_file_path} will be ignore. Those obtained from "
                     "SoFiA will be used instead, if any"
                 ) 
+                
+        elif self.adpalmap_config.enable_group and not self.adpalmap_config.enable_sip:
+            # No action required. SIP for grouped source will be handle in group with
+            # the new 'group_' products from SoFiA.
+            pass
 
         else:
             input_name = self.input_data.stem
@@ -713,8 +718,8 @@ class SiPar(dict):
                 self.catalog_file = sofia_catalog_xml
             else:
                 error_msg = (
-                    f"No valid .txt or .xml catalog for SIP found within the  {sopar.output_directory} "
-                    " directory."
+                    "No valid .txt or .xml catalog for SIP found within the  "
+                    f"{sopar.output_directory} directory."
                 )
                 logger.error(error_msg)
                 if self.adpalmap_config.run_mode == 'both' and run!=0:
@@ -918,13 +923,14 @@ class SiPar(dict):
                     else: 
                         cmd.append(str(attr_value))  
                 else:
-                    cmd.append(shortcut[0])
+                    pass
+                    """cmd.append(shortcut[0])
                     cmd.append(str(-1))
                     self.source_id = int(-1)
                     logger.info(
                         "No value set for 'source_id' parameter. Setting 'source_id' to -1 " 
                         "to get images for all sources and summary images"
-                    )
+                    )"""
             
             elif attr_name == "syn_beam_dimensions":               
                 attr_value = getattr(self, attr_name, None) 
@@ -1181,7 +1187,7 @@ class SiPar(dict):
                 "software-id": "sip"
             })
 
-            if self.surveys_list:
+            if self.surveys_list and self.surveys_list != ['none']:
                 for survey in self.surveys_list:
                     
                     survey_nospace = survey.replace(" ", "").lower()

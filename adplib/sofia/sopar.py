@@ -447,8 +447,8 @@ class SoPar(dict):
         """
         
         logger.info(
-            f"Reading parameters in {self.sofia_file_path}. Mode: {self.mode}."
-            )
+            f"Reading parameters from {self.sofia_file_path} and via -sop. Mode: {self.mode}."
+        )
         
         ##############################################################################################
         if sop_par is not None:
@@ -676,7 +676,7 @@ class SoPar(dict):
                 self.output_filename = f"absorption_{self.input_data.stem}"
                 sopar_log_path = f"absorption_{self.input_data.stem}_logfile.log"
 
-        if self.adpalmap_config.run_mode == 'emission':
+        elif self.adpalmap_config.run_mode == 'emission':
             if hasattr(self, "output_filename") and self.output_filename:
                 self.output_filename = f"emission_{self.output_filename}"
                 sopar_log_path = f"{self.output_filename}_logfile.log"
@@ -684,7 +684,7 @@ class SoPar(dict):
                 self.output_filename = f"emission_{self.input_data.stem}"
                 sopar_log_path = f"emission_{self.input_data.stem}_logfile.log"  
 
-        if self.adpalmap_config.run_mode == 'both' and run!=0:
+        elif self.adpalmap_config.run_mode == 'both' and run!=0:
             if hasattr(self, "output_filename") and self.output_filename:
                 self.output_filename = f"absorption_{self.output_filename}"
                 sopar_log_path = f"{self.output_filename}_logfile.log"
@@ -740,7 +740,7 @@ class SoPar(dict):
         None: Updates the attributes of the SoPar object directly.
         """
 
-        logger.info(f"Updating SoFiA parameters. Mode: {self.mode}.")
+        logger.info(f"Updating SoFiA parameters for source grouping. Mode: {self.mode}.")
         
         self.input_mask = group_mask
 
@@ -760,7 +760,7 @@ class SoPar(dict):
         # '{self.output_filename}' Already contain prefixx 'group_'
         self.sopar_logfile = self.output_directory / f"{self.output_filename}_logfile.log"
 
-        logger.info(f"Parameter ready. Mode: {self.mode}.")
+        logger.info(f"Parameters ready for source grouping. Mode: {self.mode}.")
 
 
     def auto_setup(self):
