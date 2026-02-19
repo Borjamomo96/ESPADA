@@ -55,7 +55,7 @@ def capture_output(input):
 def get_segment(path):
     # Busca 'spw' + dígitos + punto literal (\.)
     match = re.search(r'spw\d+\.', path)
-    return path[:match.end()] if match else ''
+    return path[:match.end()] if match else '' # return the string from the begging until the match
 
 
 def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False):
@@ -312,17 +312,16 @@ class datap(dict):
             uids_list, expand_tarfiles=True
         )
 
-        patterns = []
+        ##############################################################################################
+        patterns = ['cube.I.pbcor']
         # This list avoids conflicts with PB and mask files that could be .fits as well
         exclude_patterns = [] # Caution, this list will also  be applied to ancillary files
-        if self.download_par['fitsonly']:
-            patterns.append('.fits')
 
         if patterns:
             dl_table = data_table[
                 [i for i, v in enumerate(data_table['access_url'])
                     if (
-                        any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in patterns)
+                        any((pat in v) for pat in patterns)
                         and all(fmi in v for fmi in self.download_par['filename_must_include'])
                         and not any(ex_pat in v for ex_pat in exclude_patterns)
                     )]
@@ -336,22 +335,6 @@ class datap(dict):
                     )]
             ]
 
-        ancillary_patterns = []
-        ancillary_patterns.append('cube.I.pb.')
-        ancillary_patterns.append('cube.I.mask')
-        ancillary_patterns.append('mfs.I.pbcor')
-        ancillary_exclude_patterns = []
-
-        if ancillary_patterns:
-            al_table = data_table[
-                [i for i, v in enumerate(data_table['access_url'])
-                    if (
-                        any((v.endswith(pat) if pat == '.fits' else pat in v) for pat in ancillary_patterns)
-                        and all(fmi in v for fmi in self.download_par['filename_must_include'])
-                        and not any(ex_pat in v for ex_pat in ancillary_exclude_patterns)
-                    )]
-            ]
-
         
         dl_df = dl_table.to_pandas()
         # remove empty elements in the access_url column
@@ -361,6 +344,23 @@ class datap(dict):
         dl_size = dl_df['content_length'].sum()
         dl_files = len(dl_df['access_url'].unique())
         dl_uid_list = list(dl_df['ID'].unique())
+        ##############################################################################################
+
+        ##############################################################################################    
+
+        # Obtener los segmentos únicos de los data files
+        data_segments = {get_segment(url) for url in dl_link_list if 'cube.I.pbcor' in url}
+
+        # Crear patrones de búsqueda para cada segmento
+        ancillary_patterns = [f"{seg}mfs.I.pbcor.fits" for seg in data_segments] + \
+                [f"{seg}cube.I.mask." for seg in data_segments] + \
+                [f"{seg}cube.I.pb." for seg in data_segments]
+
+        # Filtrar data_table directamente
+        al_table = data_table[
+            [i for i, v in enumerate(data_table['access_url'])
+            if any(p in v for p in ancillary_patterns)]
+        ]
 
         # To show ancillary data
         al_df = al_table.to_pandas()
@@ -370,13 +370,12 @@ class datap(dict):
         al_size = al_df['content_length'].sum()
         al_files = len(al_df['access_url'].unique())
         # al_uid_list = list(al_df['ID'].unique()) # It not necessary. It will be the same as for dl
-
+        ##############################################################################################
 
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
             Logger.raw("================================")
             
-
         else:
             logger.info("Starting to download. Please wait...")
             Logger.raw("================================")
@@ -1342,7 +1341,6 @@ class datap(dict):
         # Validar subparámetros en download_par si está presente
         if hasattr(self, 'download_par') and isinstance(self.download_par, dict):
             download_par_expected_types = {
-                'fitsonly': bool,
                 'remove_compressed_file': bool,
                 'remove_archive_mask': bool,
                 'dryrun': bool,

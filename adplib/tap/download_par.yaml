@@ -67,7 +67,6 @@ query_par:
 
 download_par:
   data_dir :                                          # <str> The path of the directory where the downloaded data should be placed.
-  fitsonly : True                                     # <bool> (Default value = True) Download individual fits files only. This option will not download the raw data
   remove_compressed_file: False                       # <bool> (Default value = False). Remove compress_files. This is the case for primary beam an mask cubes in the ALMA archive. 
   remove_archive_mask: False                          # <bool> (Default value = False). Remove the original mask from the archive (float type).  
   dryrun : True                                       # <bool> (Default value = False) Allow the user to do a test run to check the size and number of files to download without actually
