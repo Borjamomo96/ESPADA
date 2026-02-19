@@ -1139,7 +1139,7 @@ class SoPar(dict):
             logger.warning(
                 f"2D-Mask file from SoFia not found in {self.output_directory}."            
             )
-            logger.info("Quality assesment aborted.")
+            logger.info("Quality assesment ended.")
             return qa_report
         
         if mask_file:
@@ -1207,7 +1207,7 @@ class SoPar(dict):
             return qa_report
         except Exception as e:
             logger.warning(f"Something went wrong while saving QA file: {e}")
-            logger.info(f"Quality assement aborted . Mode: {self.mode}")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
             
 
