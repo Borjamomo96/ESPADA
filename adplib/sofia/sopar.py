@@ -174,7 +174,7 @@ def moment8_ima(adpalmap_sopar, mode):
     elif data_cube.ndim > 4:
         error_msg = (
             "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-            "Quality assesment aborted. "
+            "Quality assesment ended. "
             "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
             "with your specific case.")
         logger.error(error_msg)
@@ -225,13 +225,12 @@ def moment8_ima(adpalmap_sopar, mode):
         
         final_data_cube = data_cube
 
-
     if mode == "absorption":
-        logger.info(f"Creating moment 8 image for absorption (minimum along z-axis)")
+        logger.info(f"Creating moment 8 image for absorption (minimum along spectral-axis)")
         projection = np.min(final_data_cube, axis=0)
         projection_viz = -projection  
     else:  
-        logger.info(f"Creating moment 8 image for emission (maximum along z-axis)")
+        logger.info(f"Creating moment 8 image for emission (maximum along spectral-axis)")
         projection = np.max(final_data_cube, axis=0)
         projection_viz = projection
 
@@ -1091,23 +1090,7 @@ class SoPar(dict):
         This method evaluates the quality of the data by generating visualizations of:
         - The moment 8 image.
         - The Sofia 2D mask (if available).
-        - The ALMA archive mask (if provided via `adpalmap_datap`).
-
-        Parameters:
-        ----------
-        adpalmap_datap: Datap() class object with configuration from the download parameter file.. 
-                        If None, the ALMA archive mask will not be included in the assessment.
-        output_fits (str, optional): Path to the output FITS file used to generate the 
-                                    moment 8 image. Defaults to None.
-
-        Returns:
-        ----------
-            None
-
-        Raises:
-        ----------
-            ValueError: If the ALMA archive mask data has more than 4 dimensions, as this is not 
-                        supported.
+        - The mask (if provided via `adpalmap_datap` or by the user).
         """
 
         logger.info(f"Quality assesment start. Mode: {self.mode}.")
@@ -1122,76 +1105,92 @@ class SoPar(dict):
                 "log_path": "",
                 "outputs" : {'images' : [], 'files': []}
             }
+        
+        ##############################################################################################
 
-        #Momento 8 del cubo inicial (input.data en config.yaml o descargado)
-        mom8_ima = moment8_ima(self, self.mode)
-
-        #Máscara de lo obtenido por SoFiA
+        #  Generate moment 8 image of input data
+        try:
+            mom8_ima = moment8_ima(self, self.mode)
+        except Exception as e:
+            logger.error(f"Failed to generate moment 8 image: {e}")
+            logger.info("Quality assesment ended.")
+            return qa_report
+        
+        # Check for SoFiA 2D mask
         sofia_output_dir = Path(self.output_directory)
         input_file_name = Path(self.input_data).stem
+
         file_2d_mask = (
             sofia_output_dir / f"{self.mode}_{input_file_name}_mask-2d.fits"
         )
-        
-        if file_2d_mask.exists():
-            pass
-        else:
+        if not file_2d_mask.exists():
             logger.warning(
                 f"2D-Mask file from SoFia not found in {self.output_directory}."            
             )
             logger.info("Quality assesment ended.")
+            return qa_report       
+
+        try:
+            with fits.open(file_2d_mask) as hdul:
+                sofia_2d_mask = hdul[0].data
+                # Basic squeeze for 4D cases if needed
+                if sofia_2d_mask.ndim == 4 and sofia_2d_mask.shape[0] == 1:
+                    sofia_2d_mask = np.squeeze(sofia_2d_mask, axis=0)
+        except Exception as e:
+            logger.error(f"Failed to load SoFiA 2D mask: {e}")
+            logger.info("Quality assesment ended.")
             return qa_report
-        
+
+
+        # Mask provide by the user or from the ALMA archive
+        mask_proj = None
         if mask_file:
-            with fits.open(mask_file) as hdul:
-                mask_archive = np.any(hdul[0].data, axis=0).astype(int)
-        
-            if mask_archive.ndim == 4:
-                mask_archive = np.squeeze(mask_archive, axis=0)
-            elif mask_archive.ndim > 4:
-                logger.critical(
-                    "ADP Alma pipeline is not designed to handle data files with "
-                    "more than 4 dimensions. Please open an issue on "
-                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-                    "case."
+            try:
+                with fits.open(mask_file) as hdul:
+                    mask_raw = hdul[0].data
+                    # Basic squeeze for 4D cases
+                    if mask_raw.ndim == 4 and mask_raw.shape[0] == 1:
+                        mask_raw = np.squeeze(mask_raw, axis=0)
+                    # Create 2D projection for visualization
+                    if mask_raw.ndim >= 3:
+                        mask_proj = np.any(mask_raw > 0, axis=0).astype(int)
+                    elif mask_raw.ndim == 2:
+                        mask_proj = mask_raw
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load provided mask '{mask_file}' for visualization: {e}"
                 )
-            mask_archive_proj = np.any(mask_archive == 1, axis=0).astype(int)
 
-    
-        
-        with fits.open(file_2d_mask) as hdul:
-            sofia_2d_mask = hdul[0].data
 
-        if mask_file:
+        if mask_proj is not None:
             fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         else:
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
         
-        ax = axs[0]
-        if self.mode == "absorption":
-            ax.set_title("Moment 8 Image (Absorption - Min Projection)")
-        else:
-            ax.set_title("Moment 8 Image (Emission - Max Projection)")
-        ax.imshow(mom8_ima, cmap='viridis', origin='lower')
-        ax.imshow(mom8_ima, cmap='viridis', origin='lower')
-        #ax.colorbar(label="Intensity")
-
-        ax = axs[1]
-        ax.set_title("Sofia 2D mask")
-        ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
-        #ax.colorbar(label="Intensity")
-
-        if mask_file:
-            ax = axs[2]
-            ax.set_title("Mask file")
-            ax.imshow(mask_archive_proj, cmap='viridis', origin='lower')
-
-        qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
-        qa_output_dir.mkdir(parents=True, exist_ok=True)  
-        qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename).stem}_QA.png")
-
-
         try:
+            ax = axs[0]
+            if self.mode == "absorption":
+                ax.set_title("Moment 8 Image (Absorption - Min Projection)")
+            else:
+                ax.set_title("Moment 8 Image (Emission - Max Projection)")
+            ax.imshow(mom8_ima, cmap='viridis', origin='lower')
+            ax.imshow(mom8_ima, cmap='viridis', origin='lower')
+            #ax.colorbar(label="Intensity")
+
+            ax = axs[1]
+            ax.set_title("Sofia 2D mask")
+            ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
+            #ax.colorbar(label="Intensity")
+
+            if mask_proj is not None:
+                ax = axs[2]
+                ax.set_title("Mask file")
+                ax.imshow(mask_proj, cmap='viridis', origin='lower')
+
+            qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
+            qa_output_dir.mkdir(parents=True, exist_ok=True)  
+            qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename).stem}_QA.png")
+
             plt.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
                 f"QA file saved in {qa_output_dir}. Quality assesment completed "
@@ -1204,61 +1203,188 @@ class SoPar(dict):
             "description": "Moment 8 image",
             "software-id": "qa"
             })
-            return qa_report
+            
         except Exception as e:
-            logger.warning(f"Something went wrong while saving QA file: {e}")
+            logger.warning(f"Failed to save QA mask image comparison: {e}")
             logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
+    ##############################################################################################
+
+    ##############################################################################################        
+
+        # 3D Mask for quantitative comparison 
+        file_3d_mask = (
+            sofia_output_dir / f"{self.mode}_{input_file_name}_mask.fits"
+        )
+
+        if not file_3d_mask.exists():
+            logger.info("3D SoFiA mask not found - skipping quantitative comparison")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+        
+        if not mask_file:
+            logger.info("Mask file not provided - skipping quantitative comparison")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+
+        # Load input data
+        try:
+            with fits.open(self.input_data) as hdul:
+                data_cube = hdul[0].data
+                # Handle 4D cubes (squeeze if singleton)
+                if data_cube.ndim == 4 and data_cube.shape[0] == 1:
+                    data_cube = np.squeeze(data_cube, axis=0)
+        except Exception as e:
+            logger.warning(
+                f"Cannot load input data cube {self.input_data} for quantitative comparison: {e}"
+            )
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+        
+        # Load SoFiA 3D mask
+        try:
+            with fits.open(file_3d_mask) as hdul:
+                sofia_mask_3d = hdul[0].data
+                if sofia_mask_3d.ndim == 4 and sofia_mask_3d.shape[0] == 1:
+                    sofia_mask_3d = np.squeeze(sofia_mask_3d, axis=0)
+        except Exception as e:
+            logger.warning(
+                f"Cannot load SoFiA 3D mask {file_3d_mask} for quantitative comparison: {e}"
+            )
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+
+
+        # Load provided mask by the user or from the ALMA archive
+        try:
+            with fits.open(mask_file) as hdul:
+                mask_3d = hdul[0].data
+                if mask_3d.ndim == 4 and mask_3d.shape[0] == 1:
+                    mask_3d = np.squeeze(mask_3d, axis=0)
+        except Exception as e:
+            logger.warning(f"Cannot load mask {mask_file} for quantitative comparison: {e}")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+    
+        # Verify dimensional compatibility for comparison
+        if data_cube.shape != sofia_mask_3d.shape:
+            logger.warning(
+                f"Shape mismatch: Data cube {data_cube.shape} vs SoFiA mask {sofia_mask_3d.shape}"
+            )
+            logger.info("Skipping quantitative comparison due to shape mismatch.")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+        
+        if data_cube.shape != mask_3d.shape:
+            logger.warning(
+                f"Shape mismatch: Data cube {data_cube.shape} vs provided mask {mask_3d.shape}"
+            )
+            logger.info("Skipping quantitative comparison due to shape mismatch.")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+
+
+
+        logger.info("Starting quantitative mask comparison...")
+    
+        # Determine number of sources in SoFiA mask
+        n_src = int(np.nanmax(sofia_mask_3d))
+        if n_src < 1:
+            logger.info("No sources found in SoFiA 3D mask - skipping per-source statistics")
+            logger.info(f"Quality assement ended . Mode: {self.mode}")
+            return qa_report
+        
+        logger.info(f"Found {n_src} sources in SoFiA mask.")
+        
+        # Global statistics
+        npix_sofia_total = np.nansum(sofia_mask_3d > 0)
+        npix_mask_total = np.nansum(mask_3d > 0)
+        npix_overlap = np.nansum((sofia_mask_3d > 0) & (mask_3d > 0))
+        
+        flux_sofia_total = np.nansum(data_cube[sofia_mask_3d > 0])
+        flux_alma_total = np.nansum(data_cube[mask_3d > 0])
+        flux_overlap = np.nansum(data_cube[(sofia_mask_3d > 0) & (mask_3d > 0)])
+        
+        # Log global statistics
+        logger.info("=== GLOBAL MASK COMPARISON ===")
+        logger.info(f"  SoFiA mask pixels: {npix_sofia_total}")
+        logger.info(f"  Provided mask pixels:  {npix_mask_total}")
+        logger.info(f"  Overlap pixels:    {npix_overlap}")
+        logger.info(
+            f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA"
+        )
+        logger.info(f"  SoFiA total flux: {flux_sofia_total:.2f}")
+        logger.info(f"  Provided total flux:  {flux_alma_total:.2f}")
+        logger.info(
+            f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA"
+        )
+        
+        # Per-source statistics
+        logger.info("=== PER-SOURCE COMPARISON ===")
+        stats_lines = []
+        stats_lines.append(f"QUALITY ASSESSMENT COMPARISON STATISTICS\n")
+        stats_lines.append(f"========================================\n")
+        stats_lines.append(f"Mode: {self.mode}\n")
+        stats_lines.append(f"Input: {self.input_data.stem}\n\n")
+        stats_lines.append(f"GLOBAL STATISTICS:\n")
+        stats_lines.append(f"  SoFiA mask pixels: {npix_sofia_total}\n")
+        stats_lines.append(f"  Provided mask pixels:  {npix_mask_total}\n")
+        stats_lines.append(f"  Overlap pixels:    {npix_overlap}\n")
+        stats_lines.append(f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA\n")
+        stats_lines.append(f"  SoFiA total flux: {flux_sofia_total:.2f}\n")
+        stats_lines.append(f"  Provided total flux:  {flux_alma_total:.2f}\n")
+        stats_lines.append(f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA\n\n")
+        stats_lines.append(f"PER-SOURCE STATISTICS:\n")
+        
+        for src in range(1, n_src + 1):
+            data_masked = data_cube[sofia_mask_3d == src]
+            npix_sofia = np.nansum(sofia_mask_3d == src)
+            npix_mask = np.nansum(mask_3d[sofia_mask_3d == src] > 0)
+            flux_sofia = np.nansum(data_masked)
+            flux_mask = np.nansum(data_masked[mask_3d[sofia_mask_3d == src] > 0])
             
+            # Avoid division by zero
+            pixel_pct = 100.0 * npix_mask / npix_sofia if npix_sofia > 0 else 0
+            flux_pct = 100.0 * flux_mask / flux_sofia if flux_sofia != 0 else 0
+            
+            logger.info(
+                f"Source {src}: N_SoFiA={npix_sofia:5d} N_PMask={npix_mask:5d} | "
+                f"F_SoFiA={flux_sofia:8.2f} F_PMask={flux_mask:8.2f} | "
+                f"PixelFrac={pixel_pct:5.2f}% FluxFrac={flux_pct:5.2f}%"
+            )
 
-
-'''
-    def add_outputs(self, sopar_report):
-    
-        """Añade outputs al reporte, manejando archivos faltantes."""
-        expected_outputs = {
-            "images": [
-                {
-                    "type": "rel",
-                    "path": self.output_directory / f"{self.input_data.stem}_rel.eps",
-                    "description": "Reliability Plot"
-                },
-                {
-                    "type": "skellam",
-                    "path": self.output_directory / f"{self.input_data.stem}_skellam.eps",
-                    "description": "Skellam Plot"
-                }
-            ],
-            "files": [
-                {
-                    "type": "catalog_txt",
-                    "path": self.output_directory / f"{self.input_data.stem}_cat.txt",
-                    "format": "txt"
-                },
-                {
-                    "type": "catalog_xml",
-                    "path": self.output_directory / f"{self.input_data.stem}_cat.xml",
-                    "format": "xml"
-                }
-            ]
-        }
-
-        registered_outputs = {"images": [], "files": []}
+            stats_lines.append(f"  Source {src}:\n")
+            stats_lines.append(f"    N_SoFiA = {npix_sofia}\n")
+            stats_lines.append(f"    N_Mask  = {npix_mask}\n")
+            stats_lines.append(f"    F_SoFiA = {flux_sofia:.2f}\n")
+            stats_lines.append(f"    F_Mask  = {flux_mask:.2f}\n")
+            stats_lines.append(f"    ALMA pixel fraction: {pixel_pct:.2f}%\n")
+            stats_lines.append(f"    ALMA flux fraction:  {flux_pct:.2f}%\n\n")
         
-        for category, items in expected_outputs.items():
-            for item in items:
-                try:
-                    if item["path"].exists():
-                        registered_outputs[category].append(item)
-                    else:
-                        logger.debug(f"Output file not found: {item['path']}")
-                except Exception as e:
-                    logger.warning(f"Error checking output {item['path']}: {str(e)}")
+        # Save statistics to file
+        try:
+            qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
+            stats_file = qa_output_dir / f"{Path(self.output_filename).stem}_comparison_stats.txt"
+            
+            with open(stats_file, 'w') as f:
+                f.writelines(stats_lines)
+            
+            logger.info(f"Comparison statistics saved to {stats_file}")
+            
+            qa_report['outputs']['files'].append({
+                "type": "qa_statistics",
+                "path": stats_file,
+                "format": "txt",
+                "description": "Mask comparison statistics",
+                "software-id": "qa"
+            })
+            
+        except Exception as e:
+            logger.warning(f"Failed to save statistics file: {e}")
         
-        sopar_report["outputs"] = registered_outputs
-'''
+        logger.info(f"Quality assesment completed successfully. Mode: {self.mode}")
+        return qa_report
 
-        
-        
 
-    
+
+

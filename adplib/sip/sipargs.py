@@ -1189,18 +1189,18 @@ class SiPar(dict):
 
             if self.surveys_list and self.surveys_list != ['none']:
                 for survey in self.surveys_list:
-                    
-                    survey_nospace = survey.replace(" ", "").lower()
-                    survey_path = (
-                        output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
-                    )
-                    sip_report['outputs']['images'].append({
-                        "type": f"mom0_{survey_nospace}",
-                        "path": survey_path,
-                        "source_id": i,
-                        "description": f"Momment 0 image ({survey})",
-                        "software-id": "sip"
-                    })                
+                    if survey != 'none':
+                        survey_nospace = survey.replace(" ", "").lower()
+                        survey_path = (
+                            output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
+                        )
+                        sip_report['outputs']['images'].append({
+                            "type": f"mom0_{survey_nospace}",
+                            "path": survey_path,
+                            "source_id": i,
+                            "description": f"Momment 0 image ({survey})",
+                            "software-id": "sip"
+                        })                
         
         if create_summary:
             sip_report['outputs']['images'].append({
@@ -1242,20 +1242,20 @@ class SiPar(dict):
                     "software-id": "sip"
                 })
             
-            if self.surveys_list:
+            if self.surveys_list and self.surveys_list != ['none']:
                 for survey in self.surveys_list:
-                    
-                    survey_nospace = survey.replace(" ", "").lower()
-                    survey_path = (
-                        output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
-                    )
-                    sip_report['outputs']['images'].append({
-                        "type": f"mom0_{survey_nospace}",
-                        "path": survey_path,
-                        "source_id": -1,
-                        "description": f"Momment 0 image ({survey})",
-                        "software-id": "sip"
-                    }) 
+                    if survey != 'none':
+                        survey_nospace = survey.replace(" ", "").lower()
+                        survey_path = (
+                            output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
+                        )
+                        sip_report['outputs']['images'].append({
+                            "type": f"mom0_{survey_nospace}",
+                            "path": survey_path,
+                            "source_id": -1,
+                            "description": f"Momment 0 image ({survey})",
+                            "software-id": "sip"
+                        }) 
             
 
     def detect_source_count(self):
