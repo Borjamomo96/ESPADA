@@ -42,8 +42,8 @@ contsub.padding            =  3
 
 # Noise scaling
 
-scaleNoise.enable          =  false
-scaleNoise.mode            =  local
+scaleNoise.enable          =  true
+scaleNoise.mode            =  spectral
 scaleNoise.statistic       =  mad
 scaleNoise.fluxRange       =  negative
 scaleNoise.windowXY        =  31
