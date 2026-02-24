@@ -45,7 +45,7 @@ contsub.padding            =  3
 scaleNoise.enable          =  true
 scaleNoise.mode            =  spectral
 scaleNoise.statistic       =  mad
-scaleNoise.fluxRange       =  negative
+scaleNoise.fluxRange       =  both
 scaleNoise.windowXY        =  31
 scaleNoise.windowZ         =  31
 scaleNoise.gridXY          =  0
@@ -70,7 +70,7 @@ rippleFilter.interpolate   =  false
 scfind.enable              =  true
 scfind.kernelsXY           =  0, 3, 6#, 9
 scfind.kernelsZ            =  0, 3, 7#, 15
-scfind.threshold           =  3.8
+scfind.threshold           =  4.5
 scfind.replacement         =  2.0
 scfind.statistic           =  mad
 scfind.fluxRange           =  negative
@@ -104,12 +104,12 @@ linker.minPixels           =  0
 linker.maxPixels           =  0
 linker.minFill             =  0.05
 linker.maxFill             =  0.0
-linker.positivity          =  false
+linker.positivity          =  true
 
 
 # Reliability
 
-reliability.enable         =  true
+reliability.enable         =  false
 reliability.parameters     =  peak, sum, mean
 reliability.threshold      =  0.9
 reliability.scaleKernel    =  0.3
@@ -123,8 +123,8 @@ reliability.debug          =  false
 
 # Mask dilation
 
-dilation.enable            =  false
-dilation.iterationsXY      =  10
+dilation.enable            =  true
+dilation.iterationsXY      =  2
 dilation.iterationsZ       =  5
 dilation.threshold         =  0.001
 
