@@ -5,7 +5,7 @@
 
 pipeline.verbose           =  false
 pipeline.pedantic          =  true
-pipeline.threads           =  0
+pipeline.threads           =  8
 
 
 # Input
