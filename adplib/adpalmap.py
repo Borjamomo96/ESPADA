@@ -254,6 +254,22 @@ def sipargs_to_dict(args_list):
     return args_dict
 
 
+def worker_init(log_queue):
+    """
+    Required for macOS system.
+    Initialize the logger on each worker with QueueHandler.
+    """
+    import logging
+    from logging.handlers import QueueHandler
+    from adplib.logger import Logger
+    child_logger = logging.getLogger("adpalmap_logger")
+    child_logger.setLevel(logging.INFO)
+    child_logger.addHandler(QueueHandler(log_queue))
+    child_logger.propagate = False
+    Logger._logger_instance = child_logger
+    Logger._log_queue = log_queue
+
+
 def reorganize_log(log_path, worker_results):
 
     aux_logger = Initial_Logger.get_initial_logger()
@@ -1312,7 +1328,9 @@ def main():
         
     ##############################################################################################
 
-        with ProcessPoolExecutor(max_workers=max_workers) as pool:
+        with ProcessPoolExecutor(
+            max_workers=max_workers, initializer=worker_init, initargs=(log_queue,)
+        ) as pool:
     
             futures = [
                 pool.submit(
