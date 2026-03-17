@@ -56,13 +56,13 @@ scaleNoise.scfind          =  false
 
 # Ripple filter
 
-rippleFilter.enable        =  false
-rippleFilter.statistic     =  median
-rippleFilter.windowXY      =  31
-rippleFilter.windowZ       =  15
-rippleFilter.gridXY        =  0
-rippleFilter.gridZ         =  0
-rippleFilter.interpolate   =  false
+background.enable        =  false
+background.statistic     =  median
+background.windowXY      =  31
+background.windowZ       =  15
+background.gridXY        =  0
+background.gridZ         =  0
+background.interpolate   =  false
 
 
 # S+C finder

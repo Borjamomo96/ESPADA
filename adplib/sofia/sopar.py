@@ -49,13 +49,13 @@ SOFIA_PARAMETER = [
     "scaleNoise.gridZ",
     "scaleNoise.interpolate",
     "scaleNoise.scfind",
-    "rippleFilter.enable",
-    "rippleFilter.statistic",
-    "rippleFilter.windowXY",
-    "rippleFilter.windowZ",
-    "rippleFilter.gridXY",
-    "rippleFilter.gridZ",
-    "rippleFilter.interpolate",
+    "background.enable",
+    "background.statistic",
+    "background.windowXY",
+    "background.windowZ",
+    "background.gridXY",
+    "background.gridZ",
+    "background.interpolate",
     "scfind.enable",
     "scfind.kernelsXY",
     "scfind.kernelsZ",
@@ -1302,7 +1302,7 @@ class SoPar(dict):
         npix_overlap = np.nansum((sofia_mask_3d > 0) & (mask_3d > 0))
         
         flux_sofia_total = np.nansum(data_cube[sofia_mask_3d > 0])
-        flux_alma_total = np.nansum(data_cube[mask_3d > 0])
+        flux_mask_total = np.nansum(data_cube[mask_3d > 0])
         flux_overlap = np.nansum(data_cube[(sofia_mask_3d > 0) & (mask_3d > 0)])
         
         # Log global statistics
@@ -1314,13 +1314,11 @@ class SoPar(dict):
             f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA"
         )
         logger.info(f"  SoFiA total flux: {flux_sofia_total:.2f}")
-        logger.info(f"  Provided total flux:  {flux_alma_total:.2f}")
+        logger.info(f"  Provided total flux:  {flux_mask_total:.2f}")
         logger.info(
             f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA"
         )
         
-        # Per-source statistics
-        logger.info("=== PER-SOURCE COMPARISON ===")
         stats_lines = []
         stats_lines.append(f"QUALITY ASSESSMENT COMPARISON STATISTICS\n")
         stats_lines.append(f"========================================\n")
@@ -1332,8 +1330,12 @@ class SoPar(dict):
         stats_lines.append(f"  Overlap pixels:    {npix_overlap}\n")
         stats_lines.append(f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA\n")
         stats_lines.append(f"  SoFiA total flux: {flux_sofia_total:.2f}\n")
-        stats_lines.append(f"  Provided total flux:  {flux_alma_total:.2f}\n")
+        stats_lines.append(f"  Provided mask total flux:  {flux_mask_total:.2f}\n")
         stats_lines.append(f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA\n\n")
+        
+        """
+        # Per-source statistics
+        logger.info("=== PER-SOURCE COMPARISON ===")
         stats_lines.append(f"PER-SOURCE STATISTICS:\n")
         
         for src in range(1, n_src + 1):
@@ -1358,8 +1360,8 @@ class SoPar(dict):
             stats_lines.append(f"    N_Mask  = {npix_mask}\n")
             stats_lines.append(f"    F_SoFiA = {flux_sofia:.2f}\n")
             stats_lines.append(f"    F_Mask  = {flux_mask:.2f}\n")
-            stats_lines.append(f"    ALMA pixel fraction: {pixel_pct:.2f}%\n")
-            stats_lines.append(f"    ALMA flux fraction:  {flux_pct:.2f}%\n\n")
+            stats_lines.append(f"    Provided mask pixel fraction: {pixel_pct:.2f}%\n")
+            stats_lines.append(f"    Provided mask flux fraction:  {flux_pct:.2f}%\n\n")"""
         
         # Save statistics to file
         try:
