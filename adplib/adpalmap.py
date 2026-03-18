@@ -31,12 +31,12 @@ from traceback import format_exc
 import sys
 
 DESCRIPTION = """
-ADPALMAP: The ALMA Advanced Data Product Pipeline
+ESPADA: Extracting Source Pipeline for Advance Data for ALMA
 
 Overview:
 This pipeline automates ALMA data processing, including the SoFiA-2 and SIP softwares.
-It allows, download files from the ALMA archive, processing multiple datasets in parallel, performing QA and obtain 
-advance data products.
+It allows, download files from the ALMA archive, processing multiple datasets in parallel, 
+performing QA and obtain advance data products.
 
 Included programs:
 - SoFiA-2: Spectral cube processing (emission/absorption)
@@ -535,9 +535,7 @@ def calculate_workers(data_pack_list, max_cores):
     mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
     
-    # CPU efficiency limit
-    efficiency_factor = 0.7
-    max_cores_cpu = max_cores * efficiency_factor
+    max_cores_cpu = max_cores 
     
     max_workers = min(max_cores_cpu, max_workers_mem, total_files)
     
@@ -909,7 +907,7 @@ def process_data(id_number,
                         )
                         do_group = False
                     except ValueError as e:
-                        print("ASJASAK")
+                        print(e)
                         raise  
                     except Exception as e:
                         print(e)
@@ -1299,7 +1297,12 @@ def main():
                     "The number of cores indicated is greater than the number of cores available "
                     f"in the CPU. The number of cores has been assigned as: {cpu_cores}. "
                 )
-                max_cores = cpu_cores 
+                # CPU efficiency limit
+                efficiency_factor = 0.7
+                logger.info(
+                    f"The maximum number of cores on the device is {cpu_cores}. For efficiency "
+                    f"reasons, a factor of {efficiency_factor} will be applied.")
+                max_cores = int(cpu_cores * efficiency_factor)
             else:
                 max_cores = adpalmap_config.num_cores
 

@@ -2,7 +2,7 @@ file:
   config.yaml: |
     **Main configuration file**
 
-    ADPAlmAP is designed in a modular manner, so this file includes the data sets to be 
+    ESPADA is designed in a modular manner, so this file includes the data sets to be 
     processed, the names of the files that control each of the modules (TAP, SoFiA-2, and SIP), 
     and various global configuration parameters.
 
@@ -11,9 +11,10 @@ file:
     - **Parameters**:
 
       **GENERAL**
-      - quality_assesment
+      - make_report
       - verbose
       - num_cores
+      - output_dir
 
       **LOGGER**
       - clear_logs
@@ -38,6 +39,9 @@ file:
       **SIP**
       - enable_sip 
       - sip_par_file 
+
+      **GROUP**
+      - enable_group
 
     - **Additional help**:  
       If you want more detailed information about a specific parameter,  
