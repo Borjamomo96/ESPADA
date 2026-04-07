@@ -19,11 +19,13 @@ from rich.markdown import Markdown
 import yaml
 
 import multiprocessing
+
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from logging.handlers import QueueListener
-from multiprocessing import Queue
 
 import logging
+from logging.handlers import QueueListener
+from logging.handlers import QueueHandler
+from queue import Empty
 from adplib.logger import Initial_Logger
 from adplib.logger import Logger
 from traceback import format_exc
@@ -249,9 +251,8 @@ def sipargs_to_dict(args_list):
         if isinstance(v, (str, list)) and v is not True:
             args_dict[k] = convert_if_number(v)
             print(type(args_dict[k]))
-    print(args_dict)
-    sys.exit(-1)
     return args_dict
+
 
 
 def worker_init(log_queue):
@@ -259,15 +260,13 @@ def worker_init(log_queue):
     Required for macOS system.
     Initialize the logger on each worker with QueueHandler.
     """
-    import logging
-    from logging.handlers import QueueHandler
-    from adplib.logger import Logger
-    child_logger = logging.getLogger("adpalmap_logger")
-    child_logger.setLevel(logging.INFO)
-    child_logger.addHandler(QueueHandler(log_queue))
-    child_logger.propagate = False
-    Logger._logger_instance = child_logger
-    Logger._log_queue = log_queue
+    RAW_LEVEL = 15
+    logger = logging.getLogger("espada_logger")
+    logger.setLevel(RAW_LEVEL)
+    logger.handlers.clear()             
+    logger.addHandler(QueueHandler(log_queue))
+    logger.propagate = False
+    Logger._logger_instance = logger
 
 
 def reorganize_log(log_path, worker_results):
@@ -327,7 +326,7 @@ def reorganize_log(log_path, worker_results):
                 # Iniciate the flag for this PID (False = before group)
                 pid_group_flags[current_pid] = False
 
-            if "ADPALMAP ended" in line:
+            if "ESPADA ended" in line:
                 main_final.append(line)
                 final_block = True
             else:    
@@ -568,16 +567,20 @@ def process_data(id_number,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
-                 number_list,
-                 logger
+                 number_list
     ):
-    
+
+    # This logger instance was initialized in worker_init
+    logger = Logger.get_logger()
+
     pid = os.getpid()
 
     # Must be defined after define the logger and before Group
     from adplib.sofia.sopar import SoPar
     from adplib.sip.sipargs import SiPar
     from adplib.group import group
+
+    
     ##############################################################################################
     #Run SoFia
 
@@ -1173,10 +1176,7 @@ def main():
     ##############################################################################################
 
     ##############################################################################################
-        
-        log_queue = Queue()  
-        queue_listener = QueueListener(log_queue, *logging.getLogger().handlers) 
-        queue_listener.start() 
+        log_queue = multiprocessing.Queue()  
 
         logger = Logger.get_logger(
             output_dir=adpalmap_config.output_dir,
@@ -1185,8 +1185,11 @@ def main():
             queue=log_queue
         )
 
+        queue_listener = QueueListener(log_queue, *logger.handlers) 
+        queue_listener.start() 
+
     ############################################################################################## 
-        logger.info("ADPALMAP start point")
+        logger.info("ESPADA start point")
 
         log_flag = True
         start, start_date = time.perf_counter(), datetime.now().isoformat()
@@ -1263,32 +1266,7 @@ def main():
     ##############################################################################################
         
     ##############################################################################################
-
-        '''#Número máx de cores dinámico
-        cpu_cores = multiprocessing.cpu_count()
-
-        if adpalmap_config.num_cores is not None:
-
-            if adpalmap_config.num_cores > cpu_cores:
-                logger.warning(
-                    "The number of cores indicated is greater than the number of cores available "
-                    f"in the CPU. The number of cores has been assigned as: {cpu_cores}. "
-                )
-                max_cores = cpu_cores 
-            else:
-                max_cores = adpalmap_config.num_cores
-
-        else:
-            max_cores = cpu_cores
-
-       
-        if len(data_pack_list) <= max_cores:
-            max_workers = len(data_pack_list)
-            s_cores = max(1, max_cores // max_workers)
-        else:
-            max_workers = max_cores
-            s_cores = 1  '''
-        
+      
         cpu_cores = multiprocessing.cpu_count()
         
         if adpalmap_config.num_cores is not None:
@@ -1340,8 +1318,7 @@ def main():
                     process_data, 
                     id_number, data, primary_beam, mask, ancillary,
                     adpalmap_config,
-                    args, sofia_threads, number_list,
-                    Logger.setup_child_logger(log_queue)
+                    args, sofia_threads, number_list
                     )
                 for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
             ]
@@ -1382,7 +1359,7 @@ def main():
 
     ##############################################################################################
 
-        logger.info("ADPALMAP ended")
+        logger.info("ESPADA ended")
         if adpalmap_config is not None and adpalmap_config.make_report:
             logger.info(
                 "See the final reports for an overview of the results obtained during the "
@@ -1460,25 +1437,38 @@ def main():
         
         # Stop QueueListener before anything else
         if queue_listener is not None:
+            logger.warning("Unprocessed messages in queue, emptying...")
             try:
                 queue_listener.stop()
-                time.sleep(0.5)
-            except Exception as e:
-                logger.debug(f"Error stopping queue listener: {e}")
-        
-        # Clear the queue explicitly
-        if 'log_queue' in locals() and log_queue is not None:
-            try:
+
+                # Configuración
+                max_wait_seconds = 5
+                batch_timeout = 0.5  # Timeout por batch
+                start_time = time.time()
+                messages_processed = 0
+
                 while not log_queue.empty():
-                    try:
-                        log_queue.get_nowait()
-                    except:
+                    if time.time() - start_time > max_wait_seconds:
+                        remaining = log_queue.qsize()
+                        logger.warning(
+                            f"TIMEOUT: Emptying stopped after {max_wait_seconds}s. "
+                            f"{remaining} unprocessed messages remain. "
+                            f"Processed: {messages_processed}"
+                        )
                         break
-                log_queue.close()
-                log_queue.join_thread()
+                    try:
+                        record = log_queue.get(timeout=batch_timeout)
+                        for handler in logger.handlers:
+                            handler.handle(record)
+                        messages_processed += 1
+                    except Empty:
+                        break
+                    except Exception:
+                        logger.debug(
+                            f"Error trying to empty the queue listener before it closes"
+                        )
             except Exception as e:
-                logger.debug(f"Error cleaning queue: {e}")
-        
+                logger.error(f"Error stopping queue listener: {e}")       
     ##############################################################################################
             
 

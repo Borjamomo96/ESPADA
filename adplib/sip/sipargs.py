@@ -860,7 +860,9 @@ class SiPar(dict):
                 logger.error(f"Error running SIP. Mode: {self.adpalmap_config.run_mode}. Error: {e}")
 
             logger.info(f"SIP execution aborted.")
-
+     
+        except Exception as e:
+            logger.error(f"{e}")
 
         finally:
             sip_report.update({'error': error})

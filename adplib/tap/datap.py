@@ -309,7 +309,7 @@ class datap(dict):
     
         #Fits only and phrase within the file to download
         data_table = self.alma.get_data_info(
-            uids_list, expand_tarfiles=True
+            list(uids_list), expand_tarfiles=True
         )
 
         ##############################################################################################

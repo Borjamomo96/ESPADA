@@ -12,7 +12,7 @@ from adplib.exceptions import RecoverableError, RecoverableValueError, Recoverab
 # Logger:
 import logging
 from adplib.logger import Logger
-logger= Logger.get_logger()
+logger = Logger.get_logger()
 
 
 SOFIA_PARAMETER = [
@@ -125,129 +125,6 @@ SOFIA_PARAMETER = [
     "output.overwrite",
 
 ]
-
-
-def moment8_ima(adpalmap_sopar, mode):
-
-    """
-    Reads a FITS file containing a data cube and creates a 2D image by
-    taking the maximum value along the z-axis for each (x, y).
-
-    Parameters:
-        input_fits (str): Path to the input FITS file containing the data cube.
-        output_fits (str, optional): Path to save the output FITS file with the 2D image.
-                                     If None, the output is not saved to a file.
-
-    Returns:
-        np.ndarray: 2D array with the maximum values along the z-axis.
-    """
-    if not hasattr(adpalmap_sopar, "input_data") or not adpalmap_sopar.input_data:
-        logger.critical(
-            "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
-            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-            "case."
-        )
-        raise
-
-    fits_path = Path(adpalmap_sopar.input_data)
-
-    if not fits_path.exists():
-        logger.critical(
-            f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
-            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-            "case.")
-        raise
-
-    with fits.open(fits_path) as hdul:
-        data_cube = hdul[0].data
-
-    if data_cube is None:
-        error_msg = (
-            f"The FITS file '{data_cube}' does not contain data in the primary HDU." 
-            "Quality assement aborted."
-        )
-        logger.error(error_msg)
-        raise RecoverableValueError(error_msg)
-
-    if data_cube.ndim == 4:
-        data_cube = np.squeeze(data_cube, axis=0)
-    elif data_cube.ndim > 4:
-        error_msg = (
-            "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-            "Quality assesment ended. "
-            "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
-            "with your specific case.")
-        logger.error(error_msg)
-        raise RecoverableValueError(error_msg)
-
-    # The relevant information about primary beam is on 'primary_beam'
-    # the input_primaryBeam parameter is subject to changes
-    if hasattr(adpalmap_sopar, "input_primaryBeam") and adpalmap_sopar.input_primaryBeam:
-
-        pb_path = Path(adpalmap_sopar.input_primaryBeam)
-
-        if not pb_path.exists():
-            logger.critical(
-                f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your" 
-                "specific case.")
-            raise
-
-        with fits.open(pb_path) as hdul:
-            
-            pb_cube = hdul[0].data
-
-        if pb_cube is None:
-            error_msg = (
-                f"The FITS file '{pb_cube}' does not contain data in the primary HDU." 
-                "Quality assement aborted."
-            )
-            logger.error(error_msg)
-            raise RecoverableValueError(error_msg)
-        
-        if pb_cube.ndim == 4:
-            pb_cube = np.squeeze(pb_cube, axis=0)
-        elif pb_cube.ndim > 4:
-            error_msg = (
-                "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
-                " Quality assesment aborted. "
-                "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
-                "with your specific case.")
-            logger.error(error_msg)
-            raise RecoverableValueError(error_msg)
-
-        final_data_cube = data_cube * pb_cube
-                
-    else:
-        logger.warning(
-            "No data cube has been specified with Primary Beam information."
-        )
-        
-        final_data_cube = data_cube
-
-    if mode == "absorption":
-        logger.info(f"Creating moment 8 image for absorption (minimum along spectral-axis)")
-        projection = np.min(final_data_cube, axis=0)
-        projection_viz = -projection  
-    else:  
-        logger.info(f"Creating moment 8 image for emission (maximum along spectral-axis)")
-        projection = np.max(final_data_cube, axis=0)
-        projection_viz = projection
-
-    return projection_viz
-
-
-def run_and_log(command):
-    output = []  
-
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
-        for line in process.stdout: 
-            print(line, end="")  
-            output.append(line)  
-
-        process.wait()  
-
-    Logger.raw_file("".join(output))
 
 
 def parse_parfile(file_path):
@@ -863,7 +740,7 @@ class SoPar(dict):
         ----------
         SystemExit: If SoFia encounters an error during execution.
         """
-        
+    
         os.makedirs(self.output_directory, exist_ok=True)
         self.output_directory = Path(self.output_directory)
     ##############################################################################################
@@ -962,6 +839,9 @@ class SoPar(dict):
             if self.adpalmap_config.run_mode == 'both' and run!=0:
                 # Exits the function without propagating an error to run in 'absorption'
                 logger.info(f"SoFiA will try to run again in mode: emission.")
+        
+        except Exception as e:
+            logger.error(f"{e}")
 
         finally:
             # This step should be here if we want to add outputs from SoFiA-2 no matter if it fails or
@@ -1036,9 +916,9 @@ class SoPar(dict):
             par_underscore = par.replace(".", "_") 
             
             if hasattr(self, par_underscore):
-                Logger.raw_file(f"[{self.pid}]{par}={getattr(self, par_underscore)}")
+                Logger.raw(f"[{self.pid}]{par}={getattr(self, par_underscore)}")
             else:
-                Logger.raw_file(f"[{self.pid}]{par}= ")
+                Logger.raw(f"[{self.pid}]{par}= ")
 
 
     def report_outputs(self, sopar_report):
@@ -1110,7 +990,7 @@ class SoPar(dict):
 
         #  Generate moment 8 image of input data
         try:
-            mom8_ima = moment8_ima(self, self.mode)
+            mom8_ima = self.moment8_ima(self.mode)
         except Exception as e:
             logger.error(f"Failed to generate moment 8 image: {e}")
             logger.info("Quality assesment ended.")
@@ -1387,6 +1267,115 @@ class SoPar(dict):
         logger.info(f"Quality assesment completed successfully. Mode: {self.mode}")
         return qa_report
 
+
+    def moment8_ima(self, mode):
+
+        """
+        Reads a FITS file containing a data cube and creates a 2D image by
+        taking the maximum value along the z-axis for each (x, y).
+
+        Parameters:
+            input_fits (str): Path to the input FITS file containing the data cube.
+            output_fits (str, optional): Path to save the output FITS file with the 2D image.
+                                        If None, the output is not saved to a file.
+
+        Returns:
+            np.ndarray: 2D array with the maximum values along the z-axis.
+        """
+        if not hasattr(self, "input_data") or not self.input_data:
+            logger.critical(
+                "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                "case."
+            )
+            raise
+
+        fits_path = Path(self.input_data)
+
+        if not fits_path.exists():
+            logger.critical(
+                f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
+                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                "case.")
+            raise
+
+        with fits.open(fits_path) as hdul:
+            data_cube = hdul[0].data
+
+        if data_cube is None:
+            error_msg = (
+                f"The FITS file '{data_cube}' does not contain data in the primary HDU." 
+                "Quality assement aborted."
+            )
+            logger.error(error_msg)
+            raise RecoverableValueError(error_msg)
+
+        if data_cube.ndim == 4:
+            data_cube = np.squeeze(data_cube, axis=0)
+        elif data_cube.ndim > 4:
+            error_msg = (
+                "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
+                "Quality assesment ended. "
+                "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
+                "with your specific case.")
+            logger.error(error_msg)
+            raise RecoverableValueError(error_msg)
+
+        # The relevant information about primary beam is on 'primary_beam'
+        # the input_primaryBeam parameter is subject to changes
+        if hasattr(self, "input_primaryBeam") and self.input_primaryBeam:
+
+            pb_path = Path(self.input_primaryBeam)
+
+            if not pb_path.exists():
+                logger.critical(
+                    f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
+                    " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your" 
+                    "specific case.")
+                raise
+
+            with fits.open(pb_path) as hdul:
+                
+                pb_cube = hdul[0].data
+
+            if pb_cube is None:
+                error_msg = (
+                    f"The FITS file '{pb_cube}' does not contain data in the primary HDU." 
+                    "Quality assement aborted."
+                )
+                logger.error(error_msg)
+                raise RecoverableValueError(error_msg)
+            
+            if pb_cube.ndim == 4:
+                pb_cube = np.squeeze(pb_cube, axis=0)
+            elif pb_cube.ndim > 4:
+                error_msg = (
+                    "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
+                    " Quality assesment aborted. "
+                    "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
+                    "with your specific case.")
+                logger.error(error_msg)
+                raise RecoverableValueError(error_msg)
+
+            final_data_cube = data_cube * pb_cube
+                    
+        else:
+            logger.warning(
+                "No data cube has been specified with Primary Beam information."
+            )
+            
+            final_data_cube = data_cube
+
+        if mode == "absorption":
+            logger.info(f"Creating moment 8 image for absorption (minimum along spectral-axis)")
+            projection = np.min(final_data_cube, axis=0)
+            projection_viz = -projection  
+        else:  
+            logger.info(f"Creating moment 8 image for emission (maximum along spectral-axis)")
+            projection = np.max(final_data_cube, axis=0)
+            projection_viz = projection
+
+        return projection_viz
 
 
 
