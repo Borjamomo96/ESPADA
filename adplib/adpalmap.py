@@ -1367,7 +1367,6 @@ def main():
             )
         finish, finish_date = time.perf_counter(), datetime.now().isoformat()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
-        queue_listener.stop()
 
     finally:
 
@@ -1437,7 +1436,6 @@ def main():
         
         # Stop QueueListener before anything else
         if queue_listener is not None:
-            logger.warning("Unprocessed messages in queue, emptying...")
             try:
                 queue_listener.stop()
 
