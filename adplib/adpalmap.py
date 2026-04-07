@@ -19,6 +19,7 @@ from rich.markdown import Markdown
 import yaml
 
 import multiprocessing
+multiprocessing.set_start_method('spawn', force=True)
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -252,7 +253,6 @@ def sipargs_to_dict(args_list):
             args_dict[k] = convert_if_number(v)
             print(type(args_dict[k]))
     return args_dict
-
 
 
 def worker_init(log_queue):
@@ -1193,7 +1193,6 @@ def main():
 
         log_flag = True
         start, start_date = time.perf_counter(), datetime.now().isoformat()
-
     ##############################################################################################
 
         #Optionally download data from ALMA archive

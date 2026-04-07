@@ -176,7 +176,30 @@ class Logger:
         """Adds a raw message to the terminal"""
         if cls._logger_instance is not None:
             cls._logger_instance.log(RAW_LEVEL, message)
+        else:
+            print("PUUFF")
     
+
+    @classmethod
+    def echo(cls, message):
+        """
+        Write a plain text message directly to the console 
+        and to the log file.
+        """
+        # Consola
+        print(message)
+        
+        # Log file (raw write)
+        if cls._logger_instance is not None:
+            for handler in cls._logger_instance.handlers:
+                if isinstance(handler, logging.FileHandler):
+                    try:
+                        # Write additional plain text
+                        handler.stream.write(message + '\n')
+                        handler.stream.flush()
+                    except Exception:
+                        pass  # If it fails, it simply doesn't write to the file
+
 
     @classmethod
     def log_to_file(cls, level, message):

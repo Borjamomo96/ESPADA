@@ -31,7 +31,6 @@ from pyvo.dal import tap
 from adplib.logger import Logger
 logger = Logger.get_logger()
 
-
 VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'instrument_name', 
                       'obs_id', 'dataproduct_type', 'target_name', 's_region', 'pol_states', 'o_ucd',
                       'band_list', 'authors', 'pub_abstract', 'proposal_abstract', 'schedblock_name',
@@ -49,7 +48,7 @@ def capture_output(input):
     with redirect_stdout(f):  
         input
     output = f.getvalue()
-    Logger.raw(output)
+    Logger.echo(output)
 
 
 def get_segment(path):
@@ -264,8 +263,9 @@ class datap(dict):
             (Default value = ./archive_data)
             The directory where the downloaded data should be placed.
         """
+        
+        Logger.echo("================================")
 
-        Logger.raw("================================")
         #CHANGE. Definir asi el directorio puede provocar problemas
 
         base_dir = Path(__file__).resolve().parents[2]
@@ -374,11 +374,11 @@ class datap(dict):
 
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
-            Logger.raw("================================")
+            Logger.echo("================================")
             
         else:
             logger.info("Starting to download. Please wait...")
-            Logger.raw("================================")
+            Logger.echo("================================")
 
 
             try:
@@ -401,7 +401,7 @@ class datap(dict):
                     f"{al_size_fmt:.1f} {al_format} for ancillary files"
                 )
             else:
-                logger.info("Number of files to download = {dl_files}")
+                logger.info(f"Number of files to download = {dl_files}")
                 dl_size_fmt, dl_format = self._format_bytes(dl_size)
                 logger.info(f"Needed disk space = {dl_size_fmt:.1f} {dl_format}")
 
@@ -410,11 +410,11 @@ class datap(dict):
                 self.pid = os.getpid()
                 logger.info("File URLs to download: ")
                 for url in dl_link_list:
-                    Logger.raw(f"[{self.pid}] {url}") 
+                    Logger.echo(f"[{self.pid}] {url}") 
                 if al_files > 0:
                     logger.info("File ancillary URLs to download: ")
                     for url in al_link_list:
-                        Logger.raw(f"[{self.pid}] {url}")
+                        Logger.echo(f"[{self.pid}] {url}")
                     logger.info(
                         "No need to worry about repeated downloads of duplicate files in URLs "
                         "and ancillary URLs; they will be downloaded only once.")
@@ -440,9 +440,9 @@ class datap(dict):
 
         #Set Attr data locations of the just downloaded data
         self.get_downloaded_datafile_path(Path(self.alma.cache_location), dl_link_list)
-        Logger.raw("================================")
+        Logger.echo("================================")
         logger.info("Data download completed.")
-        Logger.raw("================================")
+        Logger.echo("================================")
 
         # Download acillary files right after data
         self.download_ancillary_file(al_link_list)
@@ -476,17 +476,17 @@ class datap(dict):
         """
 
         try:
-            Logger.raw("================================")
+            Logger.echo("================================")
             logger.info("Starting to download ancillary files. Please wait...")
-            Logger.raw("================================")
+            Logger.echo("================================")
             self.alma.download_files(al_link_list, cache=True)
             
         except ValueError as e:
             logger.error(e)
 
-        Logger.raw("================================")
+        Logger.echo("================================")
         logger.info("Ancillary files download completed.")
-        Logger.raw("================================")
+        Logger.echo("================================")
 
     
     def run_query(self, query_str):
