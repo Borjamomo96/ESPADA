@@ -5,7 +5,7 @@
 
 pipeline.verbose           =  false
 pipeline.pedantic          =  true
-pipeline.threads           =  0
+pipeline.threads           =  8
 
 
 # Input
@@ -42,8 +42,8 @@ contsub.padding            =  3
 
 # Noise scaling
 
-scaleNoise.enable          =  false
-scaleNoise.mode            =  local
+scaleNoise.enable          =  true
+scaleNoise.mode            =  spectral
 scaleNoise.statistic       =  mad
 scaleNoise.fluxRange       =  negative
 scaleNoise.windowXY        =  31
@@ -68,8 +68,8 @@ background.interpolate   =  false
 # S+C finder
 
 scfind.enable              =  true
-scfind.kernelsXY           =  0, 3, 6, 9
-scfind.kernelsZ            =  0, 3, 7, 15
+scfind.kernelsXY           =  0, 3, 6
+scfind.kernelsZ            =  0, 3, 7
 scfind.threshold           =  3.8
 scfind.replacement         =  2.0
 scfind.statistic           =  mad
