@@ -1132,25 +1132,35 @@ class SiPar(dict):
 
         for i in individual_sources:
             source_prefix = f"_{i}"
+
             sip_report['outputs']['images'].append({
                 "type": "mom0",
                 "path": output_dir / f"{base_name}{source_prefix}_mom0.{suffix}",
                 "source_id": i,
-                "description": "Momment 0 image",
+                "description": "Moment 0 image",
                 "software-id": "sip"
             })
+            # The order of the images here rules the order of the images in the report
+            if hasattr(self, 'source_id') and getattr(self, 'source_id') is not None:
+                sip_report['outputs']['images'].append({
+                    "type": "mom0_usr",
+                    "path": output_dir / f"{base_name}{source_prefix}_mom0_usr.{suffix}",
+                    "source_id": i,
+                    "description": "Moment 0 image (continuum overlaid)",
+                    "software-id": "sip"
+                })
             sip_report['outputs']['images'].append({
                 "type": "mom1",
                 "path": output_dir / f"{base_name}{source_prefix}_mom1.{suffix}",
                 "source_id": i,
-                "description": "Momment 1 image",
+                "description": "Moment 1 image",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
                 "type": "mom2",
                 "path": output_dir / f"{base_name}{source_prefix}_mom2.{suffix}",
                 "source_id": i,
-                "description": "Momment 2 image",
+                "description": "Moment 2 image",
                 "software-id": "sip"
             })
             sip_report['outputs']['images'].append({
@@ -1200,7 +1210,7 @@ class SiPar(dict):
                             "type": f"mom0_{survey_nospace}",
                             "path": survey_path,
                             "source_id": i,
-                            "description": f"Momment 0 image ({survey})",
+                            "description": f"Moment 0 image ({survey})",
                             "software-id": "sip"
                         })                
         
@@ -1209,7 +1219,7 @@ class SiPar(dict):
                     "type": "all_mom0",
                     "path": output_dir.parent / f"{base_name}_mom0.png",
                     "source_id": -1,
-                    "description": "Momment 0 image of all sources",
+                    "description": "Moment 0 image of all sources",
                     "software-id": "sip"
                 })
             
@@ -1217,7 +1227,7 @@ class SiPar(dict):
                     "type": "all_mom1",
                     "path": output_dir.parent / f"{base_name}_mom1.png",
                     "source_id": -1,
-                    "description": "Momment 1 image of all sources",
+                    "description": "Moment 1 image of all sources",
                     "software-id": "sip"
                 })
             
@@ -1225,7 +1235,7 @@ class SiPar(dict):
                     "type": "all_mom2",
                     "path": output_dir.parent / f"{base_name}_mom2.png",
                     "source_id": -1,
-                    "description": "Momment 2 image of all sources",
+                    "description": "Moment 2 image of all sources",
                     "software-id": "sip"
                 })
             
