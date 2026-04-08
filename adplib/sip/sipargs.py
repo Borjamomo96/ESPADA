@@ -1217,7 +1217,7 @@ class SiPar(dict):
         if create_summary:
             sip_report['outputs']['images'].append({
                     "type": "all_mom0",
-                    "path": output_dir.parent / f"{base_name}_mom0.png",
+                    "path": output_dir.parent / f"{base_name}_mom0.{suffix}",
                     "source_id": -1,
                     "description": "Moment 0 image of all sources",
                     "software-id": "sip"
@@ -1225,7 +1225,7 @@ class SiPar(dict):
             
             sip_report['outputs']['images'].append({
                     "type": "all_mom1",
-                    "path": output_dir.parent / f"{base_name}_mom1.png",
+                    "path": output_dir.parent / f"{base_name}_mom1.{suffix}",
                     "source_id": -1,
                     "description": "Moment 1 image of all sources",
                     "software-id": "sip"
@@ -1233,7 +1233,7 @@ class SiPar(dict):
             
             sip_report['outputs']['images'].append({
                     "type": "all_mom2",
-                    "path": output_dir.parent / f"{base_name}_mom2.png",
+                    "path": output_dir.parent / f"{base_name}_mom2.{suffix}",
                     "source_id": -1,
                     "description": "Moment 2 image of all sources",
                     "software-id": "sip"
@@ -1241,7 +1241,7 @@ class SiPar(dict):
             
             sip_report['outputs']['images'].append({
                     "type": "all_sources",
-                    "path": output_dir.parent / f"{base_name}_sources.png",
+                    "path": output_dir.parent / f"{base_name}_sources.{suffix}",
                     "source_id": -1,
                     "description": "Identifying image of all sources",
                     "software-id": "sip"
@@ -1258,8 +1258,9 @@ class SiPar(dict):
                 for survey in self.surveys_list:
                     if survey != 'none':
                         survey_nospace = survey.replace(" ", "").lower()
+                        # HERE YOU NEED TO ENTER THE CORRECT PATH, WAITING FOR IT TO RESOLVES THE SIP PROBLEM
                         survey_path = (
-                            output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
+                            output_dir.parent / f"{base_name}_mom0_{survey_nospace}.{suffix}"
                         )
                         sip_report['outputs']['images'].append({
                             "type": f"mom0_{survey_nospace}",

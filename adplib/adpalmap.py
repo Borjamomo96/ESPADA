@@ -486,10 +486,10 @@ def reorganize_log(log_path, worker_results):
     
         sorted_lines = []
 
-        # Mensajes iniciales del main
+        # Initial messages from main
         sorted_lines.extend(pid_groups.pop(main_pid))
 
-        # Subprocesos ordenados numéricamente
+        # Numerically ordered subprocesses
         sub_pids = [pid for pid in pid_groups if pid != main_pid]
         
         for pid in sorted(sub_pids, key=int):
@@ -1369,10 +1369,6 @@ def main():
 
     finally:
 
-        if log_flag:
-            log_path = Logger.get_log_filename()
-            adp_log = reorganize_log(log_path, worker_results)
-
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
 
@@ -1421,9 +1417,13 @@ def main():
                 config=adpalmap_config  
             )
             
-            json_path = adpalmap_report.generate_json()
+            adpalmap_report.generate_json()
 
-            html_path = adpalmap_report.generate_html()
+            adpalmap_report.generate_html()
+
+        if log_flag:
+            log_path = Logger.get_log_filename()
+            adp_log = reorganize_log(log_path, worker_results)
 
     ##############################################################################################
         # Shutdown of the ProcessPoolExecutor if it exists
