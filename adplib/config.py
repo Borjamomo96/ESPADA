@@ -202,7 +202,8 @@ class Config(dict):
     def init_directory(self):
         
         if self.output_dir is None:
-            script_dir = Path(__file__).parent.parent
+            #script_dir = Path(__file__).parent.parent
+            script_dir = Path.cwd()
             self.output_dir = script_dir / "espada_run"
         else:
             self.output_dir = Path(self.output_dir).expanduser().resolve()
@@ -356,8 +357,7 @@ class Config(dict):
             
             elif not self.input_data_set:
                 self.parse_input_file()
-        
-            
+                   
 
     def parse_input_data_set(self):
         

@@ -80,8 +80,9 @@ class Logger:
         logger.setLevel(logging.INFO)
 
         timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
-        
         log_path_obj = Path(log_path).expanduser()
+
+        warning_messages = []
 
         if log_path_obj.is_absolute():
             try:
@@ -92,14 +93,14 @@ class Logger:
                     final_log_path = log_path_obj
                 else:
                     final_log_path = output_dir / "log_dir/espada.log"
-                    logger.warning(
+                    warning_messages.append(
                         f"The absolute path '{log_path_obj}' is outside of output_dir. "
                         f"Using default path: {final_log_path}"
                     )
             
             except Exception as e:
                 final_log_path = output_dir / "log_dir/espada.log"
-                logger.warning(
+                warning_messages.append(
                     f"Error processing absolute path: {e}. "
                     f"Using default path: {final_log_path}"
                 )
@@ -128,7 +129,7 @@ class Logger:
                     try:
                         old_log.unlink()
                     except Exception as e:
-                        cls._logger_instance.error(f"Error deleting {old_log}: {e}")
+                        warning_messages.append(f"Error deleting {old_log}: {e}")
 
         if not final_log_path.exists():
             final_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -161,6 +162,9 @@ class Logger:
         cls._logger_instance = logger
         cls._log_queue = queue
         cls._log_path = final_log_path
+
+        for msg in warning_messages:
+            logger.warning(msg)
 
 
     @classmethod
