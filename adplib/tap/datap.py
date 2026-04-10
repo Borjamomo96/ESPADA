@@ -41,6 +41,12 @@ VALID_KEYWORDS_STR = ('obs_publisher_did', 'obs_collection', 'facility_name', 'i
                       'scientific_category', 'lastModified', 'access_url', 'access_format',
                       'proposal_id', 'data_rights')
 
+ALMA_SERVERS = [
+    ('ESO', 'https://almascience.eso.org'),
+    ('NRAO', 'https://almascience.nrao.edu'),
+    ('NAOJ', 'https://almascience.nao.ac.jp')
+]
+
 
 def capture_output(input):
     
@@ -122,40 +128,22 @@ class datap(dict):
         for data download from remote sources, etc.
         """
 
-        #CHANGE. This is not needs in this class. This would be if additional par=val 
+        # CHANGE. This is not needs in this class. This would be if additional par=val 
         # beyond the path is required, e.g datap('path', condition=True, const=1). These extra par
-        #will be storage as a attr as well. 
+        # will be storage as a attr as well. 
         super(datap, self).__init__(**kwargs)
-        #This line set the keys of the previous key=val pair introduce through **kwargs as 
+        # This line set the keys of the previous key=val pair introduce through **kwargs as 
         # attributes of the class as well.
         self.__dict__ = self 
         self.configure(**kwargs)
 
-        #Chech the parameter in download_par.yaml except query_type:
+        # Chech the parameter in download_par.yaml except query_type:
         self.check_download_par()
         #Check the parameter for the query type before continue:
         self.check_query_par()
 
-        #Initialize Alma() instance. <Attribute>
-        self.alma = Alma()
-
-        
-        if self.credentials:
-
-            print("Introduce your ALMA credentials: ")
-            username = input("- Username: ")
-    
-            try:
-                self.alma.login(username, store_password=self.stored_credentials)
-            
-            except Exception as e:
-                print(f"Error en la autenticación: {e}")
-
-        #Initialize the archive service to use for the download
-        self.alma.archive_url = self.server_address
-
-        #This may become a function. FUNCTION
-        self._service = tap.TAPService(f"{self.server_address}/tap")
+        # Attempting to connect to TAP servers with failover
+        self._initialize_tap_service()
 
 
     def configure(self, download_path=None, **kwargs):
@@ -194,6 +182,67 @@ class datap(dict):
         
         for k, v in download_dict.items():
             setattr(self, k, v)
+
+
+    def _initialize_tap_service(self):
+        """
+        Initialize Alma() and TAP service with failover among known ALMA servers.
+        """
+        # Determine the starting server based on user config
+        user_server = getattr(self, 'server_address', None)
+        
+        # Build list of servers to try: user's choice first, then the others
+        servers_to_try = []
+        if user_server:
+            # Find the matching tuple
+            for name, url in ALMA_SERVERS:
+                if url == user_server or name == user_server:
+                    servers_to_try.append((name, url))
+                    break
+            # Add remaining servers
+            for name, url in ALMA_SERVERS:
+                if url != user_server and name != user_server:
+                    servers_to_try.append((name, url))
+        else:
+            servers_to_try = ALMA_SERVERS.copy()
+        
+        last_error = None
+        for server_name, server_url in servers_to_try:
+            try:
+                logger.info(f"Attempting to connect to ALMA TAP server: {server_name} ({server_url})")
+                
+                # Initialize Alma
+                self.alma = Alma()
+                self.alma.archive_url = server_url
+                
+                # Attempt login if credentials requested
+                if self.credentials:
+                    print("Introduce your ALMA credentials: ")
+                    username = input("- Username: ")
+                    try:
+                        self.alma.login(username, store_password=self.stored_credentials)
+                    except Exception as e:
+                        logger.warning(f"Authentication failed for {server_name}: {e}")
+                        raise  # Re-raise to trigger failover
+                
+                # Test the TAP service by creating it (lazy; will fail on first query)
+                self._service = tap.TAPService(f"{server_url}/tap")
+                               
+                logger.info(f"Successfully connected to {server_name}")
+                self.server_address = server_url  # Update to the working one
+                return
+                
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Failed to connect to {server_name}: {e}")
+                continue
+        
+        # If we get here, all servers failed
+        raise ConnectionError(
+            "Could not connect to any ALMA TAP server. "
+            "All known servers are currently unavailable. "
+            f"Last error: {last_error}"
+        )
 
 
     def _get_metadata(self):
