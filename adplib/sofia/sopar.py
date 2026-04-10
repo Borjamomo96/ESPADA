@@ -485,6 +485,13 @@ class SoPar(dict):
         ##############################################################################################        
         
         #########################-------------scfind.enable--------------#############################
+        #########################------------contsub.enable--------------#############################
+        #########################-----------scaleNoise.enable------------#############################
+        #########################----------rippleFilter.enable-----------#############################
+        #########################-----------threshold.enable-------------#############################
+        #########################----------reliability.enable------------#############################
+        #########################------------dilation.enable-------------#############################
+
         if (mask and self.adpalmap_config.use_mask):
             logger.info("The 'scfind.enable' parameter has set to 'false'. If a mask file is "
                         " available and 'use_mask' parameter is set to True, it assumes that no further "
@@ -492,10 +499,25 @@ class SoPar(dict):
             logger.info("The 'reliability.enable' parameter has set to 'false'. If a mask file is "
                         "available and 'use_mask' parameter is set to True, it assumes that no further "
                         "sources need to be searched or discarded.")
+            logger.info("The 'contsub.enable' parameter has set to 'false' because there is a mask" 
+            "available and 'use_mask' parameter is set to True")
+            logger.info("The 'scaleNoise.enable' parameter has set to 'false' because there is a mask" 
+            "available and 'use_mask' parameter is set to True")
+            logger.info("The 'rippleFilter.enable' parameter has set to 'false' because there is a mask" 
+            "available and 'use_mask' parameter is set to True")
+            logger.info("The 'threshold.enable' parameter has set to 'false' because there is a mask" 
+            "available and 'use_mask' parameter is set to True")
+            logger.info("The 'dilation.enable' parameter has set to 'false' because there is a mask" 
+            "available and 'use_mask' parameter is set to True")
             logger.warning("Carefully review the parameters set in the linker section")
             
             self.scfind_enable = 'false'
             self.reliability_enable = 'false'
+            self.contsub_enable = 'false'
+            self.scaleNoise_enable = 'false'
+            self.rippleFilter_enable = 'false'
+            self.threshold_enable = 'false'
+            self.dilation_enable = 'false'
             
             if (sop_par and 'scfind.enable' in sop_par):
                 logger.warning(
@@ -507,8 +529,6 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['reliability.enable']}' for the 'reliability.enable' "
                     "parameter provided in vía '-sop' comand."
                 )
-            
-
         ##############################################################################################
 
         ########################-------------pipeline.threads--------------###########################
