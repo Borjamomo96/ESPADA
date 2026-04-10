@@ -23,7 +23,7 @@ class Report:
         self.worker_results = worker_results
         self.template = template
         self.adp_log = adp_log
-        self.pipeline_metadata = {} #pipeline_metadata or
+        self.pipeline_metadata = pipeline_metadata
         self.config = config
 
         # Log content
@@ -408,6 +408,9 @@ class Report:
                 html_summary = self._create_html_summary(dataset)
                 html_datasets.append(html_summary)
             
+            # Get formatted configuration for HTML
+            html_config = self._format_config_for_html()
+
             # Configure Jinja environment
             env = Environment(loader=FileSystemLoader(os.path.dirname(self.template)))
             template = env.get_template(os.path.basename(self.template))
@@ -418,7 +421,8 @@ class Report:
     
             html_content = template.render(
                 datasets=html_datasets,
-                adp_log_content=self.adp_log_content
+                adp_log_content=self.adp_log_content,
+                config=html_config
             )
 
             output_path = self.report_dir / "index.html"
@@ -494,6 +498,94 @@ class Report:
                 'data_dimensions': {},
                 'wcs_info': {}
             }
+
+
+    def _format_config_for_html(self):
+        """
+        Format the settings to be displayed in the HTML.
+        """
+        config_data = self.pipeline_metadata.get('configuration', {})
+        if not config_data:
+            return None
+        
+        main_config = config_data.get('main_config', {})
+        
+        category_names = {
+            'general': 'General',
+            'logger': 'Logger',
+            'input_data': 'Input Data',
+            'tap_service': 'TAP Service',
+            'sofia': 'SoFiA-2',
+            'sip': 'SIP',
+            'group': 'Group',
+            'other': 'Other'
+        }
+        
+        param_names = {
+            'make_report': 'Generate Report',
+            'verbose': 'Verbose Output',
+            'num_cores': 'Number of Cores',
+            'output_dir': 'Output Directory',
+            'clear_logs': 'Clear Previous Logs',
+            'log_file': 'Log File Path',
+            'input_data_set': 'Input Dataset(s)',
+            'input_file': 'Input File',
+            'enable_tap_service': 'Enable TAP Service',
+            'download_par_file': 'Download Parameters File',
+            'enable_sofia': 'Enable SoFiA-2',
+            'run_mode': 'Run Mode',
+            'use_mask': 'Use Mask',
+            'abs_flag_cube': 'Absorption Flag Cube',
+            'auto_setup': 'Auto Setup',
+            'sofia_abs_file': 'SoFiA-2 Absorption Par File',
+            'sofia_emi_file': 'SoFiA-2 Emission Par File',
+            'enable_sip': 'Enable SIP',
+            'sip_par_file': 'SIP Parameters File',
+            'enable_group': 'Enable Source Grouping',
+            'overlap_mode': 'Overlap Mode',
+            'overlap_threshold': 'Overlap Threshold'
+        }
+        
+        formatted_main = {}
+        for category, params in main_config.items():
+            cat_name = category_names.get(category, category.replace('_', ' ').title())
+            formatted_params = {}
+            for key, value in params.items():
+                display_name = param_names.get(key, key.replace('_', ' ').title())
+                if isinstance(value, bool):
+                    display_value = '✓' if value else '✗'
+                elif value is None:
+                    display_value = '—'
+                elif isinstance(value, list):
+                    display_value = ', '.join(str(v) for v in value) if len(value) <= 5 else f"[{len(value)} items]"
+                elif isinstance(value, dict):
+                    display_value = f"{{{len(value)} keys}}"
+                else:
+                    display_value = str(value)
+                
+                formatted_params[key] = {
+                    'name': display_name,
+                    'value': display_value,
+                    'raw_value': value
+                }
+            formatted_main[cat_name] = formatted_params
+        
+        # Download config
+        download_config = config_data.get('download_config')
+        formatted_download = None
+        if download_config:
+            formatted_download = {
+                'server': download_config.get('server', {}),
+                'query': download_config.get('query', {}),
+                'download_par': download_config.get('download_par', {}),
+                'other': download_config.get('other', {})
+            }
+        
+        return {
+            'main_config': formatted_main,
+            'download_config': formatted_download,
+            'config_file_used': config_data.get('config_file_used', 'Unknown')
+        }
 
 
     def _convert_eps_to_png(self, eps_path, png_path):

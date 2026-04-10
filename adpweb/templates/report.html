@@ -12,11 +12,12 @@
     <!-- Barra de pestañas superior -->
     <div> 
       <img src="images/Logo.png" width="40"/>
-      ADPALMAP report summary for the run X 
+      ESPADA report summary 
     </div>
     <div class="tabbar">
       <button class="tablink active" onclick="openTab(event, 'dataset')">Dataset list</button>
-      <button class="tablink" onclick="openTab(event, 'log')">ADPAlmaP Log</button>
+      <button class="tablink" onclick="openTab(event, 'log')">ESPADA Log</button>
+    <button class="tablink" onclick="openTab(event, 'configuration')">Configuration</button>
     </div>
   </div>
 
@@ -296,12 +297,159 @@
     {% endfor %}
   </div>
 
+  <!-- ESPADA Log -->
   <div id="log" class="tab-content">
     <pre class="full_log-box">{{ adp_log_content | e }}</pre>
   </div>
 
+  <!-- Configuration -->
+  <div id="configuration" class="tab-content">
+    <div style="padding: 20px;">
 
+      {% if config and config.main_config %}
+      <!-- Main Configuration Section -->
+      <div class="gallery-section">
+        <h3 class="section-title">📁 Main Configuration ({{ config.config_file_used if config else 'config.yaml' }})</h3>
+        
+        {% for category, params in config.main_config.items() %}
+        <div class="mode-container">
+          <h4 class="mode-title">{{ category }}</h4>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            {% for key, param in params.items() %}
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">{{ param.name }}</td>
+              <td style="padding: 8px 10px; color: #333;">
+                {% if param.raw_value is sameas true %}
+                  <span style="color: #28a745; font-weight: bold;">✓ Enabled</span>
+                {% elif param.raw_value is sameas false %}
+                  <span style="color: #dc3545; font-weight: bold;">✗ Disabled</span>
+                {% elif param.raw_value is none %}
+                  <span style="color: #6c757d; font-style: italic;">—</span>
+                {% elif param.raw_value is mapping %}
+                  <pre style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; margin: 0;">{{ param.raw_value | tojson(indent=2) }}</pre>
+                {% elif param.raw_value is iterable and param.raw_value is not string %}
+                  <details>
+                    <summary style="cursor: pointer; color: #4a90e2;">{{ param.raw_value | length }} items</summary>
+                    <ul style="margin: 5px 0 0 20px; padding: 0;">
+                      {% for item in param.raw_value %}
+                      <li>{{ item }}</li>
+                      {% endfor %}
+                    </ul>
+                  </details>
+                {% else %}
+                  <span title="{{ param.raw_value }}">{{ param.value }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
 
+      {% if config and config.download_config %}
+      <!-- Download Configuration Section -->
+      <div class="gallery-section" style="margin-top: 30px;">
+        <h3 class="section-title">📥 Download Configuration (download_par.yaml)</h3>
+        
+        <!-- Server -->
+        <div class="mode-container">
+          <h4 class="mode-title">Server</h4>
+          <table style="width: 100%; border-collapse: collapse;">
+            {% for key, value in config.download_config.server.items() %}
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">{{ key.replace('_', ' ') | title }}</td>
+              <td style="padding: 8px 10px;">
+                {% if value is sameas true %}
+                  <span style="color: #28a745; font-weight: bold;">✓ Enabled</span>
+                {% elif value is sameas false %}
+                  <span style="color: #dc3545; font-weight: bold;">✗ Disabled</span>
+                {% elif value is none %}
+                  <span style="color: #6c757d; font-style: italic;">—</span>
+                {% else %}
+                  {{ value }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+
+        <!-- Query -->
+        <div class="mode-container">
+          <h4 class="mode-title">Query</h4>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">Query Type</td>
+              <td style="padding: 8px 10px;">{{ config.download_config.query.query_type }}</td>
+            </tr>
+          </table>
+          
+          {% if config.download_config.query.query_par %}
+          <h5 style="margin: 15px 0 5px 20px; color: #495057;">Query Parameters</h5>
+          <table style="width: calc(100% - 40px); margin-left: 20px; border-collapse: collapse;">
+            {% for key, value in config.download_config.query.query_par.items() %}
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">{{ key }}</td>
+              <td style="padding: 8px 10px;">
+                {% if value is mapping %}
+                  <pre style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; margin: 0;">{{ value | tojson(indent=2) }}</pre>
+                {% elif value is iterable and value is not string %}
+                  {{ value | join(', ') }}
+                {% else %}
+                  {{ value }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+          {% endif %}
+        </div>
+
+        <!-- Download Parameters -->
+        <div class="mode-container">
+          <h4 class="mode-title">Download Parameters</h4>
+          <table style="width: 100%; border-collapse: collapse;">
+            {% for key, value in config.download_config.download_par.items() %}
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">{{ key.replace('_', ' ') | title }}</td>
+              <td style="padding: 8px 10px;">
+                {% if value is sameas true %}
+                  <span style="color: #28a745; font-weight: bold;">✓ Enabled</span>
+                {% elif value is sameas false %}
+                  <span style="color: #dc3545; font-weight: bold;">✗ Disabled</span>
+                {% elif value is none %}
+                  <span style="color: #6c757d; font-style: italic;">—</span>
+                {% elif value is iterable and value is not string %}
+                  {{ value | join(', ') }}
+                {% else %}
+                  {{ value }}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+
+        {% if config.download_config.other %}
+        <div class="mode-container">
+          <h4 class="mode-title">Other</h4>
+          <table style="width: 100%; border-collapse: collapse;">
+            {% for key, value in config.download_config.other.items() %}
+            <tr style="border-bottom: 1px solid #eaeaea;">
+              <td style="padding: 8px 10px; font-weight: 500; color: #2c3e50; width: 30%;">{{ key }}</td>
+              <td style="padding: 8px 10px;">{{ value }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  
   <script>
     // Tabs superiores
     function openTab(evt, tabName) {

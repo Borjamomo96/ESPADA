@@ -269,6 +269,44 @@ def worker_init(log_queue):
     Logger._logger_instance = logger
 
 
+def calculate_workers(data_pack_list, max_cores):
+    total_files = len(data_pack_list)
+    
+    #Estimación de memoria por proceso
+    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
+    avg_size = (total_size / total_files) if total_files > 0 else 0
+    #Memoria disponible en GB
+    mem_available = psutil.virtual_memory().available / 1024**3  
+    #Heurística: 2.25 x tamaño + 1GB base
+    relative_memory_used_sofia = 2.25
+    mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
+    max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
+    
+    max_cores_cpu = max_cores 
+    
+    max_workers = min(max_cores_cpu, max_workers_mem, total_files)
+    
+    return max_workers
+
+
+def calculate_sofia_threads(max_cores, max_workers):
+
+    cores_for_python = max_workers  # 1 core per worker
+    #cores_for_system = max(1, max_cores // 10)  # 10% for the system
+    
+    available_for_sofia = max_cores - cores_for_python #- cores_for_system
+    available_for_sofia = max(1, available_for_sofia)
+    
+    # Threads per worker
+    base_threads = max(1, available_for_sofia // max_workers)
+
+    # SoFiA efficiency limit
+    MAX_SOFIA_THREADS = 8
+    threads = min(base_threads, MAX_SOFIA_THREADS)
+
+    return threads
+
+
 def reorganize_log(log_path, worker_results):
 
     aux_logger = Initial_Logger.get_initial_logger()
@@ -521,42 +559,90 @@ def reorganize_log(log_path, worker_results):
         return sorted_log_path
 
 
-def calculate_workers(data_pack_list, max_cores):
-    total_files = len(data_pack_list)
-    
-    #Estimación de memoria por proceso
-    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
-    avg_size = (total_size / total_files) if total_files > 0 else 0
-    #Memoria disponible en GB
-    mem_available = psutil.virtual_memory().available / 1024**3  
-    #Heurística: 2.25 x tamaño + 1GB base
-    relative_memory_used_sofia = 2.25
-    mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
-    max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
-    
-    max_cores_cpu = max_cores 
-    
-    max_workers = min(max_cores_cpu, max_workers_mem, total_files)
-    
-    return max_workers
+def _build_configuration_dict(adpalmap_config, adpalmap_datap):
+    """
+    Build a dictionary with the configuration used in the execution.
+    """
+    def _safe_serialize(obj):
+        """
+        Converts non-serializable objects to a string or safe representation.
+        """
+        if isinstance(obj, Path):
+            return str(obj)
+        elif isinstance(obj, (str, int, float, bool, list, dict, type(None))):
+            return obj
+        else:
+            return str(obj)
 
+    def _dict_from_obj(obj, exclude_prefix='_'):
+        """
+        Converts an object's attributes to a dictionary, excluding those that begin with a prefix.
+        """
+        result = {}
+        for key, value in obj.__dict__.items():
+            if key.startswith(exclude_prefix):
+                continue
+            result[key] = _safe_serialize(value)
+        return result
 
-def calculate_sofia_threads(max_cores, max_workers):
-
-    cores_for_python = max_workers  # 1 core per worker
-    #cores_for_system = max(1, max_cores // 10)  # 10% for the system
     
-    available_for_sofia = max_cores - cores_for_python #- cores_for_system
-    available_for_sofia = max(1, available_for_sofia)
+    main_config_raw = _dict_from_obj(adpalmap_config)
     
-    # Threads per worker
-    base_threads = max(1, available_for_sofia // max_workers)
+    
+    categories = {
+        'general': ['make_report', 'verbose', 'num_cores', 'output_dir'],
+        'logger': ['clear_logs', 'log_file'],
+        'input_data': ['input_data_set', 'input_file'],
+        'tap_service': ['enable_tap_service', 'download_par_file'],
+        'sofia': ['enable_sofia', 'run_mode', 'use_mask', 'abs_flag_cube', 
+                  'auto_setup', 'sofia_abs_file', 'sofia_emi_file'],
+        'sip': ['enable_sip', 'sip_par_file'],
+        'group': ['enable_group', 'overlap_mode', 'overlap_threshold']
+    }
+    
+    categorized_main = {}
+    for category, keys in categories.items():
+        cat_dict = {}
+        for key in keys:
+            if key in main_config_raw:
+                cat_dict[key] = main_config_raw.pop(key)
+        if cat_dict:
+            categorized_main[category] = cat_dict
+    
+    # Any remaining parameters (if any) go to 'other'
+    if main_config_raw:
+        categorized_main['other'] = main_config_raw
 
-    # SoFiA efficiency limit
-    MAX_SOFIA_THREADS = 8
-    threads = min(base_threads, MAX_SOFIA_THREADS)
+    # Configuración de descarga (solo si se usó TAP)
+    download_config = None
+    if adpalmap_config.enable_tap_service and adpalmap_datap is not None:
+        download_config_raw = _dict_from_obj(adpalmap_datap)
+        # Organize download_config into subcategories
+        server_keys = ['server_address', 'credentials', 'stored_credentials']
+        query_keys = ['query_type', 'query_par']
+        download_par_keys = ['download_par']
+        
+        server = {k: download_config_raw.get(k) for k in server_keys if k in download_config_raw}
+        query = {k: download_config_raw.get(k) for k in query_keys if k in download_config_raw}
+        download_par = download_config_raw.get('download_par', {})
+        
+        
+        other_download = {k: v for k, v in download_config_raw.items() 
+                          if k not in server_keys + query_keys + download_par_keys}
+        
+        download_config = {
+            'server': server,
+            'query': query,
+            'download_par': download_par
+        }
+        if other_download:
+            download_config['other'] = other_download
 
-    return threads
+    return {
+        'main_config': categorized_main,
+        'download_config': download_config,
+        'config_file_used': str(adpalmap_config._config_path) if hasattr(adpalmap_config, '_config_path') else 'config.yaml'
+    }
 
 
 def process_data(id_number,
@@ -1107,6 +1193,7 @@ def main():
     worker_results = []
     worker_exceptions = []
     adpalmap_config = None
+    adpalmap_datap = None
 
     start = 0
     start_date = 0
@@ -1368,6 +1455,10 @@ def main():
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
 
     finally:
+        
+        if log_flag:
+                log_path = Logger.get_log_filename()
+                adp_log = reorganize_log(log_path, worker_results)
 
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
@@ -1389,7 +1480,7 @@ def main():
                 'duration_seconds': round(finish-start, 2),
                 
                 # Configuration used
-                'config_used': adpalmap_config.__dict__,
+                'configuration': _build_configuration_dict(adpalmap_config, adpalmap_datap),
                 
                 # System info
                 'environment': {
@@ -1421,9 +1512,6 @@ def main():
 
             adpalmap_report.generate_html()
 
-        if log_flag:
-            log_path = Logger.get_log_filename()
-            adp_log = reorganize_log(log_path, worker_results)
 
     ##############################################################################################
         # Shutdown of the ProcessPoolExecutor if it exists
