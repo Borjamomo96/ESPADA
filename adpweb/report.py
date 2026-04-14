@@ -18,17 +18,24 @@ logger= Logger.get_logger()
 
 class Report:
 
-    def __init__(self, output_dir, worker_results, template, adp_log, pipeline_metadata=None, config=None):
+    def __init__(
+        self, output_dir, worker_results, template, 
+        raw_log_path=None, organized_log_path=None, 
+        pipeline_metadata=None, config=None
+    ):
 
         self.worker_results = worker_results
         self.template = template
-        self.adp_log = adp_log
+        self.raw_log_path = raw_log_path if raw_log_path else None
+        self.organized_log_path = organized_log_path if organized_log_path else None
         self.pipeline_metadata = pipeline_metadata
         self.config = config
 
         # Log content
-        self.adp_log_content = self._read_log_file(adp_log)
-
+        self.raw_log_content = self._read_log_file(self.raw_log_path) if self.raw_log_path else ""
+        self.organized_log_content = ""
+        if self.organized_log_path:
+            self.organized_log_content = self._read_log_file(self.organized_log_path)
 
         # Directories
         base_dir = output_dir / "report"
@@ -375,11 +382,23 @@ class Report:
         try:
             # Parse data if it is not already parsed
             parsed_data = self.parse_report()
+
+            # Use placeholder if there is no organized_log_content
+            if self.organized_log_content:
+                organized_log_display = self.organized_log_content
+            else:
+                organized_log_display = "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___"            
             
             # Add ADP log content
-            parsed_data['adp_log'] = {
-                'log_path': str(self.adp_log) if self.adp_log else None,
-                'log_content': self.adp_log_content
+            parsed_data['logs'] = {
+                'raw_log': {
+                    'path': str(self.raw_log_path) if self.raw_log_path else None,
+                    'content': self.raw_log_content
+                },
+                'organized_log': {
+                    'path': str(self.organized_log_path) if self.organized_log_path else None,
+                    'content': organized_log_display
+                }
             }
             
             # Generate JSON file
@@ -417,11 +436,18 @@ class Report:
             
             # Copy images
             self.setup_images()
-            
+
+            # Use placeholder if there is no organized_log_content
+            if self.organized_log_content:
+                organized_log_display = self.organized_log_content
+            else:
+                organized_log_display = "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___"
+
     
             html_content = template.render(
                 datasets=html_datasets,
-                adp_log_content=self.adp_log_content,
+                raw_log_content=self.raw_log_content,
+                organized_log_content=organized_log_display,
                 config=html_config
             )
 
@@ -788,6 +814,85 @@ class Report:
         return self.parsed_data
 
 
+    def inject_organized_log(self, organized_log_path, html_path, json_path):
+        """
+        Injects the contents of the organized log into a pre-generated HTML file.
+
+        Args:
+        organized_log_path: Path to the organized log file (*.log)
+        html_path: Path to the HTML file to be modified
+        """
+        
+        try:
+
+            # Read the organized log
+            organized_content = self._read_log_file(organized_log_path)
+            if not organized_content:
+                logger.warning("Organized log content is empty, skipping injection")
+                return
+        
+        ##############################################################################################
+        
+            # Read existing HTML
+            html_path = Path(html_path)
+            if not html_path.exists():
+                logger.error(f"HTML file not found: {html_path}")
+                return
+            
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            # Replace the placeholder
+            if "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___" not in html_content:
+                logger.warning("Placeholder not found in HTML, organized log not injected")
+                return
+            
+            html_content = html_content.replace(
+                "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___",
+                organized_content
+            )
+            
+            # Atomic writing
+            temp_path = html_path.with_suffix(".tmp")
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            temp_path.replace(html_path)
+            
+            logger.info(f"Organized log injected into HTML report: {html_path}")
+
+        ##############################################################################################
+
+            # Read existing JSON
+            json_path = Path(json_path)
+            if not json_path.exists():
+                logger.warning(f"JSON file not found: {json_path}")
+                return
+            
+            with open(json_path, 'r', encoding='utf-8') as f:
+                json_content = f.read()
+            
+            if "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___" not in json_content:
+                logger.warning("Placeholder not found in JSON, skipping JSON injection")
+                return
+            
+            # Escapar el contenido para JSON (la función json.dumps lo hace automáticamente)
+            escaped_content = json.dumps(organized_content)[1:-1]  # Quita las comillas externas
+            json_content = json_content.replace(
+                "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___",
+                escaped_content
+            )
+
+            temp_json = json_path.with_suffix(".tmp")
+            with open(temp_json, 'w', encoding='utf-8') as f:
+                f.write(json_content)
+            temp_json.replace(json_path)
+
+            logger.info(f"Organized log injected into JSON: {json_path}")
+        
+        ##############################################################################################
+
+        except Exception as e:
+            logger.error(f"Error injecting organized log into HTML: {e}")
 
 
 

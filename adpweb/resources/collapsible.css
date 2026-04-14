@@ -76,3 +76,60 @@
     padding-top: 10px;
     padding-bottom: 10px;
 }
+
+/* Subpestañas dentro del log */
+.log-tabbar {
+  overflow: hidden;
+  border-bottom: 1px solid #ccc;
+  background-color: #f8f9fa;
+  padding: 0 10px;
+}
+
+.log-tablink {
+  background-color: inherit;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  transition: 0.3s;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+  border-bottom: 3px solid transparent;
+}
+
+.log-tablink:hover {
+  color: #495057;
+  background-color: #e9ecef;
+}
+
+.log-tablink.active {
+  color: #4a90e2;
+  border-bottom: 3px solid #4a90e2;
+}
+
+.log-tab-content {
+  display: none;
+  padding: 15px 0;
+}
+
+.log-tab-content.active {
+  display: block;
+}
+
+.full_log-box {
+  background-color: #f4f6f9;      /* Gris azulado muy claro */
+  color: #1a1a2e;                 /* Texto oscuro suave */
+  border: 1px solid #d1d9e6;      /* Borde sutil */
+  padding: 15px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}

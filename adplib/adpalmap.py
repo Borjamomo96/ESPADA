@@ -308,11 +308,10 @@ def calculate_sofia_threads(max_cores, max_workers):
 
 
 def reorganize_log(log_path, worker_results):
-
-    aux_logger = Initial_Logger.get_initial_logger()
     
     try:
         
+        aux_logger = Initial_Logger()
     ##############################################################################################
 
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -348,20 +347,37 @@ def reorganize_log(log_path, worker_results):
 
     ##############################################################################################
 
-        for i, line in enumerate(lines):
-            
+        for line in lines:
+            pid_match = pid_pattern.search(line)
+            if pid_match:
+                main_pid = pid_match.group(1)
+                break
+
+        pid_groups[main_pid] = []
+        pid_group_flags[main_pid] = False
+
+    ##############################################################################################
+
+        for i, line in enumerate(lines):      
             pid_match = (pid_pattern.search(line))
 
             # For lines without PID ([PID]). There are a few
             if pid_match is None:
+                # Asignar al proceso principal
+                current_pid = main_pid
+                
+                if "ESPADA ended" in line:
+                    main_final.append(line)
+                    final_block = True
+                elif not final_block:
+                    pid_groups[main_pid].append(line)
+                else:
+                    main_final.append(line)
                 continue
 
             current_pid = pid_match.group(1)
             if current_pid not in pid_groups:
-                if not main_pid:
-                    main_pid = current_pid
                 pid_groups[current_pid] = []
-                # Iniciate the flag for this PID (False = before group)
                 pid_group_flags[current_pid] = False
 
             if "ESPADA ended" in line:
@@ -369,7 +385,6 @@ def reorganize_log(log_path, worker_results):
                 final_block = True
             else:    
                 if final_block == False:
-
                     pid_groups[current_pid].append(line)
                     sofia_match = sofia_start_pattern.search(line)
                     sip_match = sip_start_pattern.search(line)
@@ -1096,11 +1111,11 @@ def process_data(id_number,
                         raise     
          
                 if do_group_absorption:
-                    Logger.raw("================================") 
+                    #Logger.raw("================================") 
                     logger.info(
                         f"Source Grouping start. Mode: absorption. Input data: {input_data}"
                     )
-                    Logger.raw("================================")
+                    #Logger.raw("================================")
                     # Find the 3D mask from SoFiA-2
                     abs_group_mask = adpalmap_group.find_mask_sofia(
                         sopar=adpalmap_sopar_abs, mode="absorption"
@@ -1110,9 +1125,9 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             adpalmap_sopar_abs.input_data, abs_group_mask
                         )
-                        Logger.raw("================================")
+                        #Logger.raw("================================")
                         logger.info("Source Grouping finished")
-                        Logger.raw("================================")
+                        #Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
                             adpalmap_sopar_abs.update_group_parameters(group_mask)
@@ -1125,11 +1140,11 @@ def process_data(id_number,
 
                 
                 if do_group_emission:
-                    Logger.raw("================================") 
+                    #Logger.raw("================================") 
                     logger.info(
                         f"Source Grouping start. Mode: emission. Input data: {input_data}"
                     )
-                    Logger.raw("================================")
+                    #Logger.raw("================================")
                     # Find the 3D mask from SoFiA-2
                     emi_group_mask = adpalmap_group.find_mask_sofia(
                         sopar=adpalmap_sopar_emi, mode="emission"
@@ -1140,9 +1155,9 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             adpalmap_sopar_emi.input_data, emi_group_mask
                         )
-                        Logger.raw("================================")
+                        #Logger.raw("================================")
                         logger.info("Source Grouping finished")
-                        Logger.raw("================================")
+                        #Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
                             adpalmap_sopar_emi.update_group_parameters(group_mask)
@@ -1188,6 +1203,9 @@ def process_data(id_number,
 
 
 def main():
+    
+    ilogger = Initial_Logger()
+    current_logger = ilogger
 
     log_flag = False
     worker_results = []
@@ -1237,6 +1255,10 @@ def main():
             help="Displays detailed information about a file or parameter. Example: "
             "-i file=config.yaml or -i parameter=fitsonly"
         )
+        parser.add_argument(
+            '--debug', action='store_true', 
+                            help="Enable debug mode (shows full tracebacks)"
+        )
 
         args = parser.parse_args()
         
@@ -1245,15 +1267,21 @@ def main():
         if args.info:
             show_info(args.info)
             sys.exit(-1)
+        debug_mode = args.debug
 
     ##############################################################################################
 
     ##############################################################################################
 
-        ini_logger = Initial_Logger.get_initial_logger()
-        
+        if debug_mode:
+            ilogger.logger.setLevel(logging.DEBUG)
+            ilogger.debug("Debug mode enabled")
+        else:
+            ilogger.logger.setLevel(logging.INFO)    
+
+
         if (args.config_file is None):
-            ini_logger.warning(
+            ilogger.warning(
                 "No config.yaml file specified, default config.yaml file will be used"
             )
             adpalmap_config = Config()
@@ -1269,12 +1297,14 @@ def main():
             output_dir=adpalmap_config.output_dir,
             log_path=adpalmap_config.log_file, 
             clear_logs=adpalmap_config.clear_logs,
-            queue=log_queue
+            queue=log_queue,
+            debug_mode=debug_mode 
         )
 
         queue_listener = QueueListener(log_queue, *logger.handlers) 
         queue_listener.start() 
 
+        current_logger = logger
     ############################################################################################## 
         logger.info("ESPADA start point")
 
@@ -1418,8 +1448,6 @@ def main():
                 #Errores salvables. El resto de procesos sigue corriendo
                 except RecoverableError as e:  
                     worker_exceptions.append(e)
-                    #Quitando esta línea eliminamos el traceback
-                    Logger.raw(format_exc())
                 #Errores criticos
                 except ConfigurationError as e:  
                     worker_exceptions.append(e)
@@ -1454,11 +1482,54 @@ def main():
         finish, finish_date = time.perf_counter(), datetime.now().isoformat()
         logger.info(f"Execution time: {round(finish-start, 2)} second(s)") 
 
+    ##############################################################################################
+
+    except ConfigurationError as e:
+        current_logger.error(f"Pipeline aborted due to configuration error: {e}")
+        if debug_mode:
+            current_logger.debug(format_exc())
+        sys.exit(1)
+
+    except FileNotFoundError as e:
+        current_logger.error(f"Required file not found: {e}")
+        if debug_mode:
+            current_logger.debug(format_exc())
+        sys.exit(1)
+
+    except ValueError as e:
+        current_logger.error(f"Invalid value encountered: {e}")
+        if debug_mode:
+            current_logger.debug(format_exc())
+        sys.exit(1)
+
+    except RuntimeError as e:
+        current_logger.critical(f"Runtime error: {e}")
+        if debug_mode:
+            current_logger.debug(format_exc())
+        sys.exit(1)
+
+    except KeyboardInterrupt:
+        current_logger.warning("Pipeline interrupted by user")
+        sys.exit(1)
+
+    except Exception as e:
+        current_logger.critical(
+            f"Unexpected error: {e}. "
+                "Please open an issue on GitHub "
+                "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                "specific case."
+        )
+        if debug_mode:
+            current_logger.debug(format_exc())
+        sys.exit(1)
+    
+    ##############################################################################################
+
     finally:
-        
-        if log_flag:
-                log_path = Logger.get_log_filename()
-                adp_log = reorganize_log(log_path, worker_results)
+
+    ##############################################################################################
+        html_path = None
+        raw_log_path = Logger.get_log_filename() if log_flag else None
 
         if adpalmap_config is not None and adpalmap_config.make_report:
             from adpweb.report import Report
@@ -1473,15 +1544,12 @@ def main():
                 'pipeline_name': 'ADP-ALMA-Pipeline',
                 'pipeline_version': 1.0, # get_pipeline_version() to be developed
                 'run_id': f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                
                 # Execution time
                 'start_time': start_date,
                 'end_time': finish_date,
                 'duration_seconds': round(finish-start, 2),
-                
                 # Configuration used
                 'configuration': _build_configuration_dict(adpalmap_config, adpalmap_datap),
-                
                 # System info
                 'environment': {
                     'python_version': sys.version,
@@ -1489,7 +1557,6 @@ def main():
                     'username': os.getenv('USER', 'unknown'),
                     'working_directory': str(Path.cwd())
                 },
-                
                 # Resources
                 'resource_info': {
                     'cpus_available': os.cpu_count(),
@@ -1503,15 +1570,23 @@ def main():
                 output_dir=adpalmap_config.output_dir,
                 worker_results=worker_results,  
                 template=template,
-                adp_log=adp_log,
+                raw_log_path=raw_log_path,
+                organized_log_path=None,
                 pipeline_metadata=pipeline_metadata,
                 config=adpalmap_config  
             )
             
-            adpalmap_report.generate_json()
+            json_path = adpalmap_report.generate_json()
 
-            adpalmap_report.generate_html()
+            html_path = adpalmap_report.generate_html()
+    ##############################################################################################
 
+        organized_log_path = None
+        if log_flag:
+            organized_log_path = reorganize_log(raw_log_path, worker_results)
+
+        if html_path and organized_log_path and adpalmap_report:
+            adpalmap_report.inject_organized_log(organized_log_path, html_path, json_path)
 
     ##############################################################################################
         # Shutdown of the ProcessPoolExecutor if it exists

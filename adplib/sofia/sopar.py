@@ -819,12 +819,12 @@ class SoPar(dict):
         try:
             # Safe in the log the parameters fotr the run 
             self.log_parameters()
-            Logger.raw("================================")
+            #Logger.raw("================================")
             logger.info(
                 f"SoFia start. Mode: {self.mode}. Input data: "
                 f"{Path(self.input_data).stem}"
             )
-            Logger.raw("================================")
+            #Logger.raw("================================")
 
             # Execute SoFiA-2 
             cmd = ["sofia", f"{temp_file_path}"]
@@ -834,9 +834,9 @@ class SoPar(dict):
                 check=True,
                 capture_output=not self.adpalmap_config.verbose
             )
-            Logger.raw("================================")
+            #Logger.raw("================================")
             logger.info(f"SoFia finished. Mode: {self.mode}")
-            Logger.raw("================================")
+            #Logger.raw("================================")
 
             # Safe the 3D-mask for the group module
             if self.adpalmap_config.enable_group:

@@ -1,6 +1,8 @@
 import logging
 import os
+import sys
 import inspect
+from collections import deque
 from pathlib import Path
 from datetime import datetime
 from logging.handlers import QueueHandler
@@ -27,34 +29,39 @@ class ColoredFormatter(logging.Formatter):
 
 
 class Initial_Logger:
-    _logger_instance = None  # Variable de clase para almacenar la instancia del logger
+    _instance = None
+    _buffer = deque(maxlen=1000)  
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._setup()
+        return cls._instance
+    
+    def _setup(self):
+        self.logger = logging.getLogger("initial_espada_logger")
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.propagate = False
 
-    @classmethod
-    def initial_setup_logger(cls):
-        
-        if cls._logger_instance is None:
-            logger = logging.getLogger("initial_espada_logger")
-            logger.setLevel(logging.INFO)
-
-            # Configuración básica (solo consola)
-            console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.INFO)
-            console_handler.setFormatter(ColoredFormatter())
-
-            if logger.hasHandlers():
-                logger.handlers.clear()
-
-            logger.addHandler(console_handler)
-
-            cls._logger_instance = logger
-
-
-    @classmethod
-    def get_initial_logger(cls):
-        
-        if cls._logger_instance is None:
-            cls.initial_setup_logger()
-        return cls._logger_instance
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(ColoredFormatter()) 
+        self.logger.addHandler(handler)
+    
+    def _log(self, level, msg):
+        self.logger.log(level, msg)
+        self._buffer.append((level, msg, datetime.now()))
+    
+    def debug(self, msg): self._log(logging.DEBUG, msg)
+    def info(self, msg): self._log(logging.INFO, msg)
+    def warning(self, msg): self._log(logging.WARNING, msg)
+    def error(self, msg): self._log(logging.ERROR, msg)
+    def critical(self, msg): self._log(logging.CRITICAL, msg)
+    
+    def get_buffer(self):
+        return list(self._buffer)
+    
+    def clear_buffer(self):
+        self._buffer.clear()
 
 
 RAW_LEVEL = 15
@@ -74,16 +81,20 @@ class Logger:
     _log_path = None
 
     @classmethod
-    def setup_logger(cls, output_dir=None, log_path="espada.log", clear_logs=False, queue=None):
+    def setup_logger(
+        cls, output_dir=None, log_path="espada.log", 
+        clear_logs=False, queue=None, early_buffer=None, debug_mode=False
+    ):
         
         logger = logging.getLogger("espada_logger")
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
         timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
         log_path_obj = Path(log_path).expanduser()
 
         warning_messages = []
 
+    ##############################################################################################
         if log_path_obj.is_absolute():
             try:
                 abs_output_dir = output_dir.resolve()
@@ -135,10 +146,10 @@ class Logger:
             final_log_path.parent.mkdir(parents=True, exist_ok=True)
             with open(final_log_path, 'w') as file:
                 file.write("")
-
+    ##############################################################################################
         
         file_handler = logging.FileHandler(final_log_path, encoding='utf-8')
-        file_handler.setLevel(RAW_LEVEL)
+        file_handler.setLevel(logging.DEBUG if debug_mode else RAW_LEVEL)
         file_handler.setFormatter(
             CustomFormatter(
                 "%(asctime)s | %(levelname)s | [PID:%(process)d] %(module)s: - %(message)s"
@@ -148,9 +159,10 @@ class Logger:
         # formato no lo entiende bien. 
         
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        console_handler.setLevel(logging.DEBUG if debug_mode else logging.INFO)
         console_handler.setFormatter(ColoredFormatter())
-        console_handler.addFilter(lambda record: record.levelno >= logging.INFO)
+        if not debug_mode:
+            console_handler.addFilter(lambda record: record.levelno >= logging.INFO)
 
         
         if logger.hasHandlers():
@@ -163,15 +175,44 @@ class Logger:
         cls._log_queue = queue
         cls._log_path = final_log_path
 
+    ##############################################################################################
+
+        # Dump Initial_Logger buffer to file
+        early_logger = Initial_Logger()
+        early_buffer = early_logger.get_buffer()
+        
+        for level, msg, dt in early_buffer:
+            record = logging.LogRecord(
+                name="espada_logger",
+                level=level,
+                pathname="",
+                lineno=0,
+                msg=msg,
+                args=(),
+                exc_info=None
+            )
+            record.module = "init"  # Generic module for early messages
+            record.created = dt.timestamp()  
+            
+            file_handler.handle(record)
+
+        early_logger.clear_buffer()
+
+        # Issue accumulated warnings during setup
         for msg in warning_messages:
             logger.warning(msg)
 
 
     @classmethod
-    def get_logger(cls, output_dir=None, log_path="espada.log", clear_logs=False, queue=None):
+    def get_logger(
+        cls, output_dir=None, log_path="espada.log", clear_logs=False, queue=None, debug_mode=False
+    ):
         
         if cls._logger_instance is None:
-            cls.setup_logger(output_dir, log_path=log_path, clear_logs=clear_logs, queue=queue)
+            cls.setup_logger(
+                output_dir, log_path=log_path, clear_logs=clear_logs, 
+                queue=queue, debug_mode=debug_mode
+                )
         return cls._logger_instance
     
 

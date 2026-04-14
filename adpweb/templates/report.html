@@ -297,9 +297,20 @@
     {% endfor %}
   </div>
 
-  <!-- ESPADA Log -->
+  <!-- ESPADA Log  -->
   <div id="log" class="tab-content">
-    <pre class="full_log-box">{{ adp_log_content | e }}</pre>
+    <div class="log-tabbar">
+      <button class="log-tablink active" onclick="openLogTab(event, 'raw-log')">Raw Log (Chronological)</button>
+      <button class="log-tablink" onclick="openLogTab(event, 'organized-log')">Organized Log (by PID)</button>
+    </div>
+    
+    <div id="raw-log" class="log-tab-content active">
+      <pre class="full_log-box">{{ raw_log_content | e }}</pre>
+    </div>
+    
+    <div id="organized-log" class="log-tab-content">
+      <pre class="full_log-box">{{ organized_log_content | e }}</pre>
+    </div>
   </div>
 
   <!-- Configuration -->
@@ -522,6 +533,23 @@
       logBox.appendChild(preElement);
     }
 
+    // Función para subpestañas del log
+    function openLogTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      
+      tabcontent = document.getElementsByClassName("log-tab-content");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove("active");
+      }
+      
+      tablinks = document.getElementsByClassName("log-tablink");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+      }
+      
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
 
     function showPar(btn) {
       var li = btn.closest('li');
@@ -550,15 +578,15 @@
 
 
     function toggleSource(button) {
-    const container = button.nextElementSibling;
-    container.classList.toggle('active');
-    // Cambiar el icono del botón
-    if (container.classList.contains('active')) {
-        button.innerHTML = button.innerHTML.replace('▼', '▲');
-    } else {
-        button.innerHTML = button.innerHTML.replace('▲', '▼');
+      const container = button.nextElementSibling;
+      container.classList.toggle('active');
+      // Cambiar el icono del botón
+      if (container.classList.contains('active')) {
+          button.innerHTML = button.innerHTML.replace('▼', '▲');
+      } else {
+          button.innerHTML = button.innerHTML.replace('▲', '▼');
+      }
     }
-}
   </script>
 </body>
 </html>

@@ -4,7 +4,7 @@ from pathlib import Path
 
 # Logger:
 from adplib.logger import Initial_Logger
-logger = Initial_Logger.get_initial_logger()
+ilogger = Initial_Logger()
 
 
 def parse_single_dataset(data_set, id):
@@ -175,7 +175,7 @@ class Config(dict):
                     " included at https://gitlab.com/adp-group1/adp-alma-pipeline"
                 )
             else:
-                logger.info(f"The file in {config_path} have been loaded successfully")
+                ilogger.info(f"The file in {config_path} have been loaded successfully")
                    
         elif config_path is not None:
             
@@ -184,7 +184,7 @@ class Config(dict):
             if not self.config_path.exists():
                 raise FileNotFoundError(f"Config file {self.config_path} not found.")
             else:
-                logger.info(f"The file in {self.config_path} have been loaded successfully")
+                ilogger.info(f"The file in {self.config_path} have been loaded successfully")
 
         else:
             
@@ -260,7 +260,7 @@ class Config(dict):
             if hasattr(self, param):
                 value = getattr(self, param)
                 if not isinstance(value, expected_type):
-                    print(type(value), value)
+                    
                     raise ValueError(
                         f"The parameter '{param}' in the config.yaml file must be of "
                         f"type {expected_type}, but is of type {type(value)}."

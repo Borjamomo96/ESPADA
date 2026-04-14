@@ -809,7 +809,7 @@ class SiPar(dict):
         error = ''
         try:
             
-            Logger.raw("================================")
+            #Logger.raw("================================")
             if self.adpalmap_config.run_mode == "both" and run!=0:
                 logger.info(f"SIP start. Mode: absorption. Input data: {self.input_data.stem}")
             elif self.adpalmap_config.run_mode == "both" and run==0:
@@ -819,7 +819,7 @@ class SiPar(dict):
                     f"SIP start. Mode: {self.adpalmap_config.run_mode}. "
                     f"Input data: {self.input_data.stem}"
                 )
-            Logger.raw("================================")
+            #Logger.raw("================================")
 
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
             
@@ -831,9 +831,9 @@ class SiPar(dict):
                 capture_output=not self.adpalmap_config.verbose
                 )       
                                
-            Logger.raw("================================")
+            #Logger.raw("================================")
             logger.info(f"SIP finished.")
-            Logger.raw("================================")
+            #Logger.raw("================================")
             
             # Add output to SIP report 
             if self.adpalmap_config.make_report:
