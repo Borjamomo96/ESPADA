@@ -68,16 +68,64 @@
             <!-- Sección QA -->
             <div class="gallery-section">
                 <h3 class="section-title">QA Images</h3>
-                <div class="image-gallery-qa">
-                    {% for img in dataset.images_grouped.qa %}
-                    <div class="img-container-qa">
-                        <img src="{{ img.path }}" alt="{{ img.description }}">
-                        <div class="img-desc">{{ img.description }}</div>
+                  {% for mode, qa_data in dataset.qa_by_mode.items() %}
+                <div class="mode-container">
+                    <h4 class="mode-title">{{ mode | capitalize }} Mode</h4>
+                    
+                    <div class="qa-mode-content">
+                        <div class="qa-stats-column">
+                          <!-- Estadísticas del ruido -->
+                          {% if qa_data.cube_statistics %}
+                          <div class="cube-stats-box">
+                              <h4>Cube Noise Statistics</h4>
+                              <table>
+                                  <tr><td>Mean:</td><td>{{ qa_data.cube_statistics.NoiseMean | round(6) if qa_data.cube_statistics.NoiseMean is defined else '—' }}</td></tr>
+                                  <tr><td>Std Dev:</td><td>{{ qa_data.cube_statistics.NoiseStd | round(6) if qa_data.cube_statistics.NoiseStd is defined else '—' }}</td></tr>
+                                  <tr><td>Skewness:</td><td>{{ qa_data.cube_statistics.NoiseSkew | round(6) if qa_data.cube_statistics.NoiseSkew is defined else '—' }}</td></tr>
+                                  <tr><td>Kurtosis:</td><td>{{ qa_data.cube_statistics.NoiseKurt | round(6) if qa_data.cube_statistics.NoiseKurt is defined else '—' }}</td></tr>
+                                  <tr><td>Sources detected:</td><td>{{ qa_data.cube_statistics.n_sources if qa_data.cube_statistics.n_sources is defined else '—' }}</td></tr>
+                              </table>
+                          </div>
+                          {% endif %}
+                          
+                          <!-- Comparación de máscaras -->
+                          {% if qa_data.mask_comparison %}
+                          <div class="mask-comparison-box">
+                              <h4>Mask Comparison (Global)</h4>
+                              <table>
+                                  <tr><td>SoFiA mask pixels:</td><td>{{ qa_data.mask_comparison.npix_sofia }}</td></tr>
+                                  <tr><td>Provided mask pixels:</td><td>{{ qa_data.mask_comparison.npix_provided }}</td></tr>
+                                  <tr><td>Overlap pixels:</td><td>{{ qa_data.mask_comparison.npix_overlap }}</td></tr>
+                                  <tr><td>Pixel overlap fraction:</td><td>{{ qa_data.mask_comparison.pixel_overlap_fraction }}% of SoFiA</td></tr>
+                                  <tr><td>SoFiA total flux:</td><td>{{ qa_data.mask_comparison.flux_sofia }}</td></tr>
+                                  <tr><td>Provided mask total flux:</td><td>{{ qa_data.mask_comparison.flux_provided }}</td></tr>
+                                  <tr><td>Flux overlap fraction:</td><td>{{ qa_data.mask_comparison.flux_overlap_fraction }}% of SoFiA</td></tr>
+                              </table>
+                          </div>
+                          {% endif %}
+                      </div>
+                        
+                        <!-- Imágenes QA -->
+                        {% if qa_data.images %}
+                        <div class="image-gallery-qa">
+                            {% for img in qa_data.images %}
+                            <div class="img-container-qa">
+                                <img src="{{ img.path }}" alt="{{ img.description }}">
+                                <div class="img-desc">{{ img.description }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="placeholder">No QA images available for this mode</div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="placeholder">No QA images available</div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
+                
+                <!-- Fallback si no hay QA en ningún modo -->
+                {% if not dataset.qa_by_mode %}
+                <div class="placeholder">No QA data available</div>
+                {% endif %}
             </div>
 
 

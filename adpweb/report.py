@@ -108,6 +108,7 @@ class Report:
             all_software = []
             input_data = None
             images = []
+            qa_by_mode = {}
             error_exist = False
             warning_exist = False
             #######################################################################################    
@@ -125,15 +126,34 @@ class Report:
                     # Grouo flag
                     is_group = software_list is dataset_tuple[3]
                     
-                    # Skip QA processing (this is done in other part)
+                    
                     if sw['software_id'] == 'QA':
+                        mode = sw.get('mode', '')
+                        if mode not in qa_by_mode:
+                            qa_by_mode[mode] = {
+                                'cube_statistics': {},
+                                'mask_comparison': {},
+                                'images': []
+                            }
+
+                        cube_stats = sw.get('cube_statistics', {})
+                        mask_comparison = sw.get('mask_comparison', {})
+
+                        if cube_stats:
+                            qa_by_mode[mode]['cube_statistics'] = cube_stats
+                        if mask_comparison:
+                            qa_by_mode[mode]['mask_comparison'] = mask_comparison
+
                         if 'outputs' in sw and 'images' in sw['outputs']:
                             for img in sw['outputs']['images']:
                                 img['is_qa'] = True
-                                img['software-id'] = 'qa'  
-                            images.extend(sw['outputs']['images'])
+                                img['software-id'] = 'qa'
+                                img['mode'] = mode
+                                qa_by_mode[mode]['images'].append(img)
+                                images.append(img)
+                            
                         continue
-                    
+            
                     
                     error = sw.get('error', '')
                     warnings = sw.get('warning_number', 2)  # CAMBIAR EN UN FUTURO POR EL Nº REAL
@@ -248,7 +268,9 @@ class Report:
                 'images_grouped': self._organize_images_for_html(images),
                 # Status general
                 'status': 'error' if error_exist else 'warning' if warning_exist else 'ok',
+                'qa_by_mode': qa_by_mode
             }
+
             #######################################################################################
             
             parsed_data['datasets'].append(dataset_complete)
@@ -798,7 +820,8 @@ class Report:
             'status': dataset['status'],
             'softwares': html_softwares,
             'images': dataset['images'],
-            'images_grouped': dataset['images_grouped']
+            'images_grouped': dataset['images_grouped'],
+            'qa_by_mode': dataset.get('qa_by_mode', {}) 
         }
         
         self._html_summary_cache[dataset_id] = html_summary

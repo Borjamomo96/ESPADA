@@ -133,3 +133,160 @@
   white-space: pre-wrap;
   word-wrap: break-word;
 }
+
+/* Contenedor del contenido QA por modo */
+.qa-mode-content {
+    display: flex;
+    align-items: center;          /* Centrado vertical */
+    gap: 25px;
+    flex-wrap: wrap;
+    padding: 5px 0;
+}
+
+/* Recuadro de estadísticas del cubo */
+.cube-stats-box {
+    flex: 0 0 auto;
+    min-width: 260px;
+    margin-left: 20px;            /* Margen a la izquierda */
+    background-color: #f8f9fa;    /* Fondo gris muy claro */
+    border: 1px solid #dee2e6;    /* Borde sutil */
+    border-radius: 8px;           /* Bordes redondeados */
+    padding: 15px 18px;           /* Espaciado interno */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);  /* Sombra muy ligera */
+}
+
+/* Título dentro del recuadro de estadísticas */
+.cube-stats-box h4 {
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 8px;
+}
+
+/* Tabla dentro del recuadro de estadísticas */
+.cube-stats-box table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.cube-stats-box td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.cube-stats-box td:first-child {
+    font-weight: 500;
+    color: #495057;
+    width: 45%;
+}
+
+.cube-stats-box td:last-child {
+    color: #1a1a2e;
+    font-family: 'Courier New', monospace;
+    text-align: right;
+}
+
+.cube-stats-box tr:last-child td {
+    border-bottom: none;
+}
+
+
+/* Placeholder para cuando no hay imágenes */
+.qa-mode-content .placeholder {
+    flex: 1;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 30px;
+    background-color: #fcfcfc;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+}
+
+/* Cuando NO hay imágenes pero SÍ hay estadísticas, el placeholder se adapta */
+.qa-mode-content:has(.cube-stats-box) .placeholder {
+    flex: 1;
+    margin-left: 0;
+}
+
+/* Cuando NO hay estadísticas ni imágenes (fallback del modo completo) */
+.mode-container .placeholder {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+    background-color: #fafafa;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+    margin: 10px 0;
+}
+
+/* Fallback para cuando no hay QA en ningún modo */
+.gallery-section > .placeholder {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 25px;
+    background-color: #fafafa;
+    border-radius: 8px;
+    border: 1px dashed #cbd5e1;
+    margin: 15px 0;
+}
+
+/* Columna que agrupa los recuadros de estadísticas (ruido + comparación) */
+.qa-stats-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex: 0 0 auto;
+}
+
+/* Recuadro de comparación de máscaras (similar al de ruido) */
+.mask-comparison-box {
+    background-color: #f4f6f9;
+    border: 1px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 15px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    min-width: 260px;
+    margin-left: 20px;
+}
+
+.mask-comparison-box h4 {
+    margin: 0 0 12px 0;
+    color: #2c3e50;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: 1px solid #d1d9e6;
+    padding-bottom: 8px;
+}
+
+.mask-comparison-box table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.mask-comparison-box td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.mask-comparison-box td:first-child {
+    font-weight: 500;
+    color: #2c3e50;
+    width: 55%;
+}
+
+.mask-comparison-box td:last-child {
+    color: #1a1a2e;
+    font-family: 'Courier New', monospace;
+    text-align: right;
+}
+
+.mask-comparison-box tr:last-child td {
+    border-bottom: none;
+}

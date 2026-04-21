@@ -7,7 +7,7 @@ from pathlib import Path
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
-
+from astropy.io.votable import parse_single_table
 
 # Logger:
 import logging
@@ -1003,8 +1003,36 @@ class SoPar(dict):
                 "input_name": self.input_data.stem,
                 "mode": self.mode,  
                 "log_path": "",
-                "outputs" : {'images' : [], 'files': []}
+                "outputs" : {'images' : [], 'files': []},
+                "cube_statistics": {}
             }
+        
+        ##############################################################################################
+        # Extract cube statistics from XML
+        xml_catalog_path = self.output_directory / f"{self.mode}_{self.input_data.stem}_cat.xml"
+        if xml_catalog_path.exists():
+            try:
+                from astropy.io.votable import parse
+                votable = parse(xml_catalog_path)
+                resource = votable.resources[0]
+                
+                # Extract noise parameters
+                for param in resource.params:
+                    if param.name in ['NoiseMean','NoiseStd', 'NoiseSkew','NoiseKurt']:
+                        qa_report['cube_statistics'][param.name] = param.value
+                
+                # Count sources
+                table = votable.get_first_table()
+                if table is not None and table.array is not None:
+                    qa_report['cube_statistics']['n_sources'] = len(table.array)
+                else:
+                    qa_report['cube_statistics']['n_sources'] = 0
+                    
+                logger.info(f"Extracted cube statistics from XML: {qa_report['cube_statistics']}")
+            except Exception as e:
+                logger.warning(f"Could not extract cube statistics from XML: {e}")
+        else:
+            logger.warning(f"XML catalog not found: {xml_catalog_path}")
         
         ##############################################################################################
 
@@ -1262,6 +1290,17 @@ class SoPar(dict):
             stats_lines.append(f"    F_Mask  = {flux_mask:.2f}\n")
             stats_lines.append(f"    Provided mask pixel fraction: {pixel_pct:.2f}%\n")
             stats_lines.append(f"    Provided mask flux fraction:  {flux_pct:.2f}%\n\n")"""
+        
+        # Add statistics to the report
+        qa_report['mask_comparison'] = {
+            'npix_sofia': int(npix_sofia_total),
+            'npix_provided': int(npix_mask_total),
+            'npix_overlap': int(npix_overlap),
+            'pixel_overlap_fraction': round(100.0 * npix_overlap / npix_sofia_total, 2) if npix_sofia_total > 0 else 0.0,
+            'flux_sofia': round(flux_sofia_total, 2),
+            'flux_provided': round(flux_mask_total, 2),
+            'flux_overlap_fraction': round(100.0 * flux_overlap / flux_sofia_total, 2) if flux_sofia_total != 0 else 0.0
+        }
         
         # Save statistics to file
         try:
