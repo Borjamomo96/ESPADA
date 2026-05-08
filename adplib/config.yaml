@@ -13,7 +13,7 @@ output_dir:                         # <str> (Default espada_run/) Create a direc
 #    LOGGER    #
 ################
 
-clear_logs: True                    # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
+clear_logs: True                    # <bool> (Default value = True) Creates a directory with an HTML report that shows a quick look at the run results.
 log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log') Creates a subdirectory within the 'output_dir' with the final and sorted log file for the run. 
 
 ##################
@@ -41,9 +41,9 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml      # <str>
 
 enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
 run_mode: 'both' #'emission', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
-use_mask: False                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+use_mask: False                                                             # <bool> (Default value = False) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
-auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
+auto_setup: False                                                           # <bool> (Default value = False) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par') Path to the SoFiA-2 parameter file optimized to found 'absorption'.
 sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par    # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par') Path to the SoFiA-2 parameter file optimized to found 'emission'.
 
@@ -60,4 +60,4 @@ sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Defaul
 
 enable_group: False                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
 overlap_mode :  'absflux'   # 'flux', 'absflux' or 'area'       # <str> (Default value = 'absflux') Determines the type of overlap is going to be applied to group sources.
-overlap_threshold : 0.8                                         # <float> (Default value = 'emission') Set the limit applied to the 'overlap_mode' selected from 0 to 1. 
+overlap_threshold : 0.8                                         # <float> (Default value = '0.8') Set the limit applied to the 'overlap_mode' selected from 0 to 1. 
