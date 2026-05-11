@@ -89,6 +89,9 @@ class Logger:
         logger = logging.getLogger("espada_logger")
         logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
+        if log_path is None or log_path == '':
+            log_path = "log_dir/espada.log"
+
         timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
         log_path_obj = Path(log_path).expanduser()
 

@@ -225,7 +225,7 @@ class Config(dict):
             'input_data_set': str | list | dict | None,
             'input_file': str | None,
             'clear_logs': bool,
-            'log_file': str,
+            'log_file': str | None,
             'enable_tap_service': bool,
             'download_par_file': str | None,
             'enable_sofia': bool,
