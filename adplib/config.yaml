@@ -4,9 +4,9 @@
 #   GENERAL   #
 ###############
 
-make_report: False                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
+make_report: True                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
 verbose: True                       # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
-num_cores: 12                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ESPADA. The minimum number is 1, and the maximum depends on the device.
+num_cores: 1                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ESPADA. The minimum number is 1, and the maximum depends on the device.
 output_dir:                         # <str> (Default espada_run/) Create a directory where all products obtained during an ESPADA run will be stored. This directory overrides all other directory variables. An absolute path can also be provided, but this path must contain the value entered in 'output_dir'; otherwise, the default value will be used.
 
 ################
@@ -58,6 +58,6 @@ sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Defaul
 #     GROUP     #
 #################
 
-enable_group: False                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
+enable_group: True                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
 overlap_mode :  'absflux'   # 'flux', 'absflux' or 'area'       # <str> (Default value = 'absflux') Determines the type of overlap is going to be applied to group sources.
 overlap_threshold : 0.8                                         # <float> (Default value = 'emission') Set the limit applied to the 'overlap_mode' selected from 0 to 1. 

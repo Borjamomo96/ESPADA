@@ -54,7 +54,7 @@ scaleNoise.interpolate     =  false
 scaleNoise.scfind          =  false
 
 
-# Ripple filter
+# Background subtraction
 
 background.enable        =  false
 background.statistic     =  median
@@ -83,12 +83,6 @@ threshold.threshold        =  5.0
 threshold.mode             =  relative
 threshold.statistic        =  mad
 threshold.fluxRange        =  negative
-
-# Filter
-
-filter.discardNegative     =  true
-filter.minSNR              =  12
-filter.minPixels           =  150
 
 
 # Linker
@@ -119,6 +113,12 @@ reliability.tolerance      =  0.1
 reliability.catalog        =  
 reliability.plot           =  true
 reliability.debug          =  false
+
+# Filter
+
+filter.discardNegative     =  true
+filter.minSNR              =  12
+filter.minPixels           =  150
 
 
 # Mask dilation

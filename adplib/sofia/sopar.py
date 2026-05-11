@@ -604,19 +604,29 @@ class SoPar(dict):
         ##############################################################################################
 
         ########################--------------output.writeCAT---------------##########################
-        if (self.adpalmap_config.enable_sip and 
-            self.output_writeCatASCII=='false' and 
-            self.output_writeCatXML=='false'):
-            logger.warning("Parameter combination not allowed. Either 'self.output_writeCatASCII' or"
-                           " 'self.output_writeCatXML' parameters must be set to 'true' if " 
-                           "'enable_sip' is set to True. "
-                           "By default 'self.output_writeCatASCII' parameter will be set to 'true'")
+        if self.output_writeCatXML=='false':
+            logger.warning(
+                f"Ignoring value '{self.output_writeCatXML}' for the 'output.writeCatXML' parameter. "
+                "This must be set to 'true' always."
+            )
             
-            self.output_writeCatASCII = 'true'
+            self.output_writeCatXML = 'true'
 
         else:
             pass
         ##############################################################################################
+
+        ########################------------output.writeCubelets------------##########################
+        if self.output_writeCubelets=='false':
+            logger.warning(
+                f"Ignoring value '{self.output_writeCubelets}' for the 'output.writeCubelets' "
+                "parameter. This must be set to 'true' always."
+            )
+            
+            self.output_writeCubelets = 'true'
+
+        else:
+            pass
 
 
         logger.info(f"Parameters updated. Mode: {self.mode}.")
