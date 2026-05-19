@@ -57,10 +57,41 @@ def capture_output(input):
     Logger.echo(output)
 
 
-def get_segment(path):
-    # Busca 'spw' + dígitos + punto literal (\.)
-    match = re.search(r'spw\d+\.', path)
-    return path[:match.end()] if match else '' # return the string from the begging until the match
+def get_ancillary_names(pbcor_file):
+    """
+    """
+    pbcor_pos = pbcor_file.find('cube.I.pbcor')
+    if pbcor_pos == -1:
+        logger.error(f"Filename '{pbcor_file}' does not contain 'cube.I.pbcor'")
+        return None
+    
+    base_name = pbcor_file[:pbcor_pos + 12]  # +12 to include 'cube.I.pbcor'
+    
+    # Generate auxiliary names
+    aux_names = {
+        'continuum': base_name.replace('cube.I.pbcor', 'mfs.I.pbcor'),
+        'primary_beam': base_name.replace('cube.I.pbcor', 'cube.I.pb'),
+        'mask': base_name.replace('cube.I.pbcor', 'cube.I.mask.')
+    }
+    
+    return aux_names
+
+
+def get_ancillary_patterns(dl_link_list):
+    """
+    """
+    ancillary_patterns = []
+    
+    for pbcor_file in dl_link_list:
+        if 'cube.I.pbcor' in pbcor_file:
+            # Get the base name using our reusable function
+            aux_names = get_ancillary_names(pbcor_file)
+            
+            # Add all auxiliary names as patterns
+            for aux_name in aux_names.values():
+                ancillary_patterns.append(str(aux_name))
+    
+    return list(set(ancillary_patterns))  # Remove duplicates
 
 
 def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False):
@@ -397,13 +428,7 @@ class datap(dict):
 
         ##############################################################################################    
 
-        # Obtener los segmentos únicos de los data files
-        data_segments = {get_segment(url) for url in dl_link_list if 'cube.I.pbcor' in url}
-
-        # Crear patrones de búsqueda para cada segmento
-        ancillary_patterns = [f"{seg}mfs.I.pbcor.fits" for seg in data_segments] + \
-                [f"{seg}cube.I.mask." for seg in data_segments] + \
-                [f"{seg}cube.I.pb." for seg in data_segments]
+        ancillary_patterns = get_ancillary_patterns(dl_link_list)
 
         # Filtrar data_table directamente
         al_table = data_table[
@@ -612,32 +637,31 @@ class datap(dict):
     def get_downloaded_ancillaryfile_path(self, download_dir, al_link_list):
 
         """
-        Process and retrieve the most recent mask file from a given directory.
-
-        This method searches for mask files in the specified directory (`base_dir`) that match 
-        the pattern `*cube.I.mask*`. It handles compressed `.gz` files by decompressed them 
-        if necessary and optionally deleting the original compressed files based on the 
-        `self.download_par['remove_compressed_file']` setting. The most recently modified mask 
-        file is selected and stored as an attribute (`self.data_loc_mask`).
-
-        Args:
-            base_dir (Path): The directory where the downloaded mask files are located.
-
-        Returns:
-            None
         """
-        ##############################################################################################
-
-        cont_files_aux = [download_dir / Path(url).name for url in al_link_list 
-                        if "mfs.I.pbcor" in Path(url).name]
-
-        # Create matched list by spw??
+        # Build lookup dict: filename -> full path (from downloaded URLs)
+        aux_lookup = {}
+        for url in al_link_list:
+            filename = url.split('/')[-1]
+            aux_lookup[filename] = download_dir / filename
+        
+        # Match each principal with its auxiliary files
         cont_files = []
+        pb_files = []
+        mask_files = []
+        
         for data_path in self.data_list:
-            data_segment = get_segment(str(data_path))
-            matched_cont = next((cont for cont in cont_files_aux 
-                                if get_segment(str(cont)) == data_segment), "")
-            cont_files.append(matched_cont)
+            aux_names = get_ancillary_names(data_path.name)
+
+            if aux_names is None:
+                cont_files.append("")
+                pb_files.append("")
+                mask_files.append("")
+                continue
+            
+            cont_files.append(aux_lookup.get(aux_names['continuum'], ""))
+            pb_files.append(aux_lookup.get(aux_names['primary_beam'], ""))
+            mask_files.append(aux_lookup.get(aux_names['mask'], ""))
+        ##############################################################################################
 
         if not any(cont_files):
             logger.warning(
@@ -647,20 +671,9 @@ class datap(dict):
             )
         self.cont_list = cont_files
             
-
         ##############################################################################################
         
         ##############################################################################################
-
-        pb_files_aux = [download_dir / Path(url).name for url in al_link_list 
-                        if "cube.I.pb." in Path(url).name]
-        
-        pb_files = []
-        for data_path in self.data_list:
-            data_segment = get_segment(str(data_path))
-            matched_pb = next((pb for pb in pb_files_aux 
-                            if get_segment(str(pb)) == data_segment), "")
-            pb_files.append(matched_pb)
 
         if not any(pb_files):
             logger.warning(
@@ -729,15 +742,6 @@ class datap(dict):
         ##############################################################################################
 
         ##############################################################################################
-        mask_files_aux = [download_dir / Path(url).name for url in al_link_list 
-                        if "cube.I.mask." in Path(url).name]
-        
-        mask_files = []
-        for data_path in self.data_list:
-            data_segment = get_segment(str(data_path))
-            matched_mask = next((mask for mask in mask_files_aux 
-                                if get_segment(str(mask)) == data_segment), "")
-            mask_files.append(matched_mask)
 
         if not any(mask_files):
             logger.warning(

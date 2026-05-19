@@ -7,14 +7,14 @@
 make_report: True                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
 verbose: True                       # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
 num_cores: 1                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ESPADA. The minimum number is 1, and the maximum depends on the device.
-output_dir:                         # <str> (Default espada_run/) Create a directory where all products obtained during an ESPADA run will be stored. This directory overrides all other directory variables. An absolute path can also be provided, but this path must contain the value entered in 'output_dir'; otherwise, the default value will be used.
+output_dir:                         # <str> (Default espada_run/) Create a directory where all products obtained during an ESPADA run will be stored. This directory overrides all other directory variables. 
 
 ################
 #    LOGGER    #
 ################
 
-clear_logs: True                    # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
-log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log') Creates a subdirectory within the 'output_dir' with the final and sorted log file for the run. 
+clear_logs: True                    # <bool> (Default value = True) Creates a directory with an HTML report that shows a quick look at the run results.
+log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log') Path to the log file. Relative paths are resolved inside output_dir. Absolute paths are only accepted if they lie within output_dir.
 
 ##################
 #   INPUT DATA   #
@@ -41,7 +41,7 @@ download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml      # <str>
 
 enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
 run_mode: 'both' #'emission', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
-use_mask: False                                                             # <bool> (Default value = True) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+use_mask: False                                                             # <bool> (Default value = False) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
 auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
 sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par') Path to the SoFiA-2 parameter file optimized to found 'absorption'.
