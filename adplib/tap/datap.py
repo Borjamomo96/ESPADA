@@ -57,21 +57,25 @@ def capture_output(input):
     Logger.echo(output)
 
 
-def get_ancillary_names(pbcor_file):
-    """
-    """
-    pbcor_pos = pbcor_file.find('cube.I.pbcor')
-    if pbcor_pos == -1:
-        logger.error(f"Filename '{pbcor_file}' does not contain 'cube.I.pbcor'")
+def get_ancillary_names(pbcor_url):
+
+    marker = 'cube.I.pbcor'
+    marker_pos = pbcor_url.find(marker)
+    
+    if marker_pos == -1:
+        logger.error(f"URL '{pbcor_url}' no contiene '{marker}'")
         return None
     
-    base_name = pbcor_file[:pbcor_pos + 12]  # +12 to include 'cube.I.pbcor'
+    # Extraer desde el inicio hasta el FINAL de 'cube.I.pbcor'
+    # marker_pos es la posición donde empieza 'c'
+    # len(marker) es la longitud de 'cube.I.pbcor' (12 caracteres)
+    base_pattern = pbcor_url[:marker_pos + len(marker)]
     
-    # Generate auxiliary names
+    # Generar patrones para archivos auxiliares
     aux_names = {
-        'continuum': base_name.replace('cube.I.pbcor', 'mfs.I.pbcor'),
-        'primary_beam': base_name.replace('cube.I.pbcor', 'cube.I.pb'),
-        'mask': base_name.replace('cube.I.pbcor', 'cube.I.mask.')
+        'continuum': base_pattern.replace('cube.I.pbcor', 'mfs.I.pbcor'),
+        'primary_beam': base_pattern.replace('cube.I.pbcor', 'cube.I.pb'),
+        'mask': base_pattern.replace('cube.I.pbcor', 'cube.I.mask')
     }
     
     return aux_names
@@ -82,16 +86,13 @@ def get_ancillary_patterns(dl_link_list):
     """
     ancillary_patterns = []
     
-    for pbcor_file in dl_link_list:
-        if 'cube.I.pbcor' in pbcor_file:
-            # Get the base name using our reusable function
-            aux_names = get_ancillary_names(pbcor_file)
-            
-            # Add all auxiliary names as patterns
-            for aux_name in aux_names.values():
-                ancillary_patterns.append(str(aux_name))
+    for pbcor_url in dl_link_list:
+        aux_names = get_ancillary_names(pbcor_url)
+        if aux_names:
+            for pattern in aux_names.values():
+                ancillary_patterns.append(pattern)
     
-    return list(set(ancillary_patterns))  # Remove duplicates
+    return list(set(ancillary_patterns))
 
 
 def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False):
@@ -346,10 +347,7 @@ class datap(dict):
         
         Logger.echo("================================")
 
-        #CHANGE. Definir asi el directorio puede provocar problemas
-
-        base_dir = Path(__file__).resolve().parents[2]
-        default_location = base_dir / "archive_data"
+        default_location = Path.cwd() / "archive_data"
         
         #Check the input Dataframe
         
@@ -393,6 +391,7 @@ class datap(dict):
         )
 
         ##############################################################################################
+        # MAIN FILES
         patterns = ['cube.I.pbcor']
         # This list avoids conflicts with PB and mask files that could be .fits as well
         exclude_patterns = [] # Caution, this list will also  be applied to ancillary files
@@ -427,13 +426,18 @@ class datap(dict):
         ##############################################################################################
 
         ##############################################################################################    
+        # ANCILLARY FILES
 
         ancillary_patterns = get_ancillary_patterns(dl_link_list)
+
+        # Excluir explícitamente los archivos principales
+        main_filenames = [Path(url).name for url in dl_link_list]
 
         # Filtrar data_table directamente
         al_table = data_table[
             [i for i, v in enumerate(data_table['access_url'])
-            if any(p in v for p in ancillary_patterns)]
+            if any(p in v for p in ancillary_patterns)
+            and Path(v).name not in main_filenames]  # Excluye principales
         ]
 
         # To show ancillary data
@@ -446,80 +450,88 @@ class datap(dict):
         # al_uid_list = list(al_df['ID'].unique()) # It not necessary. It will be the same as for dl
         ##############################################################################################
 
+        ##############################################################################################
+        # INFO
+
+        if dl_files == 0:
+            logger.warning("Nothing to download. Check 'filename_must_inlude' parameter, often this comes from a "
+                            "typo or missings '' in the list.") 
+            logger.warning("Note: often only a subset of the observations (e.g. the representative window)" 
+                    "is ingested into the archive. In such cases, you may need to download the raw "
+                    "dataset, reproduce the calibrated measurement set, and image the observations "
+                    "of interest. It is also possible to request calibrated  measurement sets through"
+                    " a Helpdesk ticket to the European ARC (see "
+                    "https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe)."
+                    "Alternatively, check the filename_must_include parameter, there is probably a "
+                    "syntax error or very restrictive conditions."
+                    )
+            sys.exit(-1)
+
+        logger.info("Download location = {}".format(self.alma.cache_location))
+        logger.info("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
+        logger.info("Selected Member OUSs: {}".format(dl_uid_list))
+
+        if al_files > 0:
+            logger.info(f"Number of files to download = {dl_files} + {al_files} of ancillary files")
+            dl_size_fmt, dl_format = self._format_bytes(dl_size)
+            al_size_fmt, al_format = self._format_bytes(al_size)
+            logger.info(f"Needed disk space = {dl_size_fmt:.1f} {dl_format} + {al_size_fmt:.1f} {al_format} for ancillary files")
+        else:
+            logger.info(f"Number of files to download = {dl_files}")
+            dl_size_fmt, dl_format = self._format_bytes(dl_size)
+            logger.info(f"Needed disk space = {dl_size_fmt:.1f} {dl_format}")
+        
+        if self.download_par['print_urls']:
+            self.pid = os.getpid()
+            logger.info("File URLs to download: ")
+            for url in dl_link_list:
+                Logger.echo(f"[{self.pid}] {url}")
+            if al_files > 0:
+                logger.info("File ancillary URLs to download: ")
+                for url in al_link_list:
+                    Logger.echo(f"[{self.pid}] {url}")
+                logger.info("No need to worry about repeated downloads...")
+
+        ##############################################################################################
+
+        ##############################################################################################
+        # DRYRUN 
         if self.download_par['dryrun']:
             logger.info("This is a dryrun. To begin download, set dryrun=False.")
             Logger.echo("================================")
-            
-        else:
-            logger.info("Starting to download. Please wait...")
-            Logger.echo("================================")
-
-
-            try:
-                self.alma.download_files(dl_link_list, cache=True)
-
-            except ValueError as e:
-                logger.error(e)
-
-
-        if dl_files > 0:
-            logger.info("Download location = {}".format(self.alma.cache_location))
-            logger.info("Total number of Member OUSs to download = {}".format(len(dl_uid_list)))
-            logger.info("Selected Member OUSs: {}".format(dl_uid_list))
-            if al_files > 0:
-                logger.info(f"Number of files to download = {dl_files} + {al_files} of ancillary files")
-                dl_size_fmt, dl_format = self._format_bytes(dl_size)
-                al_size_fmt, al_format = self._format_bytes(al_size)
-                logger.info(
-                    f"Needed disk space = {dl_size_fmt:.1f} {dl_format} + "
-                    f"{al_size_fmt:.1f} {al_format} for ancillary files"
-                )
-            else:
-                logger.info(f"Number of files to download = {dl_files}")
-                dl_size_fmt, dl_format = self._format_bytes(dl_size)
-                logger.info(f"Needed disk space = {dl_size_fmt:.1f} {dl_format}")
-
-            
-            if self.download_par['print_urls']:
-                self.pid = os.getpid()
-                logger.info("File URLs to download: ")
-                for url in dl_link_list:
-                    Logger.echo(f"[{self.pid}] {url}") 
-                if al_files > 0:
-                    logger.info("File ancillary URLs to download: ")
-                    for url in al_link_list:
-                        Logger.echo(f"[{self.pid}] {url}")
-                    logger.info(
-                        "No need to worry about repeated downloads of duplicate files in URLs "
-                        "and ancillary URLs; they will be downloaded only once.")
-                
-        else:
-            logger.warning("Nothing to download. Check 'filename_must_inlude' parameter, often this comes from a "
-                           "typo or missings '' in the list.") 
-            logger.warning("Note: often only a subset of the observations (e.g. the representative window)" 
-                "is ingested into the archive. In such cases, you may need to download the raw "
-                "dataset, reproduce the calibrated measurement set, and image the observations "
-                "of interest. It is also possible to request calibrated  measurement sets through"
-                " a Helpdesk ticket to the European ARC (see "
-                "https://almascience.eso.org/local-news/requesting-calibrated-measurement-sets-in-europe)."
-                "Alternatively, check the filename_must_include parameter, there is probably a "
-                "syntax error or very restrictive conditions."
-                )
-            sys.exit(-1)
-        
-        
-        
-        if self.download_par['dryrun']:
             sys.exit(-1)
 
-        #Set Attr data locations of the just downloaded data
-        self.get_downloaded_datafile_path(Path(self.alma.cache_location), dl_link_list)
+        ##############################################################################################
+
+        ##############################################################################################
+        # DOWNLOADS 
+
+        Logger.echo("================================")
+        logger.info("Starting to download. Please wait...")
+        Logger.echo("================================")
+
+        try:
+            self.alma.download_files(dl_link_list, cache=True)
+
+        except ValueError as e:
+            logger.error(e)
+
+
         Logger.echo("================================")
         logger.info("Data download completed.")
         Logger.echo("================================")
 
         # Download acillary files right after data
         self.download_ancillary_file(al_link_list)
+
+        ##############################################################################################
+
+        ##############################################################################################
+        # PROCESS DATA 
+        #Set Attr data locations of the just downloaded data
+        self.get_downloaded_datafile_path(Path(self.alma.cache_location), dl_link_list)
+
+    
         self.get_downloaded_ancillaryfile_path(Path(self.alma.cache_location), al_link_list)
 
 
@@ -638,29 +650,42 @@ class datap(dict):
 
         """
         """
-        # Build lookup dict: filename -> full path (from downloaded URLs)
-        aux_lookup = {}
-        for url in al_link_list:
-            filename = url.split('/')[-1]
-            aux_lookup[filename] = download_dir / filename
+        # Construir índice: cada filename con su ruta local
+        local_files = {url.split('/')[-1]: download_dir / url.split('/')[-1] for url in al_link_list}
         
-        # Match each principal with its auxiliary files
-        cont_files = []
-        pb_files = []
-        mask_files = []
+        cont_files, pb_files, mask_files = [], [], []
         
-        for data_path in self.data_list:
-            aux_names = get_ancillary_names(data_path.name)
 
-            if aux_names is None:
-                cont_files.append("")
-                pb_files.append("")
-                mask_files.append("")
+        for data_path in self.data_list:
+            aux_names = get_ancillary_names(str(data_path))
+            if not aux_names:
+                cont_files.append(""); pb_files.append(""); mask_files.append("")
                 continue
             
-            cont_files.append(aux_lookup.get(aux_names['continuum'], ""))
-            pb_files.append(aux_lookup.get(aux_names['primary_beam'], ""))
-            mask_files.append(aux_lookup.get(aux_names['mask'], ""))
+            # Buscar qué filename contiene cada patrón
+            continuum_path = ""
+            pb_path = ""
+            mask_path = ""
+            
+            # Compruebo nombre con nombre. Cuidado en incluir .name de lo contrario se
+            #compara ruta con nombre --> Siempte falla
+            
+            
+            for filename, local_path in local_files.items():
+                if Path(aux_names['continuum']).name in filename:
+                    continuum_path = local_path
+                elif Path(aux_names['primary_beam']).name in filename:
+                    pb_path = local_path
+                elif Path(aux_names['mask']).name in filename:
+                    mask_path = local_path
+
+            cont_files.append(continuum_path)
+            pb_files.append(pb_path)
+            mask_files.append(mask_path)
+
+        self.cont_list = cont_files
+        self.pb_list = pb_files
+        self.mask_list = mask_files
         ##############################################################################################
 
         if not any(cont_files):
