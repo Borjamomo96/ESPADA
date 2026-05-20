@@ -96,10 +96,12 @@
                                   <tr><td>SoFiA mask pixels:</td><td>{{ qa_data.mask_comparison.npix_sofia }}</td></tr>
                                   <tr><td>Provided mask pixels:</td><td>{{ qa_data.mask_comparison.npix_provided }}</td></tr>
                                   <tr><td>Overlap pixels:</td><td>{{ qa_data.mask_comparison.npix_overlap }}</td></tr>
-                                  <tr><td>Pixel overlap fraction:</td><td>{{ qa_data.mask_comparison.pixel_overlap_fraction }}% of SoFiA</td></tr>
+                                  <tr><td>(SoFiA ∩ Provided mask) / SoFiA (pixels):</td><td>{{ qa_data.mask_comparison.pixel_overlap_fraction_sofia }}%</td></tr>
+                                  <tr><td>(SoFiA ∩ Provided mask) / Provided mask (pixels):</td><td>{{ qa_data.mask_comparison.pixel_overlap_fraction_provided }}%</td></tr>
                                   <tr><td>SoFiA total flux:</td><td>{{ qa_data.mask_comparison.flux_sofia }}</td></tr>
                                   <tr><td>Provided mask total flux:</td><td>{{ qa_data.mask_comparison.flux_provided }}</td></tr>
-                                  <tr><td>Flux overlap fraction:</td><td>{{ qa_data.mask_comparison.flux_overlap_fraction }}% of SoFiA</td></tr>
+                                  <tr><td>(SoFiA ∩ Provided mask) / SoFiA (flux):</td><td>{{ qa_data.mask_comparison.flux_overlap_fraction_sofia }}%</td></tr>
+                                  <tr><td>(SoFiA ∩ Provided mask) / Provided mask (flux):</td><td>{{ qa_data.mask_comparison.flux_overlap_fraction_provided }}%</td></tr>
                               </table>
                           </div>
                           {% endif %}

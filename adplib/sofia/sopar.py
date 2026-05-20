@@ -1116,13 +1116,13 @@ class SoPar(dict):
             #ax.colorbar(label="Intensity")
 
             ax = axs[1]
-            ax.set_title("Sofia 2D mask")
+            ax.set_title("SoFiA mask projection")
             ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
             #ax.colorbar(label="Intensity")
 
             if mask_proj is not None:
                 ax = axs[2]
-                ax.set_title("Mask file")
+                ax.set_title("Provided mask projection")
                 ax.imshow(mask_proj, cmap='viridis', origin='lower')
 
             qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
@@ -1238,23 +1238,29 @@ class SoPar(dict):
         npix_sofia_total = np.nansum(sofia_mask_3d > 0)
         npix_mask_total = np.nansum(mask_3d > 0)
         npix_overlap = np.nansum((sofia_mask_3d > 0) & (mask_3d > 0))
+        pixel_frac_sofia = 100.0 * npix_overlap / npix_sofia_total if npix_sofia_total > 0 else 0.0
+        pixel_frac_provided = 100.0 * npix_overlap / npix_mask_total if npix_mask_total > 0 else 0.0
         
         flux_sofia_total = np.nansum(data_cube[sofia_mask_3d > 0])
         flux_mask_total = np.nansum(data_cube[mask_3d > 0])
         flux_overlap = np.nansum(data_cube[(sofia_mask_3d > 0) & (mask_3d > 0)])
+        flux_frac_sofia = 100.0 * flux_overlap / flux_sofia_total if flux_sofia_total != 0 else 0.0
+        flux_frac_provided = 100.0 * flux_overlap / flux_mask_total if flux_mask_total != 0 else 0.0
         
         # Log global statistics
         logger.info("=== GLOBAL MASK COMPARISON ===")
-        logger.info(f"  SoFiA mask pixels: {npix_sofia_total}")
-        logger.info(f"  Provided mask pixels:  {npix_mask_total}")
-        logger.info(f"  Overlap pixels:    {npix_overlap}")
+        logger.info(f"SoFiA mask pixels: {npix_sofia_total}")
+        logger.info(f"Provided mask pixels: {npix_mask_total}")
+        logger.info(f"Overlap pixels: {npix_overlap}")
+        logger.info(f"(SoFiA ∩ Provided mask) / SoFiA = {pixel_frac_sofia:.2f}% of SoFiA pixels")
         logger.info(
-            f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA"
+            f"(SoFiA ∩ Provided mask) / Provided mask = {pixel_frac_provided:.2f}% of Provided mask pixels"
         )
-        logger.info(f"  SoFiA total flux: {flux_sofia_total:.2f}")
-        logger.info(f"  Provided total flux:  {flux_mask_total:.2f}")
+        logger.info(f"SoFiA total flux: {flux_sofia_total:.2f}")
+        logger.info(f"Provided mask total flux: {flux_mask_total:.2f}")
+        logger.info(f"(SoFiA ∩ Provided mask) / SoFiA = {flux_frac_sofia:.2f}% of SoFiA flux")
         logger.info(
-            f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA"
+            f"(SoFiA ∩ Provided mask) / Provided mask = {flux_frac_provided:.2f}% of Provided mask flux"
         )
         
         stats_lines = []
@@ -1266,11 +1272,20 @@ class SoPar(dict):
         stats_lines.append(f"  SoFiA mask pixels: {npix_sofia_total}\n")
         stats_lines.append(f"  Provided mask pixels:  {npix_mask_total}\n")
         stats_lines.append(f"  Overlap pixels:    {npix_overlap}\n")
-        stats_lines.append(f"  Pixel overlap fraction: {100.0 * npix_overlap / npix_sofia_total:.2f}% of SoFiA\n")
+        stats_lines.append(
+            f"  (SoFiA ∩ Provided mask) / SoFiA = {pixel_frac_sofia:.2f}% of SoFiA pixels\n"
+        )
+        stats_lines.append(
+            f"  (SoFiA ∩ Provided mask) / Provided mask = {pixel_frac_provided:.2f}% of Provided mask pixels\n"
+        )
         stats_lines.append(f"  SoFiA total flux: {flux_sofia_total:.2f}\n")
         stats_lines.append(f"  Provided mask total flux:  {flux_mask_total:.2f}\n")
-        stats_lines.append(f"  Flux overlap fraction: {100.0 * flux_overlap / flux_sofia_total:.2f}% of SoFiA\n\n")
-        
+        stats_lines.append(
+            f"  (SoFiA ∩ Provided mask) / SoFiA = {flux_frac_sofia:.2f}% of SoFiA flux\n"
+        )
+        stats_lines.append(
+            f"  (SoFiA ∩ Provided mask) / Provided mask = {flux_frac_provided:.2f}% of Provided mask flux\n\n"
+        )
         """
         # Per-source statistics
         logger.info("=== PER-SOURCE COMPARISON ===")
@@ -1306,10 +1321,12 @@ class SoPar(dict):
             'npix_sofia': int(npix_sofia_total),
             'npix_provided': int(npix_mask_total),
             'npix_overlap': int(npix_overlap),
-            'pixel_overlap_fraction': round(100.0 * npix_overlap / npix_sofia_total, 2) if npix_sofia_total > 0 else 0.0,
+            'pixel_overlap_fraction_sofia': round(100.0 * npix_overlap / npix_sofia_total, 2) if npix_sofia_total > 0 else 0.0,
+            'pixel_overlap_fraction_provided': round(100.0 * npix_overlap / npix_mask_total, 2) if npix_mask_total > 0 else 0.0,
             'flux_sofia': round(flux_sofia_total, 2),
             'flux_provided': round(flux_mask_total, 2),
-            'flux_overlap_fraction': round(100.0 * flux_overlap / flux_sofia_total, 2) if flux_sofia_total != 0 else 0.0
+            'flux_overlap_fraction_sofia': round(100.0 * flux_overlap / flux_sofia_total, 2) if flux_sofia_total != 0 else 0.0,
+            'flux_overlap_fraction_provided': round(100.0 * flux_overlap / flux_mask_total, 2) if flux_mask_total != 0 else 0.0
         }
         
         # Save statistics to file
