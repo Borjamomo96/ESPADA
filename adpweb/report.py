@@ -39,7 +39,7 @@ class Report:
 
         # Directories
         base_dir = output_dir / "report"
-        timestamp = datetime.now().strftime("%d%m%y_%H%M%S")
+        timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
 
         if base_dir.exists():
             self.report_dir = base_dir.with_name(f"{base_dir.name}_{timestamp}")
