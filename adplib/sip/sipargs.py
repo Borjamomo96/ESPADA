@@ -1133,6 +1133,7 @@ class SiPar(dict):
         for i in individual_sources:
             source_prefix = f"_{i}"
 
+            # The order of the images here rules the order of the images in the report
             sip_report['outputs']['images'].append({
                 "type": "mom0",
                 "path": output_dir / f"{base_name}{source_prefix}_mom0.{suffix}",
@@ -1140,7 +1141,6 @@ class SiPar(dict):
                 "description": "Moment 0 image",
                 "software-id": "sip"
             })
-            # The order of the images here rules the order of the images in the report
             if hasattr(self, 'source_id') and getattr(self, 'source_id') is not None:
                 sip_report['outputs']['images'].append({
                     "type": "mom0_usr",
@@ -1149,6 +1149,13 @@ class SiPar(dict):
                     "description": "Moment 0 image (continuum overlaid)",
                     "software-id": "sip"
                 })
+            sip_report['outputs']['images'].append({
+                "type": "snr",
+                "path": output_dir / f"{base_name}{source_prefix}_snr.{suffix}",
+                "source_id": i,
+                "description": "SNR image",
+                "software-id": "sip"
+            })   
             sip_report['outputs']['images'].append({
                 "type": "mom1",
                 "path": output_dir / f"{base_name}{source_prefix}_mom1.{suffix}",
