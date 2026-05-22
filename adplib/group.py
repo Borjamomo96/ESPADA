@@ -1,5 +1,5 @@
 from astropy.io import fits
-import networkx as nx
+import networkx as netx
 import numpy as np
 from pathlib import Path
 import sys
@@ -89,23 +89,71 @@ class group(dict):
                 "case.")
             return None
 
+        
+        # Extract region from SoFiA mask
+        region = None
+        try:
+            with fits.open(mask_file) as f:
+                header = f[0].header
+                if 'HISTORY' in header:
+                    history_lines = header['HISTORY']
+                    if isinstance(history_lines, str):
+                        history_lines = [history_lines]
+                    for line in history_lines:
+                        if 'input.region' in line and '=' in line:
+                            parts = line.split('=')
+                            if len(parts) == 2:
+                                region_str = parts[1].strip()
+                                if region_str:
+                                    numbers = [int(x.strip()) for x in region_str.split(',')]
+                                    if len(numbers) == 6:
+                                        region = numbers  # [xmin, xmax, ymin, ymax, zmin, zmax]
+                                        logger.info(f"Found input.region in HISTORY: {region}")
+                                        break        
+        except Exception as e:
+            logger.warning(f"Could not parse region from mask header: {e}")
+
+        
+        # Load cube
         logger.info(f"Loading cube '{cube_file}'...")
         with fits.open(cube_file) as f:
-            cub = f[0].data
+            data = f[0].data
+            header_cube = f[0].header
         logger.info(f"Datacube '{cube_file}' opened")
-        
-        if cub.ndim == 4:
-            cub = np.squeeze(cub, axis=0)
-        elif cub.ndim > 4:
+
+    
+        if data.ndim == 4 and data.shape[0] == 1:
+            data = np.squeeze(data, axis=0)
+        if data.ndim > 4:
             logger.error("Too many dimensions")
             sys.exit(-1)
 
+
+        if data.ndim != 3:
+            logger.error(f"Unexpected cube dimensions: {data.ndim}. Expected 3D.")
+            return None
+
+        
+        # Crop the cube according to the region (if it exists)
+        if region is not None:
+            xmin, xmax, ymin, ymax, zmin, zmax = region
+            nz, ny, nx = data.shape
+
+            if xmin < 0 or xmax >= nx or ymin < 0 or ymax >= ny or zmin < 0 or zmax >= nz:
+                logger.warning(f"Region {region} out of cube bounds ({nz},{ny},{nx}). Using full cube.")
+            else:
+                # Apply region: data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
+                data = data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
+                logger.info(f"Cropped cube to region: {data.shape}")
+
+        
+        # Load mask
         logger.info(f"Loading mask '{mask_file}'...")
         with fits.open(mask_file) as f:
-            msk_original = f[0].data  
+            msk_original = f[0].data
             header = f[0].header
         logger.info(f"Mask '{mask_file}' opened")
-        
+
         if msk_original.ndim == 4:
             msk_original = np.squeeze(msk_original, axis=0)
         elif msk_original.ndim > 4:
@@ -113,10 +161,18 @@ class group(dict):
             sys.exit(-1)
 
         msk_original = np.nan_to_num(msk_original, nan=0.0)
-        cub = np.nan_to_num(cub, nan=0.0)
+        data = np.nan_to_num(data, nan=0.0)
+
+        
+        if data.shape != msk_original.shape:
+            logger.error(
+                f"Shape mismatch after cropping: data {data.shape} vs mask {msk_original.shape}. "
+                "Cannot proceed."
+            )
+            return None
 
         logger.info(f"Mask shape: {msk_original.shape}")
-        logger.info(f"Cube shape: {cub.shape}")
+        logger.info(f"Cube shape: {data.shape}")
 
         # Find unique IDs in the mask
         logger.info("Finding unique source IDs...")
@@ -124,29 +180,25 @@ class group(dict):
         unique_ids = unique_ids[unique_ids > 0]
         logger.info(f"Found source IDs: {unique_ids.tolist()}")
 
-        # Create dictionary with source information - CORREGIDO
+        # Create dictionary with source information
         logger.info("Precomputing source properties...")
         source_props = {}
-        
-        for source_id in unique_ids:
 
-            source_mask = (msk_original == source_id)  # ✅ Nombre diferente
-            
-            # Calculate integrated properties along the spectral axis
+        for source_id in unique_ids:
+            source_mask = (msk_original == source_id)
             aper_2d = source_mask.sum(axis=0).astype(bool)
-            imag_2d = np.nansum(cub * source_mask, axis=0)
-            
+            imag_2d = np.nansum(data * source_mask, axis=0)
             source_props[source_id] = {
-                'mask': source_mask,      
-                'aper_2d': aper_2d,     
-                'imag_2d': imag_2d,      
+                'mask': source_mask,
+                'aper_2d': aper_2d,
+                'imag_2d': imag_2d,
                 'total_area': aper_2d.sum(),
                 'total_flux': np.nansum(imag_2d),
                 'total_absflux': np.nansum(np.abs(imag_2d))
             }
 
         # Free memory
-        del cub
+        del data
         gc.collect()
 
         # Loop over source pairs to find overlaps
@@ -207,8 +259,8 @@ class group(dict):
         logger.info(f"Pairs = {pairs}")
 
         if pairs:
-            groups_nx = nx.from_edgelist(pairs)
-            groups = [tuple(gg) for gg in list(nx.connected_components(groups_nx))]
+            groups_nx = netx.from_edgelist(pairs)
+            groups = [tuple(gg) for gg in list(netx.connected_components(groups_nx))]
             logger.info(f"Groups = {groups}")
         else:
             groups = []

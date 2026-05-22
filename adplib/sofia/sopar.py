@@ -186,6 +186,53 @@ def mask_float2int(file_path):
         return ""
 
 
+def extract_region_from_mask(mask_3d_header):
+    """
+    """
+    
+    region = None
+    try:
+        if 'HISTORY' in mask_3d_header:
+            history_lines = mask_3d_header['HISTORY']
+            if isinstance(history_lines, str):
+                history_lines = [history_lines]
+            for line in history_lines:
+                if 'input.region' in line and '=' in line:
+                    parts = line.split('=')
+                    if len(parts) == 2:
+                        region_str = parts[1].strip()
+                        if region_str:
+                            numbers = [int(x.strip()) for x in region_str.split(',')]
+                            if len(numbers) == 6:
+                                region = tuple(numbers)
+                                logger.info(f"Found input.region in mask: {region}")
+                                break
+    except Exception as e:
+        logger.debug(f"Could not parse region from mask: {e}")
+    
+    return region
+
+
+def apply_region_crop(data, region):
+    """
+    """
+    if region is None:
+        return data
+       
+    xmin, xmax, ymin, ymax, zmin, zmax = region
+    nz, ny, nx = data.shape
+    
+    # Validate bounds
+    if xmin < 0 or xmax >= nx or ymin < 0 or ymax >= ny or zmin < 0 or zmax >= nz:
+        logger.warning(f"Region {region} out of bounds for shape ({nz},{ny},{nx})")
+        return data
+    
+    # Apply crop
+    cropped = data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
+    
+    return cropped
+
+
 class SoPar(dict): 
 
     def __init__(self, **kwargs):
@@ -993,7 +1040,7 @@ class SoPar(dict):
         })
 
 
-    def quality_assesment(self, mask_file=None):
+    def quality_assesment(self, provided_mask_file=None):
         """
         Perform a quality assessment by visualizing and comparing masks and moment images.
 
@@ -1081,26 +1128,26 @@ class SoPar(dict):
 
 
         # Mask provide by the user or from the ALMA archive
-        mask_proj = None
-        if mask_file:
+        provided_mask_proj = None
+        if provided_mask_file:
             try:
-                with fits.open(mask_file) as hdul:
-                    mask_raw = hdul[0].data
+                with fits.open(provided_mask_file) as hdul:
+                    mask_3d = hdul[0].data
                     # Basic squeeze for 4D cases
-                    if mask_raw.ndim == 4 and mask_raw.shape[0] == 1:
-                        mask_raw = np.squeeze(mask_raw, axis=0)
+                    if mask_3d.ndim == 4 and mask_3d.shape[0] == 1:
+                        mask_3d = np.squeeze(mask_3d, axis=0)
                     # Create 2D projection for visualization
-                    if mask_raw.ndim >= 3:
-                        mask_proj = np.any(mask_raw > 0, axis=0).astype(int)
-                    elif mask_raw.ndim == 2:
-                        mask_proj = mask_raw
+                    if mask_3d.ndim >= 3:
+                        provided_mask_proj = np.any(mask_3d > 0, axis=0).astype(int)
+                    elif mask_3d.ndim == 2:
+                        provided_mask_proj = mask_3d
             except Exception as e:
                 logger.warning(
-                    f"Failed to load provided mask '{mask_file}' for visualization: {e}"
+                    f"Failed to load provided mask '{provided_mask_file}' for visualization: {e}"
                 )
 
 
-        if mask_proj is not None:
+        if provided_mask_proj is not None:
             fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         else:
             fig, axs = plt.subplots(1, 2, figsize=(15, 6))
@@ -1120,10 +1167,10 @@ class SoPar(dict):
             ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
             #ax.colorbar(label="Intensity")
 
-            if mask_proj is not None:
+            if provided_mask_proj is not None:
                 ax = axs[2]
                 ax.set_title("Provided mask projection")
-                ax.imshow(mask_proj, cmap='viridis', origin='lower')
+                ax.imshow(provided_mask_proj, cmap='viridis', origin='lower')
 
             qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
             qa_output_dir.mkdir(parents=True, exist_ok=True)  
@@ -1131,8 +1178,7 @@ class SoPar(dict):
 
             plt.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
-                f"QA file saved in {qa_output_dir}. Quality assesment completed "
-                f"successfully. Mode: {self.mode}"
+                f"QA mask image saved in {qa_output_dir}. Mode: {self.mode}"
                 )
             
             qa_report['outputs']['images'].append({
@@ -1160,16 +1206,15 @@ class SoPar(dict):
             logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
         
-        if not mask_file:
+        if not provided_mask_file:
             logger.info("Mask file not provided - skipping quantitative comparison")
             logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
-
-        # Load input data
+        
+        # Load data cube
         try:
             with fits.open(self.input_data) as hdul:
                 data_cube = hdul[0].data
-                # Handle 4D cubes (squeeze if singleton)
                 if data_cube.ndim == 4 and data_cube.shape[0] == 1:
                     data_cube = np.squeeze(data_cube, axis=0)
         except Exception as e:
@@ -1183,6 +1228,7 @@ class SoPar(dict):
         try:
             with fits.open(file_3d_mask) as hdul:
                 sofia_mask_3d = hdul[0].data
+                sofia_mask_3d_header = hdul[0].header
                 if sofia_mask_3d.ndim == 4 and sofia_mask_3d.shape[0] == 1:
                     sofia_mask_3d = np.squeeze(sofia_mask_3d, axis=0)
         except Exception as e:
@@ -1195,33 +1241,38 @@ class SoPar(dict):
 
         # Load provided mask by the user or from the ALMA archive
         try:
-            with fits.open(mask_file) as hdul:
+            with fits.open(provided_mask_file) as hdul:
                 mask_3d = hdul[0].data
                 if mask_3d.ndim == 4 and mask_3d.shape[0] == 1:
                     mask_3d = np.squeeze(mask_3d, axis=0)
         except Exception as e:
-            logger.warning(f"Cannot load mask {mask_file} for quantitative comparison: {e}")
-            logger.info(f"Quality assement ended . Mode: {self.mode}")
-            return qa_report
-    
-        # Verify dimensional compatibility for comparison
-        if data_cube.shape != sofia_mask_3d.shape:
             logger.warning(
-                f"Shape mismatch: Data cube {data_cube.shape} vs SoFiA mask {sofia_mask_3d.shape}"
+                f"Cannot load mask {provided_mask_file} for quantitative comparison: {e}"
             )
-            logger.info("Skipping quantitative comparison due to shape mismatch.")
             logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
         
-        if data_cube.shape != mask_3d.shape:
-            logger.warning(
-                f"Shape mismatch: Data cube {data_cube.shape} vs provided mask {mask_3d.shape}"
-            )
-            logger.info("Skipping quantitative comparison due to shape mismatch.")
-            logger.info(f"Quality assement ended . Mode: {self.mode}")
+        # Extract region from SoFiA mask
+        region = extract_region_from_mask(sofia_mask_3d_header)
+       
+        # Crop if it is necessary
+        if region is not None:
+            logger.info(f"Cropping provided mask to match SoFiA region")
+            mask_3d = apply_region_crop(mask_3d, region)
+            # Rocorto data_cube para poder usarlo más adelante
+            data_cube = apply_region_crop(data_cube, region)
+            logger.info(f"Cropped shapes - data: {data_cube.shape}, mask: {mask_3d.shape}")
+        
+        
+        if data_cube.shape != sofia_mask_3d.shape:
+            logger.warning(f"Shape mismatch: data {data_cube.shape} vs SoFiA mask {sofia_mask_3d.shape}")
+            logger.info("Quality assessment aborted: shape mismatch")
             return qa_report
-
-
+        
+        if data_cube.shape != mask_3d.shape:
+            logger.warning(f"Shape mismatch: data {data_cube.shape} vs provided mask {mask_3d.shape}")
+            logger.info("Quality assessment aborted: shape mismatch")
+            return qa_report
 
         logger.info("Starting quantitative mask comparison...")
     
