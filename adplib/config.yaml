@@ -1,4 +1,4 @@
-# Configuration defaul file for ESPADA 
+# Configuration default file for ESPADA 
 
 ############### 
 #   GENERAL   #
@@ -13,7 +13,7 @@ output_dir:                         # <str> (Default espada_run/) Create a direc
 #    LOGGER    #
 ################
 
-clear_logs: True                    # <bool> (Default value = True) Creates a directory with an HTML report that shows a quick look at the run results.
+clear_logs: True                    # <bool> (Default value = True) Delete all available .log files in the folder specified in log_file and only leave those corresponding to the current run.
 log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log') Path to the log file. Relative paths are resolved inside output_dir. Absolute paths are only accepted if they lie within output_dir.
 
 ##################
@@ -60,4 +60,4 @@ sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Defaul
 
 enable_group: True                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
 overlap_mode :  'absflux'   # 'flux', 'absflux' or 'area'       # <str> (Default value = 'absflux') Determines the type of overlap is going to be applied to group sources.
-overlap_threshold : 0.8                                         # <float> (Default value = 'emission') Set the limit applied to the 'overlap_mode' selected from 0 to 1. 
+overlap_threshold : 0.8                                         # <float> (Default value = 0.8) Set the limit applied to the 'overlap_mode' selected from 0 to 1. 
