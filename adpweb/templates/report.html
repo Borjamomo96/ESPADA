@@ -48,7 +48,16 @@
                   <span class="sw-square {{ sw.sw_status }}"></span>
 
                   <div class="sw-name">{{ sw.software_id }}</div>
-                  <div class="sw-mode">Mode: <em>{{ sw.mode }}</em></div>
+                  <div class="sw-mode">
+                    Mode:
+                    <em>
+                      {% if sw.is_group %}
+                        Group ({{ sw.mode }})
+                      {% else %}
+                        {{ sw.mode }}
+                      {% endif %}
+                    </em>
+                  </div>
                   <div class="sw-warnings">Nº warnings: <em>{{ sw.warning_number }}</em></div>
 
                   <div class="btn-group">
