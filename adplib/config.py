@@ -1,5 +1,5 @@
 
-import os, yaml
+import os, yaml, sys
 from pathlib import Path
 
 # Logger:
@@ -119,7 +119,7 @@ class Config(dict):
         return Config._instance
 
 
-    def __init__(self, reconfigure=False, **kwargs):
+    def __init__(self, config_path=None, config_par=None, reconfigure=False, **kwargs):
         """
         Reads the specified config file and creates a configuration object.
         
@@ -147,7 +147,7 @@ class Config(dict):
         self.__dict__ = self # Load config file and set attributes
         
         if reconfigure or not Config._configured:
-            self.configure(**kwargs)
+            self.configure(config_path=config_path, config_par=config_par, **kwargs)
 
         #Check the parameter from the config.yaml
         self.check_config_par()
@@ -159,7 +159,7 @@ class Config(dict):
         self.init_directory()
 
 
-    def configure(self, config_path=None, **kwargs):
+    def configure(self, config_path=None, config_par=None, **kwargs):
 
         if config_path is None:
             
@@ -197,7 +197,19 @@ class Config(dict):
         # modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
         for k, v in config_dict.items():
             setattr(self, k, v)
-                
+
+        if config_par:
+            non_overridable = ['input_data_set']
+            for key, value in config_par.items():
+                if key in non_overridable:
+                    raise ValueError(f"Cannot override '{key}' from command line.")
+                elif hasattr(self, key):
+                    setattr(self, key, value)
+                else:
+                    raise ValueError(
+                        f"Unknown config parameter '{key}' in -cp|--config-parameter argument."
+                    )
+
 
     def init_directory(self):
         
@@ -262,7 +274,7 @@ class Config(dict):
                 if not isinstance(value, expected_type):
                     
                     raise ValueError(
-                        f"The parameter '{param}' in the config.yaml file must be of "
+                        f"The parameter '{param}' file must be of "
                         f"type {expected_type}, but is of type {type(value)}."
                     )
 

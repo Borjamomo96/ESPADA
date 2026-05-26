@@ -48,9 +48,12 @@ Included programs:
 
 Main options:
     -c, --config-file Main configuration file (YAML)
+    -cp, --config-parameters Parameters for config.yaml in key=value format
     -sop, --sofia-parameters Parameters for SoFia in key=value format
     -sarg, --sip-arguments Arguments for SIP
     -i, --info Information about a file or parameter
+    --debug Run ESPARA in debug mode
+
 
 For detailed help on a file or parameter, use the command '-i|--info':
 adpalmap -i <file|parameter>=<file_name|parameter_name>
@@ -60,6 +63,7 @@ adpalmap -i <file|parameter>=<file_name|parameter_name>
 
 
 # Functions 
+
 def show_info(topic):
 
     DOC_FILE = Path(__file__).parent / "doc/info_docs.yaml"
@@ -82,8 +86,10 @@ def show_info(topic):
     else:
         console.print(f"[red]No information found for '{topic}'[/red]")
 
+##################################################################################################
+# Parser Config and SOFIA parameter from terminal 
 
-def parse_sofia_par(arg):
+def parse_key_value(arg):
 
     """
     Parses a string in key=value format. Splits the string at the first = and returns a tuple 
@@ -106,8 +112,43 @@ def parse_sofia_par(arg):
         key, value = arg.split("=", 1)
         return key, value
     except ValueError:
-        raise argparse.ArgumentTypeError("--sofia-parameters must be in par=val format")
+        raise argparse.ArgumentTypeError(
+            "--config-parameter, --download-paramater or --sofia-parameters must be in " 
+            "par=val format."
+            )
 
+
+def convert_str2python_value(value_str):
+    """
+    Convert a string to appropriate Python type (bool, int, float, list, str).
+    """
+    value_str = value_str.strip()
+    
+    # Boolean
+    if value_str.lower() in ('true', 'yes', 'on'):
+        return True
+    if value_str.lower() in ('false', 'no', 'off'):
+        return False
+    
+    # Lists with brackets or separated by commas
+    if (value_str.startswith('[') and value_str.endswith(']')) or ',' in value_str:
+        # Reutilizar parse_sip_value para manejar listas correctamente
+        return parse_sip_value(value_str)
+    
+    # Number
+    try:
+        if '.' in value_str:
+            return float(value_str)
+        else:
+            return int(value_str)
+    except ValueError:
+        pass
+    
+    # String by default
+    return value_str
+
+##################################################################################################
+# Parser SIP argument from terminal 
 
 def convert_if_number(s):
     """
@@ -254,6 +295,7 @@ def sipargs_to_dict(args_list):
             print(type(args_dict[k]))
     return args_dict
 
+##################################################################################################
 
 def worker_init(log_queue):
     """
@@ -1237,8 +1279,13 @@ def main():
             "APDALMAP will try to use the file 'config.yaml'"
         )
         parser.add_argument(
+            '-cp', '--config-parameter', dest='config_par', nargs='+',
+            type=parse_key_value, default=None,
+            help="Override parameters in config.yaml. Format: key=value (multiple allowed)."
+        )
+        parser.add_argument(
             '-sop', '--sofia-parameters', dest='sofia_par', nargs='+', 
-            type=parse_sofia_par, default=None,
+            type=parse_key_value, default=None,
             help="<Optional> List of the parameters following the instructions of SoFia2 "
             "cookbook. Note, the parameter introduced here will overwrite the "
             "corresponding parameter in all the sofia files used in ADPALMAP"
@@ -1262,13 +1309,18 @@ def main():
 
         args = parser.parse_args()
         
+        if args.config_par: 
+            args.config_par = dict(args.config_par)
+            for k, v in args.config_par.items():
+                python_value = convert_str2python_value(v)
+                args.config_par[k]=python_value
         if args.sofia_par: args.sofia_par = dict(args.sofia_par)
         if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
         if args.info:
             show_info(args.info)
             sys.exit(-1)
         debug_mode = args.debug
-
+        
     ##############################################################################################
 
     ##############################################################################################
@@ -1284,9 +1336,9 @@ def main():
             ilogger.warning(
                 "No config.yaml file specified, default config.yaml file will be used"
             )
-            adpalmap_config = Config()
+            adpalmap_config = Config(config_par=args.config_par)
         else:
-            adpalmap_config = Config(config_path=args.config_file)    
+            adpalmap_config = Config(config_path=args.config_file, config_par=args.config_par)    
         
     ##############################################################################################
 
@@ -1322,6 +1374,7 @@ def main():
                             "download data.")
 
             adpalmap_datap = datap(download_path=adpalmap_config.download_par_file)
+            
             if adpalmap_datap.query_type=='proposal': TAP_df = adpalmap_datap.proposal_id()
             elif adpalmap_datap.query_type=='member_ous_id': TAP_df = adpalmap_datap.member_ous_id()
             elif adpalmap_datap.query_type=='conesearch': TAP_df = adpalmap_datap.conesearch()
