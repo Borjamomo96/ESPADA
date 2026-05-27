@@ -315,7 +315,7 @@ def calculate_workers(data_pack_list, max_cores):
     total_files = len(data_pack_list)
     
     #Estimación de memoria por proceso
-    total_size = sum(os.path.getsize(data) for data, _, _ in data_pack_list if data)
+    total_size = sum(os.path.getsize(data) for data, _, _, _ in data_pack_list if data)
     avg_size = (total_size / total_files) if total_files > 0 else 0
     #Memoria disponible en GB
     mem_available = psutil.virtual_memory().available / 1024**3  
