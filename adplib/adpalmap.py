@@ -1402,36 +1402,39 @@ def main():
         if adpalmap_config.enable_tap_service == True:
             
             data_pack_list = [
-                (data, pb, mask)
-                for data, pb, mask in zip(
-                    adpalmap_datap.data_list, 
-                    adpalmap_datap.pb_list, 
-                    adpalmap_datap.mask_list
+                (data, pb, mask, cont)
+                for data, pb, mask, cont in zip(
+                    adpalmap_datap.data_list,
+                    adpalmap_datap.pb_list,
+                    adpalmap_datap.mask_list,
+                    adpalmap_datap.cont_list
                 )
             ]
-
-            ancillary_pack_list = [(cont) for cont in adpalmap_datap.cont_list]
-
-            if len(data_pack_list) != len(ancillary_pack_list):
-                logger.critical(
-                    f"Unexpected error: 'data_pack_list' and 'ancillary_pack_list' have diffetent "
-                    "length. Please open an issue on GitHub "
-                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
-                    "case."
-                )
-                sys.exit(-1)
         # Local Data
         else: 
             data_pack_list = adpalmap_config.input_data_set
-            ancillary_pack_list = [""] * len (data_pack_list)
 
         # Complete dataset list
-        complete_pack_list = [
-        (data, primary_beam, mask, ancillary) 
-        for (data, primary_beam, mask), ancillary in zip(data_pack_list, ancillary_pack_list)
-        ]
+        complete_pack_list = data_pack_list
         number_list = list(range(len(data_pack_list)))
-    
+
+
+        if adpalmap_config.enable_tap_service and complete_pack_list:
+            input_file_path = adpalmap_config.output_dir / "espada_input_file.txt"
+            with open(input_file_path, 'w') as f:
+                f.write("# Auto-generated input file from ESPADA run with TAP service\n")
+                f.write("# Format: dataset_id: cube_path primary_beam_path mask_path continuum_path\n")
+                f.write("# Empty fields are represented as \"\"\n")
+                for idx, (cube, pb, mask, continuum) in enumerate(complete_pack_list, start=1):
+                    cube_str = str(cube) if cube else '""'
+                    pb_str = str(pb) if pb else '""'
+                    mask_str = str(mask) if mask else '""'
+                    cont_str = str(continuum) if continuum else '""'
+                    f.write(f"{idx}: {cube_str} {pb_str} {mask_str} {cont_str}\n")
+            logger.info(
+                f"Generated input file for future runs (without re-download): {input_file_path}"
+            )
+
     ##############################################################################################
         
     ##############################################################################################

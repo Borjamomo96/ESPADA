@@ -11,8 +11,8 @@ def parse_single_dataset(data_set, id):
     """Procesa un único conjunto de datos (ya sea string, lista o lista con strings anidados)."""
     files = []
     no_valid_entries = ['""',"''",'none','None','null','Null', '']
-    # Si es str
-
+    
+    # If string
     if isinstance(data_set, str):
 
         parts = [p.strip() for p in data_set.replace(',', ' ').split() if p.strip()]
@@ -20,7 +20,8 @@ def parse_single_dataset(data_set, id):
       
 
         files.extend(parts)
-    # Si es list
+
+    # If list
     elif isinstance(data_set, list):
         
         for item in data_set:
@@ -51,9 +52,9 @@ def parse_single_dataset(data_set, id):
     if not files:
         raise ValueError(f"No files were provided in the set: '{id}'")
 
-    # Limitar a 3 elementos máximo
-    files = files[:3]  
-    while len(files) < 3:
+    # Maximum limit of 4 files
+    files = files[:4]  
+    while len(files) < 4:
         files.append("")
 
     if not files[0]:
@@ -94,7 +95,9 @@ def validate_fits_files(data_set_list, id_list):
                     new_dataset.append(Path(expanded_file))
             else:
                 new_dataset.append("") 
-
+                
+        while len(new_dataset) < 4:
+            new_dataset.append("")
         data_set_list_path.append(tuple(new_dataset))
        
     return data_set_list_path
