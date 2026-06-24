@@ -274,10 +274,14 @@ class group(dict):
             msk_new = msk_original.copy()  
             
             remaining_ids = set(ids)
+            group_zbbox = {}
             for gg in groups:
                 logger.info(f" group: {gg}")
                 group_id = min(gg)
+                group_zbbox[group_id] = []
                 for source_id in gg:
+                    source_zs = np.where(msk_original == source_id)[0]
+                    group_zbbox[group_id].append([source_id, int(source_zs.min()), int(source_zs.max())])
                     if source_id in remaining_ids:
                         remaining_ids.remove(source_id)
                     if source_id != group_id:
