@@ -1,18 +1,18 @@
 
-# ADP ALMA Pipeline
+# ESPADA: Enhanced Spectral‑line Pipeline for the ALMA Data Archive
 
-The ALMA spectral line ADP software (“ADPALMAP”) is an end-to-end pipeline which acts as a wrapper and control package for the downloading of ALMA data from the science archive, and the subsequent source finding, parameterization, and visualization workflow, using the existing Source Finding Application (SoFiA) and SoFiA Image Pipeline (SIP) packages. ADPALMAP is designed to generate advanced ALMA spectral line data products with minimal user intervention.
+ESPADA is an end‑to‑end Python pipeline that automates the downloading of ALMA data from the Science Archive, source finding with SoFiA‑2, parameterisation and visualisation with the SoFiA Imaging Pipeline (SIP), and source grouping. It produces advanced data products with minimal user intervention.
 
 ## Requirements
 
-This code has been developed and tested (not yet) with Python 3.10.15.
+This code has been developed with Python ≥ 3.10 (tested with 3.10.15)
 
 This pipeline makes use of the external programs Source Finding Application (SoFiA) and SoFiA Image Pipeline (SIP). Therefore, it is necessary to have both software installed on your system beforehand. To install these programs, we strongly recommend reading their respective documentation in the repositories:
 
 (https://gitlab.com/SoFiA-Admin/SoFiA-2)  
 (https://github.com/kmhess/SoFiA-image-pipeline)
 
-**Warning**: ADPALMAP makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori for each device. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
+**Warning**: ESPADA makes use of the subprocess module to run external software such as SoFiA and SIP. To run each software, the subprocess module needs to know the command to call each one, which is not possible to know a priori for each device. It is recommended to install both SoFiA and SIP according to the authors' recommendations so that both are executed when called from the terminal as: `sofia` and `sofia_image_pipeline` respectively.
 
 _Alternatively (not recommended option, under user responsibility)_: the corresponding line of code where each software is executed can be changed. To do this:
 
@@ -32,72 +32,108 @@ There is an additional dependency on the Ghostscript program. This is simply use
     $ brew install ghostscript
 ```
 
-If you don't want to install Ghostscript, there are alternative options for viewing .eps images in different browsers.
-
-## Installation
-
-**DISCLAIMER**: The steps provided here are RECOMMENDATION only, there may be other ways to install ADPALMAP that will also work.
-
-We recommend installing ADPALMAP in an isolated environment as described below. 
-
-ADPALMAP requires Python 3.10 or later, If you don't have Python 3.10 or later, you can install pyenv and pyenv-virtualenv, which will manage python versions for you. You can use the automatic installer pyenv-installer:
+This is not a requirement, but ot is strongly recommend to install ESPADA in an isolated environment to avoid dependency conflicts. If you do not have a compatible version of Python installed, you can use pyenv and pyenv-virtualenv to manage Python versions and virtual environments.
+You can install pyenv automatically with:
 
 ```
     $ curl https://pyenv.run | bash
 ```
 
-Follow the instructions that this command outputs to add pyenv to PATH (or copy the commands from https://github.com/pyenv/pyenv for your shell). Restart your terminal, or source the file (e.g. . ~/.bashrc or . ~/.zshrc) Then, run:
-
+Follow the instructions that this command outputs to add pyenv to your PATH (or copy the commands from https://github.com/pyenv/pyenv for your shell). Once configured, restart your terminal or reload your shell configuration:
+```
+    $ source ~/.bashrc
+```
+Install Python 3.10 and create a virtual environment for ESPADA:
 ```
     $ pyenv install 3.10
     $ pyenv virtualenv 3.10 adpalmap
     $ pyenv activate adpalmap
 ```
+This will create an isolated virtual environment with the correct Python version.
+To exit the virtual environment, run:
+```
+    $ pyenv deactivate
+```
 
-Now you will have a virtual environment with the right Python version, and you can continue with the next step. To deactivate, just run `pyenv deactivate`.
+## Standard installation procedure
 
-With the environment activated, download this repository and install ADPALMAP:
+Installing ESPADA from this GitHub repository is fairly straightforward, the user simply needs to type these commands in the terminal:
 ```
   $ git clone https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git
   $ cd ADP-ALMA-Pipeline
   $ pip install -e .
 ```
-This will install it in developer mode, alternatively you can simply install it with `pip install .`.
-
-As mentioned, ADPALMAP uses the external software SoFiA2 and SIP, which must be able to run within the newly created environment by issuing the commands `sofia` and `sofia_image_pipeline`, respectively, in the terminal. See "Requirements" for details.
+This will install the pipeline in developer mode, which is recommended but not mandatory, and will download all available files from the repository, not just the Python-related ones. Alternatively, it can be run without the “-e” option, but be aware that some files may be missing which can lead to errors.
 
 
-## Running ADPAlmaP
+## Running ESPADA
 
-If you have followed the instructions mentioned above, you can now run the pipeline as if it were a module with the command:
+The pipeline is initiated from a terminal command line with the command: 
 ```
 $ adpalmap
 ```
-If, on the other hand, you have followed an alternative path and it is not yet a module, the pipeline can be run as a script:
+Note that this functionality is only available if the instructions outlined above have been properly followed.  In that case, the pipeline will be installed as a command-line tool. Although the pipeline can still be executed with:
 
 ```
 $ python adpalmap.py
 ```
-From now on, it will be assumed that it will be run as a module.
+this approach is strongly discouraged, as it may lead to import and environment inconsistencies. From this point onward, it will be assumed that the pipeline is executed using the installed command-line interface.
 
-The pipeline runs using a configuration file named *config.yaml*, which is explained in detail in the next section. Unless otherwise specified, the pipeline will attempt to use the 'config.yaml' file that is found by default when cloning the repository. If this file is moved to another directory or a different one is to be used, an equivalent file must be specified per terminal using the '-c|--config-file' argument:
+The `adpalmap` command will automatically search for the included default pipeline configuration file, *config.yaml*. However, the recommended usage is through the argument `"-c|$--$config-file"`:
 ```
 $ adpalmap -c config_example.yaml
 ```
-The pipeline also has two other arguments, '-sop|--sofia-parameters' and '-sarg|--sip-arguments', which are used to enter the SoFiA2|SIP parameters|arguments, just as they would be if each software were run in isolation. The following sections provide more details about their usage. Example:
-```
-$ adpalmap -sop contsub.threshold=3.0 linker.radiusXY=3 -sarg -i 0.15
+where *"config\_path.yaml"* is the user-defined configuration file, based on the default template.
 
-```
-Finally, the pipeline has the '-i|--info' argument, which allows you to briefly display information about the files used by the pipeline, as well as the parameters they contain. Example:
+## Available command line arguments
 
-```
-$ adpalmap -i file=config.yaml
-$ adpalmap -i parameter=run_mode
-```
+In addition to the aforementioned argument `"-c|$--$config-file"`, there are currently 6 other available arguments. These are explained below:
+
+  - `"-cp|$--$config-parameters"`: Allows the user to modify the parameters, except for `input\_data\_set` within the *config.yaml* parameter file directly from the terminal. The required format is: `parameter=value`, with the restriction that no spaces are allowed between them. The parser will interpret any space as a new parameter and may fail. An example:
+  ```
+    $ adpalmap -c config.yaml -cp enable_tap_service=false input_file=Testing/espada_input_file.txt
+    $ adpalmap -c config.yaml -cp num_cores=5
+  ```
+
+  - `"-sop|$--$sofia-parameters"`: Allows the user to modify any parameter within the SoFiA parameter file directly from the terminal. The required format is the same as when running SoFiA independently: `parameter=value`, with the restriction that no spaces are allowed between them. The parser will interpret any space as a new parameter and may fail. An example:
+  ```
+    $ adpalmap -c config.yaml -sop linker.radiusXY=2 pipeline.verbose=true
+  ```
+  Special care must be taken when using this option. ESPADA can be executed to search for emission, absorption—each with its own optimized parameter file—or both, and any parameter specified via the terminal will be applied to all SoFiA parameter files used during execution, which may lead to unintended effects. 
+  Some parameters can not be modified in order to preserve the correct functioning of the pipeline; in such cases, a warning message will indicate that the provided value will be ignored.
+
+  - `"-sarg|$--$sip-arguments"`: Similar to the previous option, this allows the user to modify any argument within the SIP parameter file directly from the terminal, with certain caveats. The general format consists of including the `-sarg` argument followed by the native SIP arguments: `-sarg -argument value`.
+  Examples:
+  ```
+  $ adpalmap -c config.yaml --sip-arguments -i 0.15
+  $ adpalmap -c config.yaml -sarg -i 0.15 
+  $ adpalmap -c config.yaml -sarg -i 0.15 -m -o datacube.fits
+  ```
+  It is not possible to maintain the same format for all parameters both in the parameter file and via the terminal. For example, boolean parameters in *sip_args.yaml* accept True|False, whereas in the terminal only the corresponding argument should be included or omitted. Since it can be confusing in some cases, minimal use of this functionality is recommended. 
+  One important aspect is that \textbf{other ESPADA arguments must not be used after this one}, as they will either be ignored or, in the worst case, the parser will attempt to parse them as parameters within `-sarg`, which may result in errors.  
+
+  - `"-h|$--$help"`: A standard default argument that displays concise documentation on the pipeline and how to execute it easily. The command for its use is:
+  ```
+  $ adpalmap -h 
+  $ adpalmap --help
+  ```
+
+  - `"-i|$--$info"`: Displays an additional layer of information about the configuration files and the individual parameters they contain. The format in this case depends on whether a file or a specific parameter is requested: `-i file=file\_name` or `-i parameter=parameter\_name`, where "file_name" and "parameter_name" can refer to any of the configuration files (using their default names) and any parameter contained within them, respectively. Some examples: 
+  ```
+  $ adpalmap -i file=config.yaml 
+  $ adpalmap -i parameter=filename_must_include
+  $ adpalmap --info parameter=make_report
+  ```
+
+  - `"$--$debug"`: This argument changes the logging level of the messages displayed both in the terminal and in the log files, enabling additional messages as well as the traceback in case of errors. The command is:
+  ```
+  $ adpalmap -c config.yaml --debug 
+  ```
+  It is worth noting that ESPADA includes an additional message logging level, beyond the Python standard, called RAW, which will also be displayed. 
 
 
-## Configuration master file, 'config.yaml'
+
+## Configuration main file, 'config.yaml'
 
 The pipeline runs using a configuration file named *config.yaml*, which is included by default in this repository and contains the essential parameters for its operation. These are:
 

@@ -233,6 +233,56 @@ def apply_region_crop(data, region):
     return cropped
 
 
+def find_previous_qa_reports(input_data, adpalmap_config, pid, logger):
+    """
+    Build QA report entries from standard QA images generated in previous runs.
+    """
+
+    qa_reports = []
+    input_stem = Path(input_data).stem
+    qa_output_dir = (
+        adpalmap_config.output_dir
+        / f"espada_{input_stem}"
+        / "quality_assesment_products"
+    )
+
+    if adpalmap_config.run_mode == "both":
+        modes = ("absorption", "emission")
+    else:
+        modes = (adpalmap_config.run_mode,)
+
+    logger.info(f"Looking for previous QA outputs for dataset '{input_stem}'")
+
+    for mode in modes:
+        qa_image_path = qa_output_dir / f"{mode}_{input_stem}_QA.png"
+
+        if not qa_image_path.exists():
+            logger.info(f"No previous QA image found for {mode}: {qa_image_path}")
+            continue
+
+        logger.info(f"Previous QA image found for {mode}: {qa_image_path}")
+        qa_reports.append({
+            "software_id": "QA",
+            "PID": pid,
+            "input_name": input_stem,
+            "mode": mode,
+            "log_path": "",
+            "outputs": {
+                "images": [{
+                    "type": "mom8",
+                    "path": qa_image_path,
+                    "description": "Previous QA image",
+                    "software-id": "qa"
+                }],
+                "files": []
+            },
+            "cube_statistics": {},
+            "mask_comparison": {}
+        })
+
+    return qa_reports
+
+
 class SoPar(dict): 
 
     def __init__(self, **kwargs):
@@ -576,10 +626,37 @@ class SoPar(dict):
                     f"Ignoring value '{sop_par['reliability.enable']}' for the 'reliability.enable' "
                     "parameter provided in vía '-sop' comand."
                 )
+            if (sop_par and 'contsub.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['contsub.enable']}' for the 'scfind.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if (sop_par and 'scaleNoise.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['scaleNoise.enable']}' for the 'scaleNoise.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if (sop_par and 'rippleFilter.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['rippleFilter.enable']}' for the 'rippleFilter.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if (sop_par and 'threshold.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['threshold.enable']}' for the 'threshold.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            if (sop_par and 'dilation.enable' in sop_par):
+                logger.warning(
+                    f"Ignoring value '{sop_par['dilation.enable']}' for the 'dilation.enable' "
+                    "parameter provided in vía '-sop' comand."
+                )
+            
+            
         ##############################################################################################
 
         ########################-------------pipeline.threads--------------###########################
-        if (sop_par and "pipeline_threads" in sop_par) or self.pipeline_threads:
+        if (sop_par and "pipeline.threads" in sop_par) or self.pipeline_threads:
             logger.warning(
                 "The parameter 'self.pipeline_threads' indicated via -sop or in the "
                 f" {self.sofia_file_path} will be ignored. This pipeline manages the threads "
@@ -1174,7 +1251,7 @@ class SoPar(dict):
 
             qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
             qa_output_dir.mkdir(parents=True, exist_ok=True)  
-            qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename).stem}_QA.png")
+            qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename)}_QA.png")
 
             plt.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
@@ -1513,6 +1590,5 @@ class SoPar(dict):
             projection_viz = projection
 
         return projection_viz
-
 
 

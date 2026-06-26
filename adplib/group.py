@@ -93,7 +93,7 @@ class group(dict):
         # Extract region from SoFiA mask
         region = None
         try:
-            with fits.open(mask_file) as f:
+            with fits.open(mask_file, mmap=True) as f:
                 header = f[0].header
                 if 'HISTORY' in header:
                     history_lines = header['HISTORY']

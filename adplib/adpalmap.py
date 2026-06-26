@@ -6,6 +6,7 @@ from adplib.exceptions import RecoverableError, ConfigurationError
 from adplib.config import Config
 
 import os
+import shutil
 from datetime import datetime
 import re
 import time
@@ -294,6 +295,132 @@ def sipargs_to_dict(args_list):
             args_dict[k] = convert_if_number(v)
             print(type(args_dict[k]))
     return args_dict
+
+##################################################################################################
+
+def clean_previous_outputs(adpalmap_config, data_pack_list, logger):
+    """
+    Remove stale products for the datasets that will be processed in this run.
+    """
+    sip_patterns = (
+        "*_figures",
+        "*_sip.log",
+        "*_mom0.png",
+        "*_mom0.jpg",
+        "*_mom0.pdf",
+        "*_mom0.svg",
+        "*_mom0_*.png",
+        "*_mom0_*.jpg",
+        "*_mom0_*.pdf",
+        "*_mom0_*.svg",
+        "*_mom1.png",
+        "*_mom1.jpg",
+        "*_mom1.pdf",
+        "*_mom1.svg",
+        "*_mom2.png",
+        "*_mom2.jpg",
+        "*_mom2.pdf",
+        "*_mom2.svg",
+        "*_sources.png",
+        "*_sources.jpg",
+        "*_sources.pdf",
+        "*_sources.svg",
+    )
+    group_patterns = ("group_*",)
+
+    for data, _, _, _ in data_pack_list:
+        if not data:
+            continue
+
+        dataset_dir = adpalmap_config.output_dir / f"espada_{Path(data).stem}"
+
+        if not dataset_dir.exists():
+            logger.debug(f"No previous output directory found for dataset: {dataset_dir}")
+            continue
+
+        if adpalmap_config.enable_sofia:
+            logger.info(
+                "Cleaning previous outputs for dataset "
+                f"'{Path(data).stem}': SoFiA enabled, removing {dataset_dir}"
+            )
+            _remove_path(dataset_dir, adpalmap_config.output_dir, logger)
+            continue
+
+        if adpalmap_config.enable_sip:
+            logger.info(
+                "Cleaning previous SIP outputs for dataset "
+                f"'{Path(data).stem}' in {dataset_dir}"
+            )
+            _remove_matching_outputs(
+                dataset_dir, sip_patterns, adpalmap_config.output_dir, logger
+            )
+
+            logger.info(
+                "Cleaning previous group outputs for dataset "
+                f"'{Path(data).stem}' in {dataset_dir}"
+            )
+            _remove_matching_outputs(
+                dataset_dir, group_patterns, adpalmap_config.output_dir, logger
+            )
+            continue
+
+        if adpalmap_config.enable_group:
+            logger.info(
+                "Cleaning previous group outputs for dataset "
+                f"'{Path(data).stem}' in {dataset_dir}"
+            )
+            _remove_matching_outputs(
+                dataset_dir, group_patterns, adpalmap_config.output_dir, logger
+            )
+
+
+def _remove_matching_outputs(dataset_dir, patterns, output_dir, logger):
+    """
+    Remove files or folders in a dataset directory that match any of the provided patterns.
+    """
+
+    candidates = []
+    seen = set()
+    for pattern in patterns:
+        for candidate in dataset_dir.glob(pattern):
+            resolved_candidate = candidate.resolve()
+            if resolved_candidate in seen:
+                continue
+            seen.add(resolved_candidate)
+            candidates.append(candidate)
+
+    if not candidates:
+        logger.debug(f"No previous outputs matched in {dataset_dir}. Patterns: {patterns}")
+        return
+
+    for candidate in candidates:
+        _remove_path(candidate, output_dir, logger)
+
+
+def _remove_path(path, output_dir, logger):
+    """
+    Remove a file or directory after verifying it is inside output_dir.
+    """
+    path = Path(path)
+    output_dir = Path(output_dir).resolve()
+
+    if not path.exists():
+        return
+
+    resolved_path = path.resolve()
+    if resolved_path != output_dir and output_dir not in resolved_path.parents:
+        logger.warning(f"Skipping cleanup outside output_dir: {path}")
+        return
+
+    try:
+        if path.is_dir():
+            shutil.rmtree(path)
+            logger.info(f"Removed previous output directory: {path}")
+        else:
+            path.unlink()
+            logger.info(f"Removed previous output file: {path}")
+    except Exception as e:
+        logger.warning(f"Could not remove previous output '{path}': {e}")
 
 ##################################################################################################
 
@@ -701,7 +828,6 @@ def _build_configuration_dict(adpalmap_config, adpalmap_datap):
         'config_file_used': str(adpalmap_config._config_path) if hasattr(adpalmap_config, '_config_path') else 'config.yaml'
     }
 
-
 def process_data(id_number,
                  input_data, 
                  primary_beam, 
@@ -719,13 +845,13 @@ def process_data(id_number,
     pid = os.getpid()
 
     # Must be defined after define the logger and before Group
-    from adplib.sofia.sopar import SoPar
+    from adplib.sofia.sopar import SoPar, find_previous_qa_reports
     from adplib.sip.sipargs import SiPar
     from adplib.group import group
 
     
     ##############################################################################################
-    #Run SoFia
+    # Run SoFia
 
     if adpalmap_config.enable_sofia == True:
 
@@ -875,13 +1001,13 @@ def process_data(id_number,
 
     else:
         sofia_report = []
-        qa_report = []
+        qa_report = find_previous_qa_reports(input_data, adpalmap_config, pid, logger)
         logger.info(f"'enable_sofia' set to {adpalmap_config.enable_sofia}. "
                     "SoFiA execution skipped")
     ##############################################################################################
     
     ##############################################################################################
-    #Run SIP
+    # Run SIP
     
     if adpalmap_config.enable_sip == True:
 
@@ -938,6 +1064,8 @@ def process_data(id_number,
     ##############################################################################################
     
     ##############################################################################################
+    # Run 
+    
     if adpalmap_config.enable_group:
     
         group_report = []
@@ -1435,6 +1563,8 @@ def main():
                 f"Generated input file for future runs (without re-download): {input_file_path}"
             )
 
+        clean_previous_outputs(adpalmap_config, complete_pack_list, logger)
+
     ##############################################################################################
         
     ##############################################################################################
@@ -1447,12 +1577,7 @@ def main():
                     "The number of cores indicated is greater than the number of cores available "
                     f"in the CPU. The number of cores has been assigned as: {cpu_cores}. "
                 )
-                # CPU efficiency limit
-                efficiency_factor = 0.7
-                logger.info(
-                    f"The maximum number of cores on the device is {cpu_cores}. For efficiency "
-                    f"reasons, a factor of {efficiency_factor} will be applied.")
-                max_cores = int(cpu_cores * efficiency_factor)
+                max_cores = int(cpu_cores)
             else:
                 max_cores = adpalmap_config.num_cores
 
@@ -1463,12 +1588,20 @@ def main():
         available_cores = max_cores - reserved_cores 
 
         max_workers = calculate_workers(data_pack_list, available_cores)
+        debug_in_process = os.environ.get("ESPADA_DEBUG_IN_PROCESS") == "1"
 
         if max_workers < 1:
             logger.warning(
                 "The worker number is lower than 1. One or more of the datasets are too large"
                 " for the available RAM. The minimum worker count is set to 1, but keep in "
                 "mind that unexpected errors may occur."
+            )
+            max_workers = 1
+        
+        if debug_in_process:
+            logger.warning(
+                "ESPADA_DEBUG_IN_PROCESS enabled: datasets will run sequentially in the "
+                "main process. Use this mode only for debugging."
             )
             max_workers = 1
 
@@ -1481,23 +1614,14 @@ def main():
         
     ##############################################################################################
 
-        with ProcessPoolExecutor(
-            max_workers=max_workers, initializer=worker_init, initargs=(log_queue,)
-        ) as pool:
-    
-            futures = [
-                pool.submit(
-                    process_data, 
-                    id_number, data, primary_beam, mask, ancillary,
-                    adpalmap_config,
-                    args, sofia_threads, number_list
-                    )
-                for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
-            ]
-            
-            for future in as_completed(futures):  
+        if debug_in_process:
+            for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list):
                 try:
-                    result = future.result()
+                    result = process_data(
+                        id_number, data, primary_beam, mask, ancillary,
+                        adpalmap_config,
+                        args, sofia_threads, number_list
+                    )
                     worker_results.append(result)
 
                 #Este primero porque python lee Excepciones de arriba a abajo
@@ -1526,6 +1650,53 @@ def main():
                          "specific case."
                     )
                     raise 
+        
+        else:
+            with ProcessPoolExecutor(
+                max_workers=max_workers, initializer=worker_init, initargs=(log_queue,)
+            ) as pool:
+        
+                futures = [
+                    pool.submit(
+                        process_data, 
+                        id_number, data, primary_beam, mask, ancillary,
+                        adpalmap_config,
+                        args, sofia_threads, number_list
+                        )
+                    for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
+                ]
+                
+                for future in as_completed(futures):  
+                    try:
+                        result = future.result()
+                        worker_results.append(result)
+
+                    #Este primero porque python lee Excepciones de arriba a abajo
+                    #Errores salvables. El resto de procesos sigue corriendo
+                    except RecoverableError as e:  
+                        worker_exceptions.append(e)
+                    #Errores criticos
+                    except ConfigurationError as e:  
+                        worker_exceptions.append(e)
+                        logger.error(f"Configuration error: {e}")
+                        raise 
+                    except (ValueError, FileNotFoundError) as e:
+                        worker_exceptions.append(e)
+                        raise 
+                    except SystemExit as e:
+                        worker_exceptions.append(e)
+                    except RuntimeError as e:
+                        worker_exceptions.append(e)
+                        raise 
+                    except Exception as e:
+                        worker_exceptions.append(e)
+                        logger.critical(
+                            f"Unexpected error: {e}. "
+                             "Please open an issue on GitHub "
+                             "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                             "specific case."
+                        )
+                        raise 
 
     ##############################################################################################
 
@@ -1691,4 +1862,3 @@ def main():
 # Run the main functions
 if __name__ == '__main__':
     main()
-
