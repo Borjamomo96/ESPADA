@@ -8,6 +8,7 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 from astropy.io.votable import parse_single_table
+from adplib.sofia.region import apply_input_region_crop, extract_input_region_from_header
 
 # Logger:
 import logging
@@ -184,53 +185,6 @@ def mask_float2int(file_path):
     except Exception as e:
         logger.error(f"Mask conversion to integer failed. File: {file_path}. Error: {e}")
         return ""
-
-
-def extract_region_from_mask(mask_3d_header):
-    """
-    """
-    
-    region = None
-    try:
-        if 'HISTORY' in mask_3d_header:
-            history_lines = mask_3d_header['HISTORY']
-            if isinstance(history_lines, str):
-                history_lines = [history_lines]
-            for line in history_lines:
-                if 'input.region' in line and '=' in line:
-                    parts = line.split('=')
-                    if len(parts) == 2:
-                        region_str = parts[1].strip()
-                        if region_str:
-                            numbers = [int(x.strip()) for x in region_str.split(',')]
-                            if len(numbers) == 6:
-                                region = tuple(numbers)
-                                logger.info(f"Found input.region in mask: {region}")
-                                break
-    except Exception as e:
-        logger.debug(f"Could not parse region from mask: {e}")
-    
-    return region
-
-
-def apply_region_crop(data, region):
-    """
-    """
-    if region is None:
-        return data
-       
-    xmin, xmax, ymin, ymax, zmin, zmax = region
-    nz, ny, nx = data.shape
-    
-    # Validate bounds
-    if xmin < 0 or xmax >= nx or ymin < 0 or ymax >= ny or zmin < 0 or zmax >= nz:
-        logger.warning(f"Region {region} out of bounds for shape ({nz},{ny},{nx})")
-        return data
-    
-    # Apply crop
-    cropped = data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
-    
-    return cropped
 
 
 def find_previous_qa_reports(input_data, adpalmap_config, pid, logger):
@@ -1330,14 +1284,14 @@ class SoPar(dict):
             return qa_report
         
         # Extract region from SoFiA mask
-        region = extract_region_from_mask(sofia_mask_3d_header)
+        region = extract_input_region_from_header(sofia_mask_3d_header, logger=logger)
        
         # Crop if it is necessary
         if region is not None:
             logger.info(f"Cropping provided mask to match SoFiA region")
-            mask_3d = apply_region_crop(mask_3d, region)
+            mask_3d = apply_input_region_crop(mask_3d, region, logger)
             # Rocorto data_cube para poder usarlo más adelante
-            data_cube = apply_region_crop(data_cube, region)
+            data_cube = apply_input_region_crop(data_cube, region, logger)
             logger.info(f"Cropped shapes - data: {data_cube.shape}, mask: {mask_3d.shape}")
         
         
@@ -1590,5 +1544,4 @@ class SoPar(dict):
             projection_viz = projection
 
         return projection_viz
-
 

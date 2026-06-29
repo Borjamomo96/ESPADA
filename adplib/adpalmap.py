@@ -828,6 +828,7 @@ def _build_configuration_dict(adpalmap_config, adpalmap_datap):
         'config_file_used': str(adpalmap_config._config_path) if hasattr(adpalmap_config, '_config_path') else 'config.yaml'
     }
 
+
 def process_data(id_number,
                  input_data, 
                  primary_beam, 

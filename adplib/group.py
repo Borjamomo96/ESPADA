@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 import sys
 import gc
+from adplib.sofia.region import apply_input_region_crop, extract_input_region_from_header
 
 
 # Logger:
@@ -90,93 +91,69 @@ class group(dict):
             return None
 
         
-        # Extract region from SoFiA mask
-        region = None
+        # Extract the SoFiA sub-region from the mask header, if one was used.
         try:
             with fits.open(mask_file, mmap=True) as f:
-                header = f[0].header
-                if 'HISTORY' in header:
-                    history_lines = header['HISTORY']
-                    if isinstance(history_lines, str):
-                        history_lines = [history_lines]
-                    for line in history_lines:
-                        if 'input.region' in line and '=' in line:
-                            parts = line.split('=')
-                            if len(parts) == 2:
-                                region_str = parts[1].strip()
-                                if region_str:
-                                    numbers = [int(x.strip()) for x in region_str.split(',')]
-                                    if len(numbers) == 6:
-                                        region = numbers  # [xmin, xmax, ymin, ymax, zmin, zmax]
-                                        logger.info(f"Found input.region in HISTORY: {region}")
-                                        break        
+                mask_file_header = f[0].header                
         except Exception as e:
             logger.warning(f"Could not parse region from mask header: {e}")
 
-        
+        # Load mask
+        logger.info(f"Loading mask '{mask_file}'...")
+        with fits.open(mask_file) as f:
+            mask = f[0].data
+        logger.info(f"Mask '{mask_file}' opened")
+
+        if mask.ndim == 4:
+            mask = np.squeeze(mask, axis=0)
+        elif mask.ndim > 4:
+            logger.error(f"Too many dimensions for the: {mask_file}")
+            sys.exit(-1)
+        elif mask.ndim != 3:
+            logger.error(f"Unexpected cube dimensions: {mask.ndim}. Expected 3D.")
+            return None
+
         # Load cube
         logger.info(f"Loading cube '{cube_file}'...")
         with fits.open(cube_file) as f:
             data = f[0].data
-            header_cube = f[0].header
         logger.info(f"Datacube '{cube_file}' opened")
 
-    
         if data.ndim == 4 and data.shape[0] == 1:
             data = np.squeeze(data, axis=0)
-        if data.ndim > 4:
-            logger.error("Too many dimensions")
+        elif data.ndim > 4:
+            logger.error(f"Too many dimensions for the: {cube_file}")
             sys.exit(-1)
-
-
-        if data.ndim != 3:
+        elif data.ndim != 3:
             logger.error(f"Unexpected cube dimensions: {data.ndim}. Expected 3D.")
             return None
-
         
-        # Crop the cube according to the region (if it exists)
+
+        # Extract region from SoFiA mask
+        region = extract_input_region_from_header(mask_file_header, logger=logger)
+        
+        # Crop the cube according to the SoFiA region, if it exists.
         if region is not None:
-            xmin, xmax, ymin, ymax, zmin, zmax = region
-            nz, ny, nx = data.shape
+            data = apply_input_region_crop(data, region, logger=logger)
 
-            if xmin < 0 or xmax >= nx or ymin < 0 or ymax >= ny or zmin < 0 or zmax >= nz:
-                logger.warning(f"Region {region} out of cube bounds ({nz},{ny},{nx}). Using full cube.")
-            else:
-                # Apply region: data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
-                data = data[zmin:zmax+1, ymin:ymax+1, xmin:xmax+1]
-                logger.info(f"Cropped cube to region: {data.shape}")
 
-        
-        # Load mask
-        logger.info(f"Loading mask '{mask_file}'...")
-        with fits.open(mask_file) as f:
-            msk_original = f[0].data
-            header = f[0].header
-        logger.info(f"Mask '{mask_file}' opened")
-
-        if msk_original.ndim == 4:
-            msk_original = np.squeeze(msk_original, axis=0)
-        elif msk_original.ndim > 4:
-            logger.error("Too many dimensions")
-            sys.exit(-1)
-
-        msk_original = np.nan_to_num(msk_original, nan=0.0)
+        mask = np.nan_to_num(mask, nan=0.0)
         data = np.nan_to_num(data, nan=0.0)
 
         
-        if data.shape != msk_original.shape:
+        if data.shape != mask.shape:
             logger.error(
-                f"Shape mismatch after cropping: data {data.shape} vs mask {msk_original.shape}. "
+                f"Shape mismatch after cropping: data {data.shape} vs mask {mask.shape}. "
                 "Cannot proceed."
             )
             return None
 
-        logger.info(f"Mask shape: {msk_original.shape}")
+        logger.info(f"Mask shape: {mask.shape}")
         logger.info(f"Cube shape: {data.shape}")
 
         # Find unique IDs in the mask
         logger.info("Finding unique source IDs...")
-        unique_ids = np.unique(msk_original)
+        unique_ids = np.unique(mask)
         unique_ids = unique_ids[unique_ids > 0]
         logger.info(f"Found source IDs: {unique_ids.tolist()}")
 
@@ -185,7 +162,7 @@ class group(dict):
         source_props = {}
 
         for source_id in unique_ids:
-            source_mask = (msk_original == source_id)
+            source_mask = (mask == source_id)
             aper_2d = source_mask.sum(axis=0).astype(bool)
             imag_2d = np.nansum(data * source_mask, axis=0)
             source_props[source_id] = {
@@ -269,9 +246,9 @@ class group(dict):
         if len(groups) and writemask:
             logger.info("Modifying mask in order to group sources and delete un-grouped sources...")
             
-            # Usar msk_original en lugar de recargar el archivo
+            # Usar 'mask' en lugar de recargar el archivo
             mask_out = Path(mask_file).parent / f"group_{Path(mask_file).name}"
-            msk_new = msk_original.copy()  
+            msk_new = mask.copy()  
             
             remaining_ids = set(ids)
             for gg in groups:
@@ -292,7 +269,7 @@ class group(dict):
                 logger.error("The number of sources in the new mask is larger than the number of groups.")
                 sys.exit(-1)
 
-            fits.writeto(mask_out, msk_new, header=header, overwrite=True)
+            fits.writeto(mask_out, msk_new, header=mask_file_header, overwrite=True)
             logger.info(f"Written mask {mask_out}")
             return Path(mask_out)
         else:
