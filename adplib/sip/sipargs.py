@@ -685,6 +685,7 @@ class SiPar(dict):
                         "software_id" :'SIP',
                         "PID": self.pid,
                         "input_name": self.input_data.stem,
+                        "input_path": str(self.input_data),
                         "mode": "",  
                         "log_path": "",
                         "outputs": {"images": [],  "files": []}
@@ -1332,4 +1333,3 @@ class SiPar(dict):
         
         
    
-

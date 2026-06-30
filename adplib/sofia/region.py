@@ -1,5 +1,38 @@
 import re
 
+def parse_input_region(region_value, logger=None):
+    """
+    Parse a SoFiA input.region value as xmin, xmax, ymin, ymax, zmin, zmax.
+    """
+
+    if region_value is None:
+        return None
+
+    if isinstance(region_value, (list, tuple)):
+        if len(region_value) < 6:
+            if logger:
+                logger.warning(f"Could not parse input.region from value: {region_value}")
+            return None
+        try:
+            return tuple(int(value) for value in region_value[:6])
+        except Exception as e:
+            if logger:
+                logger.warning(f"Could not parse input.region from value {region_value}: {e}")
+            return None
+
+    region_text = str(region_value).strip()
+    if not region_text:
+        return None
+
+    values = [int(value) for value in re.findall(r"[-+]?\d+", region_text)]
+    if len(values) < 6:
+        if logger:
+            logger.warning(f"Could not parse input.region from value: {region_value}")
+        return None
+
+    return tuple(values[:6])
+
+
 def extract_input_region_from_header(header, logger):
     """
     Extract the last valid SoFiA input.region entry from a FITS header HISTORY.
@@ -17,15 +50,13 @@ def extract_input_region_from_header(header, logger):
 
         for line in history_lines:
             line = str(line)
-            if "input.region" not in line or "=" not in line:
+            match = re.search(r"\binput\.region\s*=\s*(.*)", line)
+            if not match:
                 continue
 
-            region_text = line.split("=", 1)[1]
-            values = [int(value) for value in re.findall(r"[-+]?\d+", region_text)]
-            if len(values) < 6:
-                continue
-
-            region = tuple(values[:6])
+            parsed_region = parse_input_region(match.group(1))
+            if parsed_region is not None:
+                region = parsed_region
 
         if region is not None:
             logger.info(f"Found last input.region in HISTORY: {format_input_region(region)}")
@@ -135,3 +166,7 @@ def apply_input_region_crop(data, region, logger):
 def format_input_region(region):
     xmin, xmax, ymin, ymax, zmin, zmax = region
     return f"x=[{xmin},{xmax}], y=[{ymin},{ymax}], z=[{zmin},{zmax}]"
+
+
+def serialize_input_region(region):
+    return ", ".join(str(value) for value in region)

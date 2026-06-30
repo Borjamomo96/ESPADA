@@ -277,6 +277,90 @@ class datap(dict):
         )
 
 
+    def _ordered_alma_servers(self):
+        """
+        Return ALMA servers ordered with the current server first.
+        """
+
+        current_server = getattr(self, "server_address", None)
+        servers_to_try = []
+
+        if current_server:
+            for server_name, server_url in ALMA_SERVERS:
+                if current_server in (server_name, server_url):
+                    servers_to_try.append((server_name, server_url))
+                    break
+
+        for server_name, server_url in ALMA_SERVERS:
+            if (server_name, server_url) not in servers_to_try:
+                servers_to_try.append((server_name, server_url))
+
+        return servers_to_try
+
+
+    def _rewrite_alma_server_url(self, url, server_url):
+        """
+        Rewrite a known ALMA archive URL to use another archive mirror.
+        """
+
+        url = str(url)
+        for _, known_server_url in ALMA_SERVERS:
+            if url.startswith(known_server_url):
+                return f"{server_url}{url[len(known_server_url):]}"
+
+        return url
+
+
+    def _download_files_with_fallback(self, link_list, label):
+        """
+        Download files, retrying known ALMA archive mirrors if one dataPortal fails.
+        """
+
+        if not link_list:
+            logger.info(f"No {label} files to download.")
+            return
+
+        attempted_batches = set()
+        last_error = None
+
+        for server_name, server_url in self._ordered_alma_servers():
+            mirror_links = [
+                self._rewrite_alma_server_url(link, server_url)
+                for link in link_list
+            ]
+            mirror_batch = tuple(mirror_links)
+
+            if mirror_batch in attempted_batches:
+                continue
+            attempted_batches.add(mirror_batch)
+
+            try:
+                logger.info(
+                    f"Downloading {label} files from {server_name} ({server_url})"
+                )
+                self.alma.archive_url = server_url
+                self.alma.download_files(mirror_links, cache=True)
+                self.server_address = server_url
+                logger.info(f"{label.capitalize()} files downloaded from {server_name}")
+                return
+
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    (
+                        f"Download of {label} files failed from {server_name} "
+                        f"({server_url}): {e}"
+                    )
+                )
+
+        raise RuntimeError(
+            (
+                f"Could not download {label} files from any ALMA archive mirror. "
+                f"Last error: {last_error}"
+            )
+        ) from last_error
+
+
     def _get_metadata(self):
 
         """
@@ -510,12 +594,7 @@ class datap(dict):
         logger.info("Starting to download. Please wait...")
         Logger.echo("================================")
 
-        try:
-            self.alma.download_files(dl_link_list, cache=True)
-
-        except ValueError as e:
-            logger.error(e)
-
+        self._download_files_with_fallback(dl_link_list, label="main data")
 
         Logger.echo("================================")
         logger.info("Data download completed.")
@@ -565,10 +644,11 @@ class datap(dict):
             Logger.echo("================================")
             logger.info("Starting to download ancillary files. Please wait...")
             Logger.echo("================================")
-            self.alma.download_files(al_link_list, cache=True)
+            self._download_files_with_fallback(al_link_list, label="ancillary")
             
-        except ValueError as e:
+        except RuntimeError as e:
             logger.error(e)
+            raise
 
         Logger.echo("================================")
         logger.info("Ancillary files download completed.")
@@ -1539,4 +1619,3 @@ class datap(dict):
         # if the parsing is not successful, calculate the frequency resolution manually
         return float((freq_max * u.GHz / em_res_power).to(u.kHz).value.round(decimals=2))
     '''
-

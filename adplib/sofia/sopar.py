@@ -8,7 +8,13 @@ from astropy.io import fits
 import matplotlib.pyplot as plt
 from adplib.exceptions import RecoverableError, RecoverableValueError, RecoverableFileNotFoundError
 from astropy.io.votable import parse_single_table
-from adplib.sofia.region import apply_input_region_crop, extract_input_region_from_header
+from adplib.sofia.region import (
+    apply_input_region_crop,
+    extract_input_region_from_header,
+    format_input_region,
+    parse_input_region,
+    serialize_input_region,
+)
 
 # Logger:
 import logging
@@ -219,6 +225,7 @@ def find_previous_qa_reports(input_data, adpalmap_config, pid, logger):
             "software_id": "QA",
             "PID": pid,
             "input_name": input_stem,
+            "input_path": str(input_data),
             "mode": mode,
             "log_path": "",
             "outputs": {
@@ -710,14 +717,16 @@ class SoPar(dict):
         logger.info(f"Parameters updated. Mode: {self.mode}.")
 
 
-    def update_group_parameters(self, group_mask):
+    def update_group_parameters(self, group_mask, input_region_from_mask=None):
 
         """
         Updates the attributes of the SoPar object to being able to Run SoFiA for Groups.
 
         Parameters:
         ----------
-        sop_par (dict): Dictionary with parameters provided via -sop.
+        group_mask (Path): Grouped source mask to be used as input.mask.
+        input_region_from_mask (tuple, optional): input.region recovered from the
+            previous SoFiA mask used for grouping.
 
         Returns:
         ----------
@@ -727,6 +736,48 @@ class SoPar(dict):
         logger.info(f"Updating SoFiA parameters for source grouping. Mode: {self.mode}.")
         
         self.input_mask = group_mask
+
+        if not self.adpalmap_config.enable_sofia:
+            current_region = parse_input_region(
+                getattr(self, "input_region", None), 
+                logger=logger
+            )
+            mask_region = parse_input_region(input_region_from_mask, logger=logger)
+
+            if mask_region is not None:
+                if current_region is not None and current_region != mask_region:
+                    logger.warning(
+                        (
+                            "enable_sofia=False: previous SoFiA mask was generated "
+                            f"with input.region {format_input_region(mask_region)}, "
+                            "but the current SoFiA parameter file contains "
+                            f"input.region {format_input_region(current_region)}. "
+                            "Using the previous mask region for the grouped SoFiA run. "
+                            "Rerun SoFiA to apply the new input.region."
+                        )
+                    )
+                else:
+                    logger.info(
+                        (
+                            "enable_sofia=False: using input.region from previous "
+                            f"SoFiA mask for grouped SoFiA run: "
+                            f"{format_input_region(mask_region)}"
+                        )
+                    )
+
+                # This function turn mask_region in the valid format for SoFiA
+                self.input_region = serialize_input_region(mask_region)
+
+            elif current_region is not None:
+                logger.warning(
+                    (
+                        "enable_sofia=False: previous SoFiA mask has no input.region "
+                        "in its header. Ignoring the current SoFiA parameter file "
+                        f"input.region {format_input_region(current_region)} for the "
+                        "grouped SoFiA run. Rerun SoFiA to apply this input.region."
+                    )
+                )
+                self.input_region = ""
 
         if self.mode == "absorption":
             self.input_invert = "true"
@@ -876,6 +927,7 @@ class SoPar(dict):
                 "software_id" :'SoFiA-2',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
+                "input_path": str(self.input_data),
                 "mode": self.mode,  
                 "log_path": self.sopar_logfile,
                 "sofia_parfile" : self.sofia_file_path,
@@ -1089,6 +1141,7 @@ class SoPar(dict):
                 "software_id" :'QA',
                 "PID": self.pid,
                 "input_name": self.input_data.stem,
+                "input_path": str(self.input_data),
                 "mode": self.mode,  
                 "log_path": "",
                 "outputs" : {'images' : [], 'files': []},
@@ -1544,4 +1597,3 @@ class SoPar(dict):
             projection_viz = projection
 
         return projection_viz
-

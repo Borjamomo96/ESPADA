@@ -4,7 +4,11 @@ import numpy as np
 from pathlib import Path
 import sys
 import gc
-from adplib.sofia.region import apply_input_region_crop, extract_input_region_from_header
+from adplib.sofia.region import (
+    extract_input_region_from_header,
+    format_input_region,
+    normalize_input_region,
+)
 
 
 # Logger:
@@ -75,6 +79,8 @@ class group(dict):
         writemask       = True      # writes new .FITS mask with grouped sources only
         overlap_mode = self.adpalmap_config.overlap_mode
         overlap_threshold = self.adpalmap_config.overlap_threshold
+        self.input_region_from_mask = None
+        self.normalized_input_region_from_mask = None
 
         if not cube_file.exists():
             logger.critical(
@@ -91,17 +97,14 @@ class group(dict):
             return None
 
         
-        # Extract the SoFiA sub-region from the mask header, if one was used.
-        try:
-            with fits.open(mask_file, mmap=True) as f:
-                mask_file_header = f[0].header                
-        except Exception as e:
-            logger.warning(f"Could not parse region from mask header: {e}")
+        
+        mask_file_header = fits.Header() # Genetic header to avoid secondary errors
 
         # Load mask
         logger.info(f"Loading mask '{mask_file}'...")
-        with fits.open(mask_file) as f:
+        with fits.open(mask_file, mmap=True) as f:
             mask = f[0].data
+            mask_file_header = f[0].header.copy()
         logger.info(f"Mask '{mask_file}' opened")
 
         if mask.ndim == 4:
@@ -117,6 +120,7 @@ class group(dict):
         logger.info(f"Loading cube '{cube_file}'...")
         with fits.open(cube_file) as f:
             data = f[0].data
+            cube_file_header = f[0].header.copy()
         logger.info(f"Datacube '{cube_file}' opened")
 
         if data.ndim == 4 and data.shape[0] == 1:
@@ -128,13 +132,21 @@ class group(dict):
             logger.error(f"Unexpected cube dimensions: {data.ndim}. Expected 3D.")
             return None
         
+        full_cube_shape = data.shape
 
-        # Extract region from SoFiA mask
+        # Extract region from SoFiA mask header
         region = extract_input_region_from_header(mask_file_header, logger=logger)
+        self.input_region_from_mask = region
+        normalized_region = None
         
         # Crop the cube according to the SoFiA region, if it exists.
         if region is not None:
-            data = apply_input_region_crop(data, region, logger=logger)
+            normalized_region = normalize_input_region(region, data.shape, logger=logger)
+            self.normalized_input_region_from_mask = normalized_region
+            if normalized_region is not None:
+                xmin, xmax, ymin, ymax, zmin, zmax = normalized_region
+                data = data[zmin:zmax + 1, ymin:ymax + 1, xmin:xmax + 1]
+                logger.info(f"Cropped data to input.region. New shape: {data.shape}")
 
 
         mask = np.nan_to_num(mask, nan=0.0)
@@ -269,7 +281,45 @@ class group(dict):
                 logger.error("The number of sources in the new mask is larger than the number of groups.")
                 sys.exit(-1)
 
-            fits.writeto(mask_out, msk_new, header=mask_file_header, overwrite=True)
+            mask_to_write = msk_new
+            mask_header_to_write = mask_file_header
+
+            if normalized_region is not None:
+                xmin, xmax, ymin, ymax, zmin, zmax = normalized_region
+                region_shape = (
+                    zmax - zmin + 1,
+                    ymax - ymin + 1,
+                    xmax - xmin + 1,
+                )
+
+                if msk_new.shape != region_shape:
+                    logger.error(
+                        (
+                            "Cannot expand grouped mask to full cube shape. "
+                            f"Grouped mask shape {msk_new.shape} does not match "
+                            f"input.region shape {region_shape}."
+                        )
+                    )
+                    return None
+
+                logger.info(
+                    (
+                        "Expanding grouped mask from input.region "
+                        f"{format_input_region(normalized_region)} shape "
+                        f"{msk_new.shape} to full cube shape {full_cube_shape}"
+                    )
+                )
+                mask_to_write = np.zeros(full_cube_shape, dtype=msk_new.dtype)
+                mask_to_write[zmin:zmax + 1, ymin:ymax + 1, xmin:xmax + 1] = msk_new
+                mask_header_to_write = cube_file_header
+                mask_header_to_write.add_history(
+                    (
+                        "ESPADA expanded grouped mask to the original cube shape "
+                        f"from input.region {format_input_region(normalized_region)}"
+                    )
+                )
+
+            fits.writeto(mask_out, mask_to_write, header=mask_header_to_write, overwrite=True)
             logger.info(f"Written mask {mask_out}")
             return Path(mask_out)
         else:

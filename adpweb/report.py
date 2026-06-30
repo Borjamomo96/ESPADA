@@ -106,7 +106,8 @@ class Report:
         # This process each dataset
         for dataset_tuple in self.worker_results:
             all_software = []
-            input_data = None
+            input_path = None
+            input_name = None
             images = []
             qa_by_mode = {}
             error_exist = False
@@ -117,13 +118,14 @@ class Report:
             for software_list in dataset_tuple:
                 for sw in software_list:
                     # Identify input data
-                    if not input_data:
-                        if 'sofia_par_changes' in sw and 'input.data' in sw['sofia_par_changes']:
-                            input_data = sw['sofia_par_changes']['input.data']
-                        elif 'input_name' in sw:
-                            input_data = sw['input_name']
+                    if not input_path and sw.get('input_path'):
+                        input_path = str(sw['input_path'])
+                    if not input_name and sw.get('input_name'):
+                        input_name = str(sw['input_name'])
+                    if not input_name and input_path:
+                        input_name = Path(input_path).stem
                     
-                    # Grouo flag
+                    # Group flag
                     is_group = software_list is dataset_tuple[3]
                     
                     
@@ -255,12 +257,18 @@ class Report:
 
             #######################################################################################
             # COMPLETE STRUCTURE OF THE DATASET 
+            dataset_identifier = (
+                input_path
+                or input_name
+                or f"dataset_{len(parsed_data['datasets'])}"
+            )
             dataset_complete = {
                 # Identificación
-                'dataset_id': input_data or f"dataset_{len(parsed_data['datasets'])}",
-                'input_data': input_data,
+                'dataset_id': dataset_identifier,
+                'input_name': input_name,
+                'input_path': input_path,
                 # Metadatos del FITS
-                'fits_metadata': self._extract_fits_metadata(input_data),
+                'fits_metadata': self._extract_fits_metadata(input_path or input_name),
                 # Resultados por software (TODO el detalle)
                 'software_results': all_software,
                 # Imágenes (para HTML)
@@ -816,7 +824,8 @@ class Report:
             })
         
         html_summary = {
-            'input_data': dataset['input_data'],
+            'input_name': dataset.get('input_name'),
+            'input_path': dataset.get('input_path') or dataset.get('input_name'),
             'status': dataset['status'],
             'softwares': html_softwares,
             'images': dataset['images'],

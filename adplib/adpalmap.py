@@ -1134,7 +1134,12 @@ def process_data(id_number,
                         Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
-                            adpalmap_sopar_abs.update_group_parameters(group_mask)
+                            adpalmap_sopar_abs.update_group_parameters(
+                                group_mask,
+                                input_region_from_mask=getattr(
+                                    adpalmap_group, "input_region_from_mask", None
+                                ),
+                            )
                             # Execute SoFiA-2 
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
                             group_report.append(abs_sopar_group_report)
@@ -1209,7 +1214,12 @@ def process_data(id_number,
                         Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
-                            adpalmap_sopar_emi.update_group_parameters(group_mask)
+                            adpalmap_sopar_emi.update_group_parameters(
+                                group_mask,
+                                input_region_from_mask=getattr(
+                                    adpalmap_group, "input_region_from_mask", None
+                                ),
+                            )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
                             group_report.append(emi_sopar_group_report)
@@ -1301,7 +1311,12 @@ def process_data(id_number,
                         #Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
-                            adpalmap_sopar_abs.update_group_parameters(group_mask)
+                            adpalmap_sopar_abs.update_group_parameters(
+                                group_mask,
+                                input_region_from_mask=getattr(
+                                    adpalmap_group, "input_region_from_mask", None
+                                ),
+                            )
                             # Execute SoFiA-2
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
                             group_report.append(abs_sopar_group_report)
@@ -1331,7 +1346,12 @@ def process_data(id_number,
                         #Logger.raw("================================")
                         if group_mask is not None:
                             # Update the parameters for execute SoFiA-2 again
-                            adpalmap_sopar_emi.update_group_parameters(group_mask)
+                            adpalmap_sopar_emi.update_group_parameters(
+                                group_mask,
+                                input_region_from_mask=getattr(
+                                    adpalmap_group, "input_region_from_mask", None
+                                ),
+                            )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
                             group_report.append(emi_sopar_group_report)
@@ -1362,7 +1382,7 @@ def process_data(id_number,
             "software_id": "TAP",
             "PID": pid,
             "input_name": input_data.stem if input_data else f"dataset_{id_number}",
-            "input_data": input_data if input_data else None,
+            "input_path": str(input_data) if input_data else None,
             "mode": "download_only",
             "log_path": "",
             "error": "",

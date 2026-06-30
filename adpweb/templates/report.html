@@ -33,7 +33,7 @@
     <!-- Aquí van las pestañas desplegables por dataset -->
 
     {% for dataset in datasets %}
-      <button type="button" class="collapsible {{ dataset.status }}">{{ dataset.input_data }}</button>
+      <button type="button" class="collapsible {{ dataset.status }}">{{ dataset.input_path or dataset.input_name }}</button>
       <div class="content {{ dataset.status }}">
         <div class="flex-row">
           <!-- Recuadro de Softwares -->
