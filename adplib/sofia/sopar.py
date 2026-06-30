@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 #import tempfile 
+import json
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
@@ -963,6 +964,20 @@ class SoPar(dict):
             logger.info(
                 f"SoFia start. Mode: {self.mode}. Input data: "
                 f"{Path(self.input_data).stem}"
+            )
+            Logger.raw(
+                f"[{self.pid}]ESPADA_EVENT external_log "
+                + json.dumps(
+                    {
+                        "software_id": "SoFiA-2",
+                        "mode": self.mode,
+                        "input_name": self.input_data.stem,
+                        "input_path": str(self.input_data),
+                        "log_path": str(self.sopar_logfile),
+                        "is_group": str(self.output_filename).startswith("group_"),
+                    },
+                    sort_keys=True,
+                )
             )
             #Logger.raw("================================")
 

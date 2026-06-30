@@ -7,6 +7,7 @@ from adplib.config import Config
 
 import os
 import shutil
+import json
 from datetime import datetime
 import re
 import time
@@ -481,6 +482,7 @@ def reorganize_log(log_path, worker_results):
     try:
         
         aux_logger = Initial_Logger()
+        _ = worker_results
     ##############################################################################################
 
         with open(log_path, 'r', encoding='utf-8') as f:
@@ -490,29 +492,51 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
-        # Diccionario para trackear qué PIDs ya pasaron por group
-        pid_group_flags = {}
-
-        # Worker from SoFiA-2 - SIP - Group
-        sopar_workers = [worker[0] for worker in worker_results]
-        sip_workers = [worker[1] for worker in worker_results]
-        group_workers = [worker[3] for worker in worker_results]
 
         
         #Captura [PID:XXXX] y [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
-
-        sofia_start_pattern = re.compile(
-            r"\[PID:(\d+)\].*SoFia start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
+        external_log_event_pattern = re.compile(
+            r'\[(?:PID:)?(\d+)\]ESPADA_EVENT\s+external_log\s+(\{.*\})'
         )
 
-        sip_start_pattern = re.compile(
-            r"\[PID:(\d+)\].*SIP start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
-        )
-        
-        group_start_pattern = re.compile(
-            r"\[PID:(\d+)\].*Source Grouping start\. Mode: (\w+)\. Input data: ([\w\-\.]+)"
-        )
+        def append_external_log(target_lines, event):
+            software_id = event.get("software_id", "External software")
+            mode = event.get("mode")
+            log_path_event = event.get("log_path")
+            group_label = "Group " if event.get("is_group") else ""
+
+            heading = f"    === {group_label}{software_id} Execution"
+            if mode:
+                heading += f" (Mode: {mode})"
+            heading += " ===\n"
+            target_lines.append(heading)
+
+            if not log_path_event:
+                target_lines.append(
+                    f"    [NO {group_label}{software_id} LOG PATH PROVIDED]\n"
+                )
+                return
+
+            external_log_path = Path(log_path_event)
+            if not external_log_path.exists():
+                target_lines.append(
+                    f"    [MISSING {group_label}{software_id} LOG: {external_log_path}]\n"
+                )
+                aux_logger.warning(
+                    "Error reorganizing the final logfile. "
+                    f"The {group_label}{software_id} logfile '{external_log_path}' "
+                    "does not exist."
+                )
+                return
+
+            with open(external_log_path, 'r', encoding='utf-8') as external_log:
+                external_log_lines = external_log.readlines()
+
+            target_lines.append(
+                f"    [INCLUDING {group_label}{software_id} LOG: {external_log_path}]\n"
+            )
+            target_lines.extend([f"        {line}" for line in external_log_lines])
 
     ##############################################################################################
 
@@ -522,8 +546,10 @@ def reorganize_log(log_path, worker_results):
                 main_pid = pid_match.group(1)
                 break
 
+        if main_pid is None:
+            main_pid = "0"
+
         pid_groups[main_pid] = []
-        pid_group_flags[main_pid] = False
 
     ##############################################################################################
 
@@ -547,159 +573,30 @@ def reorganize_log(log_path, worker_results):
             current_pid = pid_match.group(1)
             if current_pid not in pid_groups:
                 pid_groups[current_pid] = []
-                pid_group_flags[current_pid] = False
 
             if "ESPADA ended" in line:
                 main_final.append(line)
                 final_block = True
             else:    
                 if final_block == False:
+                    event_match = external_log_event_pattern.search(line)
+                    if event_match:
+                        try:
+                            append_external_log(
+                                pid_groups[current_pid],
+                                json.loads(event_match.group(2)),
+                            )
+                        except Exception as e:
+                            pid_groups[current_pid].append(
+                                f"    [INVALID ESPADA_EVENT external_log: {e}]\n"
+                            )
+                            aux_logger.warning(
+                                "Error parsing ESPADA_EVENT external_log while "
+                                f"reorganizing the final logfile: {e}"
+                            )
+                        continue
+
                     pid_groups[current_pid].append(line)
-                    sofia_match = sofia_start_pattern.search(line)
-                    sip_match = sip_start_pattern.search(line)
-                    group_match = group_start_pattern.search(line)
-        
-    ##############################################################################################
-     
-                    if sofia_match:
-                        pid, mode, input_name = sofia_match.groups()
-                        log_found = False
-                        
-                        if not pid_group_flags[pid]:  # Before group - find regular ones
-                            
-                            for worker in sopar_workers:
-                                
-                                for run in worker:
-                                    if (str(run['PID']) == pid and
-                                        run['mode'] == mode and
-                                        run['input_name'] == input_name):
-                                        log_path_sofia = run['log_path']
-
-                                        if log_path_sofia and Path(log_path_sofia).exists():
-                                            with open(
-                                                log_path_sofia, 'r', encoding='utf-8'
-                                                ) as sofia_log:
-                                                sofia_lines = sofia_log.readlines()
-                                            pid_groups[current_pid].append(
-                                                f"    [INCLUDING SOFIA LOG: {log_path_sofia}]\n"
-                                            )
-                                            pid_groups[current_pid].extend(
-                                                [f"    {l}" for l in sofia_lines]
-                                            )
-                                            log_found = True
-                                            break
-                                        else:
-                                            aux_logger.warning(
-                                                "Error reorganizing the final logfile. "
-                                                f"The SoFiA-2 logfile '{log_path_sofia}' "
-                                                "does not exits."
-                                            )
-                                if log_found:
-                                    break
-                        else:  # After group - find in group
-                            for worker in group_workers:
-                                for run in worker:
-                                    if (str(run['PID']) == pid and
-                                        run.get('mode') == mode and
-                                        run.get('input_name') == input_name and
-                                        run.get('software_id') == 'SoFiA-2'):
-                                        log_path_sofia = run['log_path']
-
-                                        if log_path_sofia and Path(log_path_sofia).exists():
-                                            pid_groups[current_pid].append(
-                                                f"\n    === Group SoFiA-2 Execution "
-                                                f"(Mode: {mode}) ===\n")
-                                            with open(
-                                                log_path_sofia, 'r', encoding='utf-8'
-                                                ) as sofia_log:
-                                                sofia_lines = sofia_log.readlines()
-                                            pid_groups[current_pid].append(
-                                                    f"    [INCLUDING SOFIA LOG: {log_path_sofia}]\n"
-                                                )
-                                            pid_groups[current_pid].extend(
-                                                [f"        {l}" for l in sofia_lines]
-                                            )
-                                            log_found = True
-                                            break
-                                        else:
-                                            aux_logger.warning(
-                                                "Error reorganizing the final logfile. "
-                                                f"The group SoFiA-2 logfile '{log_path_sofia}' "
-                                                "does not exits."
-                                            )
-
-    ##############################################################################################
-    
-                    elif sip_match:
-                        pid, mode, input_name = sip_match.groups()
-                        log_found = False
-                        
-                        if not pid_group_flags[pid]:  
-                            for worker in sip_workers:
-                                for run in worker:
-                                    if (str(run['PID']) == pid and
-                                        run['mode'] == mode and
-                                        run['input_name'] == input_name):
-                                        log_path_sip = run['log_path']
-
-                                        if log_path_sip and Path(log_path_sip).exists():
-                                            with open(
-                                                log_path_sip, 'r', encoding='utf-8'
-                                                ) as sip_log:
-                                                sip_lines = sip_log.readlines()
-                                            pid_groups[current_pid].append(
-                                                f"    [INCLUDING SIP LOG: {log_path_sip}]\n"
-                                            )
-                                            pid_groups[current_pid].extend(
-                                                [f"    {l}" for l in sip_lines]
-                                            )
-                                            log_found = True
-                                            break
-                                        else:
-                                            aux_logger.warning(
-                                                "Error reorganizing the final logfile. "
-                                                f"The SIP logfile '{log_path_sip}' "
-                                                "does not exits."
-                                            )
-                                if log_found:
-                                    break
-                        else:  
-                            for worker in group_workers:
-                                for run in worker:
-                                    if (str(run['PID']) == pid and
-                                        run.get('mode') == mode and
-                                        run.get('input_name') == input_name and
-                                        run.get('software_id') == 'SIP'):
-                                        log_path_sip = run['log_path']
-
-                                        if log_path_sip and Path(log_path_sip).exists():
-                                            pid_groups[current_pid].append(
-                                                f"\n    === Group SIP Execution (Mode: {mode}) ===\n")
-                                            with open(
-                                                log_path_sip, 'r', encoding='utf-8'
-                                                ) as sip_log:
-                                                sip_lines = sip_log.readlines()
-                                            pid_groups[current_pid].append(
-                                                    f"    [INCLUDING SIP LOG: {log_path_sip}]\n"
-                                                )
-                                            pid_groups[current_pid].extend(
-                                                [f"        {l}" for l in sip_lines]
-                                            )
-                                            log_found = True
-                                            break
-                                        else:
-                                            aux_logger.warning(
-                                                "Error reorganizing the final logfile. "
-                                                f"The group SIP logfile '{log_path_sip}' "
-                                                "does not exits."
-                                            )
-
-    ##############################################################################################
-
-                    elif group_match:
-                        pid, mode, input_name = group_match.groups()
-                        # Mark that this specific PID has already been through the group
-                        pid_group_flags[pid] = True
 
                 else:
                     main_final.append(line)

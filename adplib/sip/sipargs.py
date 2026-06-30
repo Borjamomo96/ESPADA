@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 import os
+import json
 from traceback import format_exc
 from adplib.exceptions import ConfigurationError, RecoverableFileNotFoundError
 from astropy.io.votable import parse_single_table
@@ -820,6 +821,20 @@ class SiPar(dict):
                     f"SIP start. Mode: {self.adpalmap_config.run_mode}. "
                     f"Input data: {self.input_data.stem}"
                 )
+            Logger.raw(
+                f"[{self.pid}]ESPADA_EVENT external_log "
+                + json.dumps(
+                    {
+                        "software_id": "SIP",
+                        "mode": sip_report["mode"],
+                        "input_name": self.input_data.stem,
+                        "input_path": str(self.input_data),
+                        "log_path": str(sip_report["log_path"]),
+                        "is_group": str(base_name).startswith("group_"),
+                    },
+                    sort_keys=True,
+                )
+            )
             #Logger.raw("================================")
 
             logger.info(f"Command used to run SIP: {' '.join(cmd)}")
