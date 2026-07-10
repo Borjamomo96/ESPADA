@@ -6,6 +6,8 @@ ESPADA is an end-to-end Python pipeline for generating advanced spectral-line da
 
 ESPADA is designed for minimal user intervention, while still allowing users to override the main pipeline configuration, SoFiA parameters, and SIP arguments when needed.
 
+📘 **Full documentation:** [ESPADA Documentation](adplib/doc/ESPADA_DOC.pdf)
+
 ## Contents
 
 - [Main features](#main-features)
