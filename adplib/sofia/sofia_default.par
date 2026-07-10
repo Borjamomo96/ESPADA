@@ -5,19 +5,14 @@
 
 pipeline.verbose           =  false
 pipeline.pedantic          =  true
-pipeline.threads           =  0
 
 
 # Input
 
-input.data                 =  sofia_test_datacube.test
-input.primaryBeam          =  
 input.region               =  
 input.gain                 =  
 input.noise                =  
 input.weights              =  
-input.mask                 =  
-input.invert               =  
 
 
 # Flagging
@@ -140,7 +135,6 @@ parameter.offset           =  false
 
 # Output
 
-output.directory           =  
 output.filename            =  
 output.dataFormat          =  
 output.writeCatASCII       =  true

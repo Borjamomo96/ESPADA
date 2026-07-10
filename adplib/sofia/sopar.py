@@ -401,6 +401,7 @@ class SoPar(dict):
                     "input.data",
                     "input.primaryBeam",
                     "input.mask",
+                    "input.invert",
                     "pipeline.threads",
                     "output.directory", 
                 }: continue
@@ -504,10 +505,17 @@ class SoPar(dict):
         ##############################################################################################
 
         ##########################-------------input.invert--------------#############################
+        if hasattr(self, "input_invert"):
+            logger.warning(
+                f"Ignoring value '{self.input_invert}' for the 'input.invert' parameter provided "
+                f"in the parameter file {self.sofia_file_path}. This must be set through the "
+                f"'run_mode' parameter in the {self.adpalmap_config.config_path} file"
+            )
+
         if sop_par is not None and "input.invert" in sop_par:
             input_invert_value = sop_par["input.invert"]
         else:
-            input_invert_value = getattr(self, "input_invert")
+            input_invert_value = getattr(self, "input_invert", None)
 
         
         if self.adpalmap_config.run_mode == 'emission':
@@ -624,7 +632,7 @@ class SoPar(dict):
         ##############################################################################################
 
         ########################-------------pipeline.threads--------------###########################
-        if (sop_par and "pipeline.threads" in sop_par) or self.pipeline_threads:
+        if (sop_par and "pipeline.threads" in sop_par) or hasattr(self, "pipeline_threads"):
             logger.warning(
                 "The parameter 'self.pipeline_threads' indicated via -sop or in the "
                 f" {self.sofia_file_path} will be ignored. This pipeline manages the threads "
