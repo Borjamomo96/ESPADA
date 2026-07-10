@@ -247,6 +247,12 @@ def find_previous_qa_reports(input_data, adpalmap_config, pid, logger):
 
 class SoPar(dict): 
 
+    GROUP_DELETE_SUFFIXES = (
+        "_mom1.fits",
+        "_mom2.fits",
+        "_spec.txt",
+    )
+
     def __init__(self, **kwargs):
         """
         Reads the SoFia parameters file and creates a SoPar object.
@@ -1136,6 +1142,59 @@ class SoPar(dict):
             "format": "xlm",
             "software-id": "sofia"
         })
+
+
+    def cleanup_group_outputs(self):
+        """
+        Remove Group-only SoFiA products that should not be kept after execution.
+        """
+
+        output_filename = str(getattr(self, "output_filename", ""))
+        output_dir = getattr(self, "output_directory", None)
+
+        if not output_filename.startswith("group_") or output_dir is None:
+            logger.debug("Skipping SoFiA Group cleanup for non-group output.")
+            return
+
+        output_dir = Path(output_dir)
+        for suffix in self.GROUP_DELETE_SUFFIXES:
+            self._remove_group_output(output_dir / f"{output_filename}{suffix}")
+
+        cubelets_dir = output_dir / f"{output_filename}_cubelets"
+        self._cleanup_group_cubelet_outputs(cubelets_dir, output_filename)
+
+
+    def _cleanup_group_cubelet_outputs(self, cubelets_dir, output_filename):
+        if not cubelets_dir.is_dir():
+            logger.debug(f"No SoFiA Group cubelets directory found for cleanup: {cubelets_dir}")
+            return
+
+        output_prefix = f"{output_filename}_"
+        for candidate in cubelets_dir.iterdir():
+            if not candidate.is_file():
+                continue
+            if not candidate.name.startswith(output_prefix):
+                continue
+            if any(candidate.name.endswith(suffix) for suffix in self.GROUP_DELETE_SUFFIXES):
+                self._remove_group_output(candidate)
+
+
+    def _remove_group_output(self, path):
+        path = Path(path)
+
+        if not path.exists():
+            logger.debug(f"Group cleanup target not present: {path}")
+            return
+
+        if not path.is_file():
+            logger.warning(f"Skipping Group cleanup target because it is not a file: {path}")
+            return
+
+        try:
+            path.unlink()
+            logger.info(f"Removed unwanted SoFiA Group output file: {path}")
+        except Exception as e:
+            logger.warning(f"Could not remove SoFiA Group output '{path}': {e}")
 
 
     def quality_assesment(self, provided_mask_file=None):

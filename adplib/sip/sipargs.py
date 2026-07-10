@@ -96,6 +96,22 @@ class SiPar(dict):
         'overwrite': bool | None
     }
 
+    GROUP_EXCLUDED_REPORT_TYPES = {
+        "mom1",
+        "mom2",
+        "spec",
+        "spec_both",
+        "all_mom1",
+        "all_mom2",
+    }
+
+    GROUP_DELETE_SUFFIXES = (
+        "_mom1",
+        "_mom2",
+        "_spec",
+        "_specboth",
+    )
+
 
     def __init__(self, **kwargs):
         """
@@ -653,7 +669,7 @@ class SiPar(dict):
                 setattr(self, matched_attr, value)
 
 
-    def run_sip(self, sopar=None, run=-1):
+    def run_sip(self, sopar=None, run=-1, product_profile="regular"):
         """
         Run the SIP (Source Identification Pipeline) process with the specified configuration.
 
@@ -854,7 +870,12 @@ class SiPar(dict):
             # Add output to SIP report 
             if self.adpalmap_config.make_report:
                 try:
-                    self.report_outputs(sip_report, sip_output_dir, base_name)  
+                    self.report_outputs(
+                        sip_report,
+                        sip_output_dir,
+                        base_name,
+                        product_profile=product_profile
+                    )  
                 except Exception as e:
                     logger.warning(f"Error adding outputs for the html report (non-critical): {e}")
 
@@ -1118,12 +1139,20 @@ class SiPar(dict):
                 raise
               
 
-    def report_outputs(self, sip_report, output_dir, base_name):
+    def report_outputs(self, sip_report, output_dir, base_name, product_profile="regular"):
         
         if self.output_image_file_type:
             suffix = self.output_image_file_type
         else:
             suffix = 'png'
+
+        def add_image(image_info):
+            if (
+                product_profile == "group" and
+                image_info.get("type") in self.GROUP_EXCLUDED_REPORT_TYPES
+            ):
+                return
+            sip_report['outputs']['images'].append(image_info)
 
         num_sources = self.detect_source_count() 
 
@@ -1150,7 +1179,7 @@ class SiPar(dict):
             source_prefix = f"_{i}"
 
             # The order of the images here rules the order of the images in the report
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "mom0",
                 "path": output_dir / f"{base_name}{source_prefix}_mom0.{suffix}",
                 "source_id": i,
@@ -1158,63 +1187,63 @@ class SiPar(dict):
                 "software-id": "sip"
             })
             if hasattr(self, 'source_id') and getattr(self, 'source_id') is not None:
-                sip_report['outputs']['images'].append({
+                add_image({
                     "type": "mom0_usr",
                     "path": output_dir / f"{base_name}{source_prefix}_mom0_usr.{suffix}",
                     "source_id": i,
                     "description": "Moment 0 image (continuum overlaid)",
                     "software-id": "sip"
                 })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "snr",
                 "path": output_dir / f"{base_name}{source_prefix}_snr.{suffix}",
                 "source_id": i,
                 "description": "SNR image",
                 "software-id": "sip"
             })   
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "mom1",
                 "path": output_dir / f"{base_name}{source_prefix}_mom1.{suffix}",
                 "source_id": i,
                 "description": "Moment 1 image",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "mom2",
                 "path": output_dir / f"{base_name}{source_prefix}_mom2.{suffix}",
                 "source_id": i,
                 "description": "Moment 2 image",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "spec",
                 "path": output_dir / f"{base_name}{source_prefix}_spec.{suffix}",
                 "source_id": i,
                 "description": "Spectrum plot",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "spec_full",
                 "path": output_dir / f"{base_name}{source_prefix}_specfull.{suffix}",
                 "source_id": i,
                 "description": "Full spectrum plot",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "spec_both",
                 "path": output_dir / f"{base_name}{source_prefix}_specboth.{suffix}",
                 "source_id": i,
                 "description": "Both spectrum plot",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "pv",
                 "path": output_dir / f"{base_name}{source_prefix}_pv.{suffix}",
                 "source_id": i,
                 "description": "Major axis Position-Velociy plot",
                 "software-id": "sip"
             })
-            sip_report['outputs']['images'].append({
+            add_image({
                 "type": "pv_min",
                 "path": output_dir / f"{base_name}{source_prefix}_pv_min.{suffix}",
                 "source_id": i,
@@ -1229,7 +1258,7 @@ class SiPar(dict):
                         survey_path = (
                             output_dir / f"{base_name}{source_prefix}_mom0_{survey_nospace}.{suffix}"
                         )
-                        sip_report['outputs']['images'].append({
+                        add_image({
                             "type": f"mom0_{survey_nospace}",
                             "path": survey_path,
                             "source_id": i,
@@ -1238,7 +1267,7 @@ class SiPar(dict):
                         })                
         
         if create_summary:
-            sip_report['outputs']['images'].append({
+            add_image({
                     "type": "all_mom0",
                     "path": output_dir.parent / f"{base_name}_mom0.{suffix}",
                     "source_id": -1,
@@ -1246,7 +1275,7 @@ class SiPar(dict):
                     "software-id": "sip"
                 })
             
-            sip_report['outputs']['images'].append({
+            add_image({
                     "type": "all_mom1",
                     "path": output_dir.parent / f"{base_name}_mom1.{suffix}",
                     "source_id": -1,
@@ -1254,7 +1283,7 @@ class SiPar(dict):
                     "software-id": "sip"
                 })
             
-            sip_report['outputs']['images'].append({
+            add_image({
                     "type": "all_mom2",
                     "path": output_dir.parent / f"{base_name}_mom2.{suffix}",
                     "source_id": -1,
@@ -1262,7 +1291,7 @@ class SiPar(dict):
                     "software-id": "sip"
                 })
             
-            sip_report['outputs']['images'].append({
+            add_image({
                     "type": "all_sources",
                     "path": output_dir.parent / f"{base_name}_sources.{suffix}",
                     "source_id": -1,
@@ -1285,13 +1314,81 @@ class SiPar(dict):
                         survey_path = (
                             output_dir.parent / f"{base_name}_mom0_{survey_nospace}.{suffix}"
                         )
-                        sip_report['outputs']['images'].append({
+                        add_image({
                             "type": f"mom0_{survey_nospace}",
                             "path": survey_path,
                             "source_id": -1,
                             "description": f"Momment 0 image ({survey})",
                             "software-id": "sip"
                         }) 
+
+
+    def cleanup_group_outputs(self, sip_report):
+        """
+        Remove Group-only SIP products that should not be kept after execution.
+        """
+
+        if not sip_report.get("command"):
+            logger.debug("Skipping SIP Group cleanup because SIP was not executed.")
+            return
+
+        log_path = sip_report.get("log_path")
+        if not log_path:
+            return
+
+        log_path = Path(log_path)
+        if not log_path.name.endswith("_sip.log"):
+            logger.debug("Skipping SIP Group cleanup because log path has an unexpected name.")
+            return
+
+        base_name = log_path.name[:-len("_sip.log")]
+        if not base_name.startswith("group_"):
+            logger.debug("Skipping SIP Group cleanup for non-group output.")
+            return
+
+        suffix = self._output_suffix_from_report(sip_report)
+        output_dir = log_path.parent
+        figures_dir = output_dir / f"{base_name}_figures"
+
+        for product_suffix in self.GROUP_DELETE_SUFFIXES:
+            file_suffix = f"{product_suffix}.{suffix}"
+            self._remove_group_output(output_dir / f"{base_name}{file_suffix}")
+
+            if figures_dir.is_dir():
+                for candidate in figures_dir.iterdir():
+                    if (
+                        candidate.name.startswith(f"{base_name}_") and
+                        candidate.name.endswith(file_suffix)
+                    ):
+                        self._remove_group_output(candidate)
+
+
+    def _output_suffix_from_report(self, sip_report):
+        command = sip_report.get("command") or []
+        for option in ("-x", "--suffix"):
+            if option in command:
+                option_index = command.index(option)
+                if option_index + 1 < len(command):
+                    return str(command[option_index + 1]).lstrip(".")
+        return "png"
+
+
+    def _remove_group_output(self, path):
+        path = Path(path)
+
+        if not path.exists():
+            logger.debug(f"Group cleanup target not present: {path}")
+            return
+
+        if not path.is_file():
+            logger.warning(f"Skipping Group cleanup target because it is not a file: {path}")
+            return
+
+        try:
+            path.unlink()
+            logger.info(f"Removed unwanted SIP Group output file: {path}")
+        except Exception as e:
+            logger.warning(f"Could not remove SIP Group output '{path}': {e}")
             
 
     def detect_source_count(self):

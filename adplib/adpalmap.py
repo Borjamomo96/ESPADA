@@ -1039,9 +1039,14 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2 
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
-                            abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
+                            abs_sip_group_report = adpalmap_sipar.run_sip(
+                                sopar=adpalmap_sopar_abs,
+                                product_profile="group"
+                            )
+                            adpalmap_sipar.cleanup_group_outputs(abs_sip_group_report)
                             group_report.append(abs_sip_group_report)
                     else:
                         logger.warning(
@@ -1119,9 +1124,14 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
+                            adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP
-                            emi_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_emi)
+                            emi_sip_group_report = adpalmap_sipar.run_sip(
+                                sopar=adpalmap_sopar_emi,
+                                product_profile="group"
+                            )
+                            adpalmap_sipar.cleanup_group_outputs(emi_sip_group_report)
                             group_report.append(emi_sip_group_report)
                     else:
                         logger.warning(
@@ -1216,9 +1226,14 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
-                            abs_sip_group_report = adpalmap_sipar.run_sip(sopar=adpalmap_sopar_abs)
+                            abs_sip_group_report = adpalmap_sipar.run_sip(
+                                sopar=adpalmap_sopar_abs,
+                                product_profile="group"
+                            )
+                            adpalmap_sipar.cleanup_group_outputs(abs_sip_group_report)
                             group_report.append(abs_sip_group_report)
 
                 
@@ -1251,12 +1266,15 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
+                            adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP
                             emi_sip_group_report = adpalmap_sipar.run_sip(
                                 sopar=adpalmap_sopar_emi,
-                                run=0
+                                run=0,
+                                product_profile="group"
                             )
+                            adpalmap_sipar.cleanup_group_outputs(emi_sip_group_report)
                             group_report.append(emi_sip_group_report)               
 
         except Exception as e:    
