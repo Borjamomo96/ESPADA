@@ -962,14 +962,14 @@ class SiPar(dict):
                     else: 
                         cmd.append(str(attr_value))  
                 else:
-                    pass
-                    """cmd.append(shortcut[0])
+                    #pass
+                    cmd.append(shortcut[0])
                     cmd.append(str(-1))
                     self.source_id = int(-1)
                     logger.info(
                         "No value set for 'source_id' parameter. Setting 'source_id' to -1 " 
                         "to get images for all sources and summary images"
-                    )"""
+                    )
             
             elif attr_name == "syn_beam_dimensions":               
                 attr_value = getattr(self, attr_name, None) 

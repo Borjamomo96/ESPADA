@@ -1,6 +1,6 @@
 catalog_file:                 #'-c' or '--catalog'    Catalog file. Can be the ascii file ending in .txt or the XML file from SoFiA-2.
 
-source_id:                    #'-id' or '--source-id'.  Select certain sources, or range of sources from catalog based on the source id number. Default is all sources. Include `0` to make summary image of all sources.
+source_id:                    #'-id' or '--source-id'.  Select certain sources, or range of sources from catalog based on the source id number. Include `0` to make summary image of all sources. Default value in ESPADA is -1 (all sources + summary).
 output_image_file_type: 'png' #'-x' or '--suffix'.  Output image file type. Any file type accepted by plt.savefig() is in theory valid.  Default is 'png'.
 spec_full_range: True         #'-o' or '--original'.  This allows the spectrum with noise to be plotted over the full spectral range of the original cube.
 syn_beam_dimensions:          #'-b' or '--beam'.  Synthesized beam dimensions. If the primary header of the FITS files do not contain the beam information, this can be provided by the user. Accepts 1 to 3 values in order [bmaj, bmin, bpa].
