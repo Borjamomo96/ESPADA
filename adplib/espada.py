@@ -58,7 +58,7 @@ Main options:
 
 
 For detailed help on a file or parameter, use the command '-i|--info':
-adpalmap -i <file|parameter>=<file_name|parameter_name>
+espada -i <file|parameter>=<file_name|parameter_name>
 """
 
 
@@ -1331,7 +1331,7 @@ def main():
         # Parse args:
 
         parser = argparse.ArgumentParser(
-                        prog='adpalmap',
+                        prog='espada',
                         formatter_class=argparse.RawDescriptionHelpFormatter,
                         description=DESCRIPTION,
                         epilog= __doc__) 
@@ -1340,7 +1340,7 @@ def main():
         parser.add_argument(
             '-c', '--config-file', dest='config_file', default=None,
             help="<Optional> Path to the master config file to use. By default, "
-            "APDALMAP will try to use the file 'config.yaml'"
+            "ESPADA will try to use the file 'config.yaml'"
         )
         parser.add_argument(
             '-cp', '--config-parameter', dest='config_par', nargs='+',
@@ -1352,7 +1352,7 @@ def main():
             type=parse_key_value, default=None,
             help="<Optional> List of the parameters following the instructions of SoFia2 "
             "cookbook. Note, the parameter introduced here will overwrite the "
-            "corresponding parameter in all the sofia files used in ADPALMAP"
+            "corresponding parameter in all the sofia files used in ESPADA"
         )
         parser.add_argument(
             '-sarg','--sip-arguments', dest='sip_args', nargs=argparse.REMAINDER, 

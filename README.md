@@ -1,6 +1,6 @@
 # ESPADA: Enhanced Spectral-line Pipeline for the ALMA Data Archive
 
-> **Name note:** ESPADA was initially developed under the name **ADPALMAP**. Some legacy names may still appear in the code base, repository name, command-line entry point, documentation, or output labels. In the current documentation, the scientific pipeline name is **ESPADA**, while the command-line executable is still `adpalmap`.
+> **Name note:** ESPADA was initially developed under the name **ADPALMAP**. Some legacy names may still appear in the code base, repository name, command-line entry point, documentation, or output labels. The command-line executable is now `espada`.
 
 ESPADA is an end-to-end Python pipeline for generating advanced spectral-line data products from ALMA data. It wraps and coordinates data discovery/download from the ALMA Science Archive, source finding and parameterisation with [SoFiA-2](https://gitlab.com/SoFiA-Admin/SoFiA-2), visualisation with the [SoFiA Imaging Pipeline (SIP)](https://github.com/kmhess/SoFiA-image-pipeline), optional grouping of related detections, logging, quality assessment, and final HTML/JSON reports.
 
@@ -44,7 +44,7 @@ At a high level, ESPADA follows this sequence:
   <img src="adpweb/images/Workflow_v2-1.png" alt="ESPADA workflow" width="450">
 </p>
 
-The main module, `adpalmap`, orchestrates the workflow. The secondary modules are:
+The main module, `espada`, orchestrates the workflow. The secondary modules are:
 
 | Module | Role |
 | --- | --- |
@@ -99,8 +99,8 @@ curl https://pyenv.run | bash
 source ~/.bashrc
 
 pyenv install 3.10
-pyenv virtualenv 3.10 adpalmap
-pyenv activate adpalmap
+pyenv virtualenv 3.10 espada
+pyenv activate espada
 ```
 
 To leave the environment:
@@ -124,7 +124,7 @@ Editable mode is recommended because it keeps all repository files available, in
 Verify that the command-line entry point is available:
 
 ```bash
-adpalmap --help
+espada --help
 ```
 
 ## Quick start
@@ -137,7 +137,7 @@ adpalmap --help
 4. Run:
 
 ```bash
-adpalmap -c config.yaml
+espada -c config.yaml
 ```
 
 A minimal local-input run might use:
@@ -167,7 +167,7 @@ A TAP-based run should set `enable_tap_service: True` in `config.yaml` and defin
 The recommended execution method is the installed command-line interface:
 
 ```bash
-adpalmap -c config.yaml
+espada -c config.yaml
 ```
 
 ESPADA can search for a default `config.yaml` if no file is provided, but passing `-c` explicitly is recommended for reproducibility.
@@ -187,14 +187,14 @@ ESPADA can search for a default `config.yaml` if no file is provided, but passin
 Examples:
 
 ```bash
-adpalmap -c config.yaml
-adpalmap -c config.yaml -cp enable_tap_service=False input_file=espada_run/espada_input_file.txt
-adpalmap -c config.yaml -cp num_cores=5
-adpalmap -c config.yaml -sop linker.radiusXY=2 pipeline.verbose=true
-adpalmap -c config.yaml -sarg -i 0.15 -m
-adpalmap -c config.yaml --debug
-adpalmap -i file=config.yaml
-adpalmap -i parameter=filename_must_include
+espada -c config.yaml
+espada -c config.yaml -cp enable_tap_service=False input_file=espada_run/espada_input_file.txt
+espada -c config.yaml -cp num_cores=5
+espada -c config.yaml -sop linker.radiusXY=2 pipeline.verbose=true
+espada -c config.yaml -sarg -i 0.15 -m
+espada -c config.yaml --debug
+espada -i file=config.yaml
+espada -i parameter=filename_must_include
 ```
 
 Important notes:
@@ -537,8 +537,8 @@ Keeping extracted primary-beam and converted mask files can also avoid repeated 
 
 ## Known limitations
 
-- The command-line executable is currently `adpalmap`, even though the pipeline name is ESPADA.
-- The documentation and some internal names may still contain ADPALMAP legacy labels.
+- The command-line executable is now `espada`.
+- Some internal names may still contain ADPALMAP legacy labels.
 - SoFiA and SIP executable names are assumed to be `sofia` and `sofia_image_pipeline`. Changing this inside ESPADA is possible but not recommended; installing the external tools so that those commands are available in `PATH` is preferred.
 - Manually providing SIP `catalog_file` while using `run_mode: both` is not recommended. The current SIP YAML interface cannot specify separate absorption and emission catalogues for every dataset, which can lead to duplicated or incorrect SIP outputs.
 - Manually provided SIP catalogues are discouraged for TAP-service runs because archive-download ordering may differ between executions.
@@ -548,7 +548,7 @@ Keeping extracted primary-beam and converted mask files can also avoid repeated 
 
 | Symptom | Possible fix |
 | --- | --- |
-| `adpalmap: command not found` | Activate the correct environment and run `python -m pip install -e .` from the repository root. |
+| `espada: command not found` | Activate the correct environment and run `python -m pip install -e .` from the repository root. |
 | Python-related errors on import or syntax | Check that Python `>= 3.10` is active. |
 | SoFiA or SIP fails immediately | Confirm that `sofia` and `sofia_image_pipeline` are installed and callable from the same environment. |
 | HTML report misses SoFiA EPS diagnostic plots | Install Ghostscript and re-run report generation. |

@@ -279,7 +279,7 @@ parameter:
   num_cores: |
     **num_cores** (in config.yaml)
 
-    - **Description:** Number of cores to use when running ADPALMAP. By default, all available cores will be used. 
+    - **Description:** Number of cores to use when running ESPADA. By default, all available cores will be used. 
     If none or more cores than available on the device are specified, the maximum available cores will be used. 
     The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum 
     cores specified. It is recommended to review the full documentation for more details on the use of cores and the 
@@ -445,4 +445,3 @@ parameter:
       or terminal input.
       - *'input.primaryBeam'*: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if 
       specified in 'download_par.yaml'. 
-

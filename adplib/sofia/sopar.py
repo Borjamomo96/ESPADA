@@ -1350,7 +1350,7 @@ class SoPar(dict):
             qa_report['outputs']['images'].append({
             "type": "mom8",
             "path": qa_output_file,
-            "description": "Moment 8 image",
+            "description": "Mask comparison image",
             "software-id": "qa"
             })
             
