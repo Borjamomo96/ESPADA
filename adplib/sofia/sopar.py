@@ -158,12 +158,20 @@ SOFIA_PARAMETER = [
 ]
 
 
+def strip_inline_comment(line):
+    """
+    Remove SoFiA-style inline comments from a parameter file line.
+    """
+
+    return line.split("#", 1)[0].strip()
+
+
 def parse_parfile(file_path):
     config = {}
     with open(file_path, 'r') as f:
-        for line in f:     
-            line = line.strip() 
-            if not line or line.startswith('#'):
+        for line in f:
+            line = strip_inline_comment(line)
+            if not line:
                 continue
             if '=' in line:
                 key, value = map(str.strip, line.split('=', 1))
@@ -365,11 +373,11 @@ class SoPar(dict):
 
 
         with open(sofia_file_path, 'r') as file:
-                for line in file:
+                for raw_line in file:
                     
-                    # Remove both blank space sides and comment and skip blank lines
-                    line = line.strip()
-                    if not line or line.startswith("#"):
+                    # Remove comments and surrounding whitespace before parsing.
+                    line = strip_inline_comment(raw_line)
+                    if not line:
                         continue
                     
                     try:
