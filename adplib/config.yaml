@@ -20,7 +20,7 @@ log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log')
 #   INPUT DATA   #
 ##################
 
-input_data_set: /home/usuario/ADP-ALMA-Pipeline/adplib/sofia/sofia_test_datacube.fits  # <str> | <list> (Default value = ) Path to the dataset where the pipeline will be executed, read the documentation to see examples of possible inputs.
+input_data_set: # <str> | <list> (Default value = ) Path to the dataset where the pipeline will be executed, read the documentation to see examples of possible inputs.
     #1:
     #2:  
     #3: 
@@ -33,7 +33,7 @@ input_file: # (Default = ) Path to the input dataset file. The structure follows
 #####################
 
 enable_tap_service: False                                                # <bool> (Default value = False) Allows you to use the 'datap' module to download datasets from the ALMA archive and run the pipeline on them.
-download_par_file: ~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml      # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/tap/download_par.yaml') Path to the path to the parameter file for download.
+download_par_file:      # <str>  (Default value = packaged adplib/tap/download_par.yaml) Path to the parameter file for download.
 
 #################
 #     SOFIA     #
@@ -44,15 +44,15 @@ run_mode: 'both' #'emission', 'absorption'                                  # <s
 use_mask: False                                                             # <bool> (Default value = False) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
 abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
 auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
-sofia_abs_file : ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_abs_default.par') Path to the SoFiA-2 parameter file optimized to found 'absorption'.
-sofia_emi_file :  ~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par    # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sofia/sofia_emi_default.par') Path to the SoFiA-2 parameter file optimized to found 'emission'.
+sofia_abs_file :     # <str>  (Default value = packaged adplib/sofia/sofia_abs_default.par) Path to the SoFiA-2 parameter file optimized to found 'absorption'.
+sofia_emi_file :     # <str>  (Default value = packaged adplib/sofia/sofia_emi_default.par) Path to the SoFiA-2 parameter file optimized to found 'emission'.
 
 #################
 #      SIP      #
 #################
 
 enable_sip : True                                               # <bool> (Default value = True) Allows you to use the 'siparg' module where the software SIP is executed
-sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Default value = '~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml ') Path to the SIP argument file.
+sip_par_file :     # <str>  (Default value = packaged adplib/sip/sip_args.yaml) Path to the SIP argument file.
 
 #################
 #     GROUP     #
@@ -60,4 +60,4 @@ sip_par_file : ~/ADP-ALMA-Pipeline/adplib/sip/sip_args.yaml     # <str>  (Defaul
 
 enable_group: True                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
 overlap_mode :  'absflux'   # 'flux', 'absflux' or 'area'       # <str> (Default value = 'absflux') Determines the type of overlap is going to be applied to group sources.
-overlap_threshold : 0.8                                         # <float> (Default value = 0.8) Set the limit applied to the 'overlap_mode' selected from 0 to 1. 
+overlap_threshold : 0.8                                         # <float> (Default value = 0.8) Set the limit applied to the 'overlap_mode' selected from 0 to 1.

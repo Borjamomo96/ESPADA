@@ -1,6 +1,6 @@
 [project]
-name = "adp_alma_pipeline"
-version = "1.0"
+name = "espada"
+version = "1.0.0"
 description = "ESPADA either downloads data via the TAP service or uses ALMA's own data and performs source searches using SOFIA software and produces images for publication or quick inspection using SIP software."
 authors = [
     { name = "Borja Montoro Molina", email = "borjamomo96@gmail.com" }
@@ -35,13 +35,18 @@ include-package-data = true
 include = ["adp*"]
 
 [tool.setuptools.package-data]
+"adplib" = [
+    "config.yaml",
+    "doc/*.yaml",
+    "doc/*.pdf",
+    "sip/*.yaml",
+    "sofia/*.par",
+    "sofia/*.fits",
+    "tap/*.yaml",
+]
+
 "adpweb" = [
     "images/*",
     "resources/*",
-    "resources/**/*",  # Incluye subdirectorios
-    "static/*",
-    "static/**/*",     # Incluye subdirectorios
     "templates/*",
-    "templates/**/*",  # Incluye subdirectorios
-    "*.py",            # Incluye report.py
 ]

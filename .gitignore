@@ -171,3 +171,7 @@ cython_debug/
 # Local hidden editor/tool files and caches.
 .*
 !.gitignore
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
