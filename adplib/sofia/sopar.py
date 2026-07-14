@@ -23,6 +23,29 @@ from adplib.logger import Logger
 logger = Logger.get_logger()
 
 
+SOFIA_UNKNOWN_EXIT_MESSAGE = (
+    "SoFiA returned an exit code that is not registered in "
+    "SOFIA_EXIT_MESSAGES. Check the SoFiA log for details."
+)
+
+
+SOFIA_EXIT_MESSAGES = {
+    1: "An unspecified error occurred.",
+    2: "A NULL pointer was encountered.",
+    3: "A memory allocation error occurred. This could indicate that the "
+       "data cube is too large for the amount of memory available on the "
+       "machine.",
+    4: "An array index was found to be out of range.",
+    5: "An error occurred while trying to read or write a file or check if "
+       "a directory or file is accessible.",
+    6: "An integer overflow occurred.",
+    7: "The pipeline was aborted due to invalid user input. This could be "
+       "due to an invalid parameter setting or the wrong input file being "
+       "provided.",
+    8: "No specific error occurred, but no sources were detected either.",
+}
+
+
 SOFIA_PARAMETER = [
     "pipeline.verbose",
     "pipeline.pedantic",
@@ -160,6 +183,14 @@ def compare_parfiles(file_path, temp_file_path):
             changes[key] = new_value
 
     return changes
+
+
+def get_sofia_exit_message(exit_code):
+    """
+    Return the ESPADA-side message associated with a SoFiA exit code.
+    """
+
+    return SOFIA_EXIT_MESSAGES.get(exit_code, SOFIA_UNKNOWN_EXIT_MESSAGE)
 
 
 def mask_float2int(file_path):
@@ -946,6 +977,10 @@ class SoPar(dict):
                 "mode": self.mode,  
                 "log_path": self.sopar_logfile,
                 "sofia_parfile" : self.sofia_file_path,
+                "command": [],
+                "exit_code": 0,
+                "sofia_exit_message": "",
+                "sofia_subprocess_error": "",
                 "outputs" : {'images' : [], 'files': []}
             }
             
@@ -997,6 +1032,7 @@ class SoPar(dict):
 
             # Execute SoFiA-2 
             cmd = ["sofia", f"{temp_file_path}"]
+            sopar_report.update({"command": cmd})
             subprocess.run(
                 cmd,
                 text=True,
@@ -1019,10 +1055,19 @@ class SoPar(dict):
                 # If this attribute change from None to any other, find_mask_sofia() in group.py
                 # have to be changed as well
                 self.mask3d = None
-            error = str(e)
-            logger.error(
-                f"Error running SoFia. Mode: {self.mode}. Error: {e}"
+            sofia_exit_code = e.returncode
+            sofia_exit_message = get_sofia_exit_message(sofia_exit_code)
+            error = (
+                f"SoFiA failed with exit code {sofia_exit_code}: "
+                f"{sofia_exit_message} Mode: {self.mode}. "
+                f"Input data: {self.input_data}."
             )
+            sopar_report.update({
+                "exit_code": sofia_exit_code,
+                "sofia_exit_message": sofia_exit_message,
+                "sofia_subprocess_error": str(e),
+            })
+            logger.error(error)
             logger.info(f"SoFia execution aborted")
             
             if self.adpalmap_config.run_mode == 'both' and run!=0:

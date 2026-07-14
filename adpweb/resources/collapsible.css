@@ -31,37 +31,44 @@
 
 .collapsible.ok,
 .collapsible.ok.active {
-    background-color: #b6eab6; 
+    background-color: var(--status-ok); 
     color: #222;
 }
 .collapsible.warning,
 .collapsible.warning.active {
-    background-color: #ffa734; 
+    background-color: var(--status-warning); 
+    color: #222;
+}
+.collapsible.no_sources,
+.collapsible.no_sources.active {
+    background-color: var(--status-no-sources); 
     color: #222;
 }
 .collapsible.disable,
 .collapsible.disable.active {
-    background-color: #d7aaf1; 
+    background-color: var(--status-disable); 
     color: #222;
 }
 .collapsible.error,
 .collapsible.error.active {
-    background-color: #ffb3b3; 
+    background-color: var(--status-error); 
     color: #222;
 }
 
-
 .collapsible.ok:hover {
-    background-color: #91d891;
+    background-color: var(--status-ok-hover);
 }
 .collapsible.warning:hover {
-    background-color: #ffe066;
+    background-color: var(--status-warning-hover);
+}
+.collapsible.no_sources:hover {
+    background-color: var(--status-no-sources-hover);
 }
 .collapsible.disable:hover {
-    background-color: #ffe066;
+    background-color: var(--status-disable-hover);
 }
 .collapsible.error:hover {
-    background-color: #ff6f6f;
+    background-color: var(--status-error-hover);
 }
 
 .content {

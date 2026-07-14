@@ -16,6 +16,58 @@ import logging
 from adplib.logger import Logger
 logger= Logger.get_logger()
 
+
+SOFIA_NO_SOURCES_EXIT_CODE = 8
+NO_SOURCES_STATUS = "no_sources"
+
+REPORT_STATUS_SEVERITY = {
+    "ok": "ok",
+    "warning": "warning",
+    "error": "error",
+    "disable": "ok",
+    NO_SOURCES_STATUS: "warning",
+}
+
+DEFAULT_WARNING_THRESHOLD = 4
+
+
+def resolve_software_status(sw, error, warnings, exit_code):
+    """
+    Resolve the report status for one software execution.
+    """
+
+    if (
+        sw.get('software_id') == 'SoFiA-2'
+        and error
+        and exit_code == SOFIA_NO_SOURCES_EXIT_CODE
+    ):
+        return NO_SOURCES_STATUS
+
+    if error:
+        return 'error'
+    if warnings is not None and warnings > DEFAULT_WARNING_THRESHOLD:
+        return 'warning'
+    return 'ok'
+
+
+def update_status_counters(parsed_data, status):
+    """
+    Update report counters for a resolved software status.
+    """
+
+    severity = REPORT_STATUS_SEVERITY.get(status, 'error')
+
+    if severity == 'error':
+        parsed_data['execution_info']['total_errors'] += 1
+        return True, False
+    if severity == 'warning':
+        parsed_data['execution_info']['total_warnings'] += 1
+        return False, True
+
+    parsed_data['execution_info']['successful_workers'] += 1
+    return False, False
+
+
 class Report:
 
     def __init__(
@@ -112,6 +164,7 @@ class Report:
             qa_by_mode = {}
             error_exist = False
             warning_exist = False
+            no_sources_exist = False
             #######################################################################################    
             # COMPLETE INFORMATION BY SOFTWARE
 
@@ -158,19 +211,17 @@ class Report:
             
                     
                     error = sw.get('error', '')
-                    warnings = sw.get('warning_number', 2)  # CAMBIAR EN UN FUTURO POR EL Nº REAL
+                    warnings = sw.get('warning_number')
+                    exit_code = sw.get('exit_code')
+                    if exit_code is None:
+                        exit_code = 0 if not error else 1
                     
-                    if error:
-                        sw_status = 'error'
-                        error_exist = True
-                        parsed_data['execution_info']['total_errors'] += 1
-                    elif warnings > 4:  # CAMBIAR EL UMBRAL EN UN FUTURO
-                        sw_status = 'warning'
-                        warning_exist = True
-                        parsed_data['execution_info']['total_warnings'] += 1
-                    else:
-                        sw_status = 'ok'
-                        parsed_data['execution_info']['successful_workers'] += 1
+                    sw_status = resolve_software_status(sw, error, warnings, exit_code)
+                    sw_status_severity = REPORT_STATUS_SEVERITY.get(sw_status, 'error')
+                    has_error, has_warning = update_status_counters(parsed_data, sw_status)
+                    error_exist = error_exist or has_error
+                    warning_exist = warning_exist or has_warning
+                    no_sources_exist = no_sources_exist or sw_status == NO_SOURCES_STATUS
                    
                     ###############################################################################
                     # COMPLETE SOFTWARE INFORMATION
@@ -186,15 +237,20 @@ class Report:
                             'start_time': '',  # TODO: Obtener tiempos reales
                             'end_time': '',
                             'duration_seconds': None,
-                            'exit_code': 0 if not error else 1,
+                            'exit_code': exit_code,
                             #'host': socket.gethostname()
                         },
                         
                         # Status and errors
                         'status_info': {
                             'status': sw_status,
+                            'status_severity': sw_status_severity,
                             'error_message': error,
-                            'error_type': 'runtime' if error else None,
+                            'error_type': (
+                                'runtime' if error and sw_status_severity == 'error' else None
+                            ),
+                            'software_exit_message': sw.get('sofia_exit_message', ''),
+                            'software_subprocess_error': sw.get('sofia_subprocess_error', ''),
                             'warning_count': warnings,
                             'warnings_list': [],  # CAMBIAR. Se puede quitar
                             'is_group': is_group
@@ -262,6 +318,12 @@ class Report:
                 or input_name
                 or f"dataset_{len(parsed_data['datasets'])}"
             )
+            dataset_status = (
+                'error' if error_exist else
+                NO_SOURCES_STATUS if no_sources_exist else
+                'warning' if warning_exist else
+                'ok'
+            )
             dataset_complete = {
                 # Identificación
                 'dataset_id': dataset_identifier,
@@ -275,7 +337,7 @@ class Report:
                 'images': images,
                 'images_grouped': self._organize_images_for_html(images),
                 # Status general
-                'status': 'error' if error_exist else 'warning' if warning_exist else 'ok',
+                'status': dataset_status,
                 'qa_by_mode': qa_by_mode
             }
 
@@ -810,14 +872,34 @@ class Report:
         # Transform software_results to HTML format
         html_softwares = []
         for sw in dataset.get('software_results', []):
+            software_exit_message = sw['status_info'].get('software_exit_message', '')
+            software_exit_code = (
+                sw['execution_info']['exit_code']
+                if software_exit_message
+                else None
+            )
+            error_message = sw['status_info']['error_message']
+            status_title = (
+                software_exit_message
+                or error_message
+                or sw['status_info']['status']
+            )
             html_softwares.append({
                 'software_id': sw['software_id'],
                 'mode': sw['mode'],
                 'warning_number': sw['status_info']['warning_count'],
                 'log_path': sw['logs']['log_path'],
                 'log_content': sw['logs']['log_content'],
-                'error': sw['status_info']['error_message'],
+                'error': error_message,
                 'sw_status': sw['status_info']['status'],
+                'sw_status_severity': sw['status_info'].get('status_severity', ''),
+                'exit_code': sw['execution_info']['exit_code'],
+                'software_exit_code': software_exit_code,
+                'software_exit_message': software_exit_message,
+                'software_subprocess_error': sw['status_info'].get(
+                    'software_subprocess_error', ''
+                ),
+                'status_title': status_title,
                 'sofia_parfile': sw['configuration']['formatted_parfile'],
                 'command': sw['configuration']['command_executed'],
                 'is_group': sw['status_info']['is_group']

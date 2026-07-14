@@ -1,3 +1,18 @@
+:root {
+    /* Report status colors. Edit these values to change the HTML report palette. */
+    --status-ok: #b6eab6;
+    --status-ok-hover: #91d891;
+    --status-warning: #ffa734;
+    --status-warning-hover: #ffe066;
+    --status-no-sources: #9fd3f2;
+    --status-no-sources-hover: #72bee8;
+    --status-disable: #d7aaf1;
+    --status-disable-hover: #c894e8;
+    --status-error: #ffb3b3;
+    --status-error-hover: #ff6f6f;
+    --status-border: #888;
+}
+
 .run-header {
     font-size: 1.7em;
     font-weight: bold;
@@ -52,10 +67,11 @@
     align-items: center;
     gap: 5px;
 }
-.legend .green { background: #b6eab6; width: 10px; height: 10px; border: 1px solid #888; }
-.legend .orange { background: #ffa734; width: 10px; height: 10px; border: 1px solid #888; }
-.legend .purple { background: #d7aaf1; width: 10px; height: 10px; border: 1px solid #888; }
-.legend .red { background: #ffb3b3; width: 10px; height: 10px; border: 1px solid #888; }
+.legend .ok { background: var(--status-ok); width: 10px; height: 10px; border: 1px solid var(--status-border); }
+.legend .warning { background: var(--status-warning); width: 10px; height: 10px; border: 1px solid var(--status-border); }
+.legend .no_sources { background: var(--status-no-sources); width: 10px; height: 10px; border: 1px solid var(--status-border); }
+.legend .disable { background: var(--status-disable); width: 10px; height: 10px; border: 1px solid var(--status-border); }
+.legend .error { background: var(--status-error); width: 10px; height: 10px; border: 1px solid var(--status-border); }
 
 
 

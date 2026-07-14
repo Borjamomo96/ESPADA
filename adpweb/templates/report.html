@@ -25,10 +25,9 @@
   <div id="dataset" class="tab-content active">
     <!-- Leyenda de status -->
     <ul class="legend">
-      <li><span class="green"></span> Module ran normally</li>
-      <li><span class="orange"></span> Warnings excess</li>
-      <li><span class="purple"></span> Disabled </li>
-      <li><span class="red"></span> Errors </li>
+      <li><span class="ok"></span> Module ran normally</li>
+      <li><span class="no_sources"></span> No sources found</li>
+      <li><span class="error"></span> Errors </li>
     </ul>
     <!-- Aquí van las pestañas desplegables por dataset -->
 
@@ -43,9 +42,13 @@
                 <li 
                   data-log="{{ sw.log_content | e }}"
                   data-parfile="{{ sw.sofia_parfile | e }}"
-                  data-command="{{ sw.command | e }}">
+                  data-command="{{ sw.command | e }}"
+                  data-exit-code="{{ sw.exit_code }}"
+                  data-status-severity="{{ sw.sw_status_severity }}"
+                  data-software-exit-code="{{ sw.software_exit_code if sw.software_exit_code is not none else '' }}"
+                  data-software-exit-message="{{ sw.software_exit_message | e }}">
 
-                  <span class="sw-square {{ sw.sw_status }}"></span>
+                  <span class="sw-square {{ sw.sw_status }}" title="{{ sw.status_title | e }}"></span>
 
                   <div class="sw-name">{{ sw.software_id }}</div>
                   <div class="sw-mode">
@@ -58,12 +61,21 @@
                       {% endif %}
                     </em>
                   </div>
-                  <div class="sw-warnings">Nº warnings: <em>{{ sw.warning_number }}</em></div>
+                  {% if sw.warning_number is not none %}
+                    <div class="sw-warnings">Nº warnings: <em>{{ sw.warning_number }}</em></div>
+                  {% endif %}
 
                   <div class="btn-group">
                     <button class="log-btn" onclick="showLog(this)">Log</button>
                     <button class="par-btn" onclick="showPar(this)">Par/Comand</button>
                   </div>
+                  {% if sw.software_exit_code %}
+                    <div class="sw-exit-detail">
+                      Exit {{ sw.software_exit_code }}: {{ sw.software_exit_message }}
+                    </div>
+                  {% elif sw.error %}
+                    <div class="sw-exit-detail">{{ sw.error }}</div>
+                  {% endif %}
                 </li>
               {% endfor %}
             </ul>
