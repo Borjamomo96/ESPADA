@@ -114,8 +114,8 @@ pyenv deactivate
 Clone the repository and install it in editable/development mode:
 
 ```bash
-git clone https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git
-cd ADP-ALMA-Pipeline
+git clone https://github.com/Borjamomo96/ESPADA.git
+cd ESPADA
 python -m pip install -e .
 ```
 

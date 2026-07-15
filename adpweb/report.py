@@ -561,7 +561,7 @@ class Report:
         """
 
         if 'pipeline_name' not in self.pipeline_metadata:
-            self.pipeline_metadata['pipeline_name'] = 'ADP-ALMA-Pipeline'
+            self.pipeline_metadata['pipeline_name'] = 'ESPADA'
         
         if 'run_id' not in self.pipeline_metadata:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

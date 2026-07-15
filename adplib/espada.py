@@ -1448,7 +1448,7 @@ def main():
             else:
                 logger.critical(
                     "Oops, you should not have come here, Please open an"
-                    " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git " \
+                    " issue on https://github.com/Borjamomo96/ESPADA " \
                     "with your specific case."
                 )
 
@@ -1704,7 +1704,7 @@ def main():
             # METADATA 
             pipeline_metadata = {
                 # Pipeline info
-                'pipeline_name': 'ADP-ALMA-Pipeline',
+                'pipeline_name': 'ESPADA',
                 'pipeline_version': 1.0, # get_pipeline_version() to be developed
                 'run_id': f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
                 # Execution time

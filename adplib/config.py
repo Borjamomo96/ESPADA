@@ -175,7 +175,7 @@ class Config(dict):
                     f"Config default file {config_path} not found in the directory the"
                     " main script directory. Please specify a valid directory via the '-c/--config_file'"
                     f" <path_to_configuration_file> argument or download the default {config_path} file"
-                    " included at https://gitlab.com/adp-group1/adp-alma-pipeline"
+                    " included at https://github.com/Borjamomo96/ESPADA"
                 )
             else:
                 ilogger.info(f"The file in {config_path} have been loaded successfully")

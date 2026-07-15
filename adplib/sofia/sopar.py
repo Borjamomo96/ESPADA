@@ -591,7 +591,7 @@ class SoPar(dict):
                 
         else:
             logger.critical("Oops, you should not have come here. Please open an"
-                            " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with "
+                            " issue on https://github.com/Borjamomo96/ESPADA with "
                             "your specific case.")
         
         ##############################################################################################        

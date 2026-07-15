@@ -49,7 +49,7 @@ class group(dict):
             else:
                 logger.critical(
                 "The mask3d attribute does not exist, something went wrong. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA with your specific "
                 "case."
             )
                 return None  

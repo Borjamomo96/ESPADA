@@ -719,7 +719,7 @@ class datap(dict):
                 "No data cube file containing the string 'cube.I.pbcor' was found in the "
                 "downloaded data. In older cycles, data cubes may follow different naming "
                 "conventions that are not supported by this pipeline. Please submit an issue "
-                " on GitLab https://gitlab.com/adp-group1/adp-alma-pipeline with the "
+                " on GitLab https://github.com/Borjamomo96/ESPADA with the "
                 "specific case."
             )
             logger.info("ADP pipeline execution aborted")
