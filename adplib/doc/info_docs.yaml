@@ -2,446 +2,619 @@ file:
   config.yaml: |
     **Main configuration file**
 
-    ESPADA is designed in a modular manner, so this file includes the data sets to be 
-    processed, the names of the files that control each of the modules (TAP, SoFiA-2, and SIP), 
-    and various global configuration parameters.
+    `config.yaml` controls the ESPADA workflow: input data, TAP downloads,
+    SoFiA execution, SIP execution, grouping, logging, output directory, and
+    report generation.
 
-    - **Format**: YAML — Each parameter is specified as `parameter: value`
+    **Format:** YAML. Each entry is written as `parameter: value`.
 
-    - **Parameters**:
+    **Required parameters accepted by the current Config schema**
 
-      **GENERAL**
-      - make_report
-      - verbose
-      - num_cores
-      - output_dir
+    **GENERAL**
+    - make_report
+    - verbose
+    - num_cores
+    - output_dir
 
-      **LOGGER**
-      - clear_logs
-      - log_file
+    **LOGGER**
+    - clear_logs
+    - log_file
 
-      **INPUT DATA**
-      - input_data_set
-      - input_file
+    **INPUT DATA**
+    - input_data_set
+    - input_file
 
-      **TAP SERVICE**
-      - enable_tap_service
-      - download_par_file
+    **TAP SERVICE**
+    - enable_tap_service
+    - download_par_file
 
-      **SOFIA**
-      - enable_sofia
-      - run_mode
-      - abs_flag_cube
-      - auto_setup
-      - sofia_abs_file 
-      - sofia_emi_file
+    **SOFIA**
+    - enable_sofia
+    - run_mode
+    - use_mask
+    - abs_flag_cube
+    - auto_setup
+    - sofia_abs_file
+    - sofia_emi_file
 
-      **SIP**
-      - enable_sip 
-      - sip_par_file 
+    **SIP**
+    - enable_sip
+    - sip_par_file
 
-      **GROUP**
-      - enable_group
+    **GROUP**
+    - enable_group
+    - overlap_mode
+    - overlap_threshold
 
-    - **Additional help**:  
-      If you want more detailed information about a specific parameter,  
-      use the argument *-i parameter=parameter_name*
+    **Important notes**
+    - Exactly one input source must be selected: TAP service, `input_data_set`,
+      or `input_file`.
+    - `quality_assessment` and `quality_assesment` are not valid config keys in
+      the current schema. QA is currently tied to SoFiA execution.
+    - Primary beam use is implicit: if a primary beam path is provided in the
+      dataset tuple, ESPADA passes it to SoFiA.
+
+    For parameter-specific help, run:
+    `espada -i parameter=parameter_name`
 
   download_par.yaml: |
-    **Download configuration file**
+    **TAP download configuration file**
 
-    ADPAlmAP allows you to process data by downloading it directly from the ALMA archive.
-    This is done using the TAP service and code adapted from the ALMA Archive Mining & Visualization Toolkit (ALminer).
+    `download_par.yaml` configures the TAP archive query and ALMA product
+    download step. It is used only when `enable_tap_service: True` in
+    `config.yaml`.
 
-    - **Format**: YAML — Each parameter is specified as *parameter: value*
+    **Format:** YAML. Each entry is written as `parameter: value`.
 
-    - **Parameters**:
+    **SERVER**
+    - server_address
+    - credentials
+    - stored_credentials
 
-      **SERVER**
-      - server_address
-      - credentials
-      - stored_credentials
+    **QUERY**
+    - query_type
+    - query_par
 
-      **QUERY**
-      - query_type:
-      - query_par:
+    **Valid query_type values**
+    - proposal
+    - member_ous_id
+    - conesearch
+    - target
+    - keysearch
+    - free
 
-        **If query_type = proposal**
-        - proposal_id
+    **query_par for each query_type**
+    - proposal: proposal_id
+    - member_ous_id: member_ous_id
+    - conesearch: ra, dec, search_radius
+    - target: sources, search_radius
+    - keysearch: search_dict
+    - free: query_str
 
-        **If query_type = conesearch**
-          - ra
-          - dec
-          - search_radius
+    **Common query_par parameters required for every query_type**
+    - point
+    - public
+    - published
+    - print_targets
+    - print_query
 
-        **If query_type = target**
-          - sources
-          - search_radius
+    **DOWNLOAD**
+    - download_par
+      - remove_compressed_file
+      - remove_archive_mask
+      - dryrun
+      - print_urls
+      - filename_must_include
+      - data_dir
 
-        **If query_type = keysearch**
-          - search_dict
+    For parameter-specific help, run:
+    `espada -i parameter=parameter_name`
 
-        **If query_type = free**
-          - query_str
+  sip_args.yaml: |
+    **SIP argument configuration file**
 
-        **Common parameters for all query type**
-        - point: false 
-        - public: true
-        - published: false
-        - print_targets: true 
-        - print_query: true
+    `sip_args.yaml` contains the default arguments passed to the external
+    `sofia_image_pipeline` command when `enable_sip: True`.
 
-      **EXTRA**
-      - download_par:
-        - fitsonly
-        - include_pb
-        - remove_uncompress_filedryrun   
-        - print_urls
-        - filename_must_include
-        - data_dir
+    **Accepted parameters**
+    - catalog_file
+    - source_id
+    - output_image_file_type
+    - spec_full_range
+    - syn_beam_dimensions
+    - channel_width
+    - min_size
+    - snr_range
+    - surveys_list
+    - combo
+    - user_image
+    - percentile_range
+    - spec_line
+    - no_source_id
+    - channel_maps
+    - spec_only
+    - plot_units
+    - overwrite
 
-    - **Additional help**:  
-      If you want more detailed information about a specific parameter,  
-      use the argument *-i parameter=parameter_name*
+    SIP arguments can also be passed at the end of the ESPADA command with
+    `-sarg/--sip-arguments`. Because this option uses argparse REMAINDER, it
+    must be the last ESPADA option.
 
+  sofia_par: |
+    **SoFiA parameter files**
+
+    ESPADA reads SoFiA `.par` files such as `sofia_abs_default.par` and
+    `sofia_emi_default.par`, then rewrites selected parameters before launching
+    the external `sofia` command.
+
+    **Pipeline-owned SoFiA parameters**
+    Values for these parameters in `.par` files or `-sop` overrides are ignored
+    or rewritten by ESPADA:
+    - input.data
+    - input.primaryBeam
+    - input.mask
+    - input.invert
+    - pipeline.threads
+    - output.directory
+
+    ESPADA also enforces output naming and selected output products so that SIP,
+    grouping, QA, and report generation can find the expected files.
 
 parameter:
+  make_report: |
+    **make_report** (in config.yaml)
 
-  server_address: |
-    **server_address** (in download_par.yaml)
-
-    - **Description:** URL of the server website to query the data.
-    - **Type:** string
-    - **Accepted values:**
-      - 'https://almascience.eso.org'
-      - 'https://almascience.nrao.edu'
-      - 'https://almascience.nao.ac.jp'
-    - **NOTE:** ADPAlmaP has been optimized for ALMA archive; others may not support full functionality.
-
-  credentials: |
-    **credentials** (in download_par.yaml)
-
-    - **Description:** If true, enables login to ALMA TAP service with user credentials.
+    - **Description:** If True, ESPADA generates an HTML and JSON report after
+      the run.
     - **Type:** boolean
-
-  stored_credentials: |
-    **stored_credentials** (in download_par.yaml)
- 
-    - **Description:** If true, stores credentials in memory cache for future use.
-    - **Type:** boolean
-
-  query_type: |
-    **query_type** (in download_par.yaml)
-
-    - **Description:** Type of query to perform on the ALMA archive.
-    - **Type:** string
-    - **Accepted values:**
-      - proposal
-      - conesearch
-      - target
-      - keysearch
-      - free  
-
-  query_par: |
-    **query_type** (in download_par.yaml)**
-    
-    - **Description:** Contains both specific and common parameters for all query types
-    - **Type:** Blank. Container for other parameters. It remains unspecified and the 
-    parameters it contains are tabulated relative to it.
-
-    **Example - proposal** 
-
-      - query_par: 
-        - proposal_id: '2016.1.00778.S'   
-        - point: False   
-        - public: True  
-        - published: None  
-        - print_targets: True   
-        - print_query: True  
-      
-      
-
-      **Example - target** 
-
-      - query_par:
-        - sources: ['V605 Aql']
-        - search_radius: 2.
-        - point: False   
-        - public: True  
-        - published: None  
-        - print_targets: True   
-        - print_query: True 
-
-      
-
-      **Example - keysearch** 
-
-      - query_par:
-        - search_dict: {'target_name':['G31.41'], 'proposal_id': ['2018']}
-        - point: False   
-        - public: True  
-        - published: None  
-        - print_targets: True   
-        - print_query: True 
-
-     
-
-      **Example - free** 
-
-      - query_par: 
-        - query_str: *"SELECT * FROM ivoa.obscore WHERE ((LOWER(proposal_abstract) LIKE '%planet-forming disk%')) AND (spatial_resolution < 0.5) AND (LOWER(data_rights) LIKE '%public%') AND (LOWER(scan_intent) LIKE '%target%') ORDER BY proposal_id"*
-        - point: False   
-        - public: True  
-        - published: None  
-        - print_targets: True   
-        - print_query: True 
-
-      **NOTE:** In this case, the common parameters will not be taken into account but 
-      they must still be present to avoid errors.
-
-
-  download_par: |
-    **download_par** (in download_par.yaml)
-    - **Description:** Contains parameters to select files from those selected in 
-    the QUERY and download them
-    - **Type:** Container for other parameters. It remains unspecified and the 
-    parameters it contains are tabulated relative to it.
-  
-
-  fitsonly: |
-    **fitsonly** (in download_par.yaml)
-
-    - **Description:** If True, only download FITS files.
-    - **Type:** boolean
-
-  include_pb: |
-    **include_pb** (in download_par.yaml)
-
-    - **Description:** If True, download all the .pb. files (i.e. all the primary beam cubes) with no 
-    distinction among the science cubes. 
-    - **Type:** boolean
-
-  delete_compressed_file: |
-    **delete_compressed_file** (in download_par.yaml)
-
-    - **Description:** If True, delete compressed files. This is the case for primary beams cubes in 
-    the ALMA archive. 
-    - **Type:** boolean                               
-    
-  dryrun: |
-    **dryrun** (in download_par.yaml)
-
-    - **Description:** If True, allow the user to do a test run to check the size and number of 
-    files to download without actually
-    - **Type:** boolean
-
-  print_urls: |
-    **print_urls** (in download_par.yaml)
-
-    - **Description:** If True, write the list of urls to be downloaded from the archive to the 
-    terminal.
-    - **Type:** boolean  
-
-  filename_must_include: |
-    **filename_must_include** (in download_par.yaml)
-
-    - **Description:** A list of strings the user wants to be contained in the url filename. 
-    This is useful to restrict the download further, for example, to data that have been 
-    primary beam corrected ('.pbcor') or that have the science target or calibrators 
-    (by including their names). The choice is largely dependent on the cycle and type of 
-    reduction that was performed and data products that exist on the archive as a result. 
-    In most recent cycles, the science target can be filtered out with the flag '_sci' or 
-    its ALMA target name.
-    - **Type:** list   
-    
-  data_dir: |
-    **data_dir** (in download_par.yaml)
-
-    - **Description:** The path of the directory where the downloaded data should be placed.
-    - **Type:** string
-
-
-  quality_assesment: |
-    **quality_assesment** (in config.yaml)
-
-    - **Description:** If True, a quick and simple quality assessment of the data obtained with SoFiA will be performed.
-    - **Type:** boolean
-    
 
   verbose: |
     **verbose** (in config.yaml)
 
-    - **Description:** If True, it will display all outputs from the external programs SoFiA and SIP. Type `<bool>`. 
-    It is generally recommended to leave this as True.
+    - **Description:** If True, terminal output from external programs such as
+      SoFiA and SIP is shown while they run.
     - **Type:** boolean
-
 
   num_cores: |
     **num_cores** (in config.yaml)
 
-    - **Description:** Number of cores to use when running ESPADA. By default, all available cores will be used. 
-    If none or more cores than available on the device are specified, the maximum available cores will be used. 
-    The cores used in running SoFiA will then be dynamically adjusted based on the number of data sets and the maximum 
-    cores specified. It is recommended to review the full documentation for more details on the use of cores and the 
-    number of workers (parallelization).
-    - **Type:** integer
+    - **Description:** Maximum number of CPU cores ESPADA may use. If set to
+      null, ESPADA uses the available cores. SoFiA thread counts are adjusted
+      from this value and the number of datasets.
+    - **Type:** integer or null
+
+  output_dir: |
+    **output_dir** (in config.yaml)
+
+    - **Description:** Directory where ESPADA writes run outputs. If null,
+      ESPADA creates `espada_run/` under the current working directory.
+    - **Type:** string or null
 
   clear_logs: |
     **clear_logs** (in config.yaml)
 
-    - **Description:** If True, clears the file where all logger entries will be written. This only works if the 
-    selected filename matches the name of the file from previous runs.
+    - **Description:** If True, old log files matching the selected log path are
+      cleared before the current run writes logs.
     - **Type:** boolean
-
 
   log_file: |
     **log_file** (in config.yaml)
 
-    - **Description:** Name of the file where logger messages should be saved. 
-    - **Type:** string
-
+    - **Description:** Path to the log file. Relative paths are resolved inside
+      `output_dir`.
+    - **Type:** string or null
 
   input_data_set: |
     **input_data_set** (in config.yaml)
 
-    - **Description:** Files Path to the data cube, primary Beam (optional) and mask (optional) where the pipeline 
-    will run. Available types are list, string or dictionary.
-    - **Type:** Available types are list, string or dictionary.
+    - **Description:** Local FITS dataset definition. It can contain a data cube,
+      optional primary beam, optional mask, and optional ancillary/continuum
+      image.
+    - **Type:** string, list, dictionary, or null
+    - **Examples:**
+      - `input_data_set: cube.fits`
+      - `input_data_set: [cube.fits, pb.fits, mask.fits]`
+      - `input_data_set: [cube.fits, "", mask.fits, continuum.fits]`
+      - `input_data_set: {1: cube1.fits, 2: [cube2.fits, pb2.fits]}`
 
-      **Example as a list:**   
-      *input_data_set*: [data.fits, pb.fits, mask.fits] || [data.fits, "", mask.fits] || [data.fits, pb.fits] ||
-      || [data.fits] || [data.fits, "", ""].
-
-      **NOTE**: Do not confuse the '||' symbol as part of the input, this is simply a separator in the examples.
-
-      **Example as a <str>:**  
-     *input_data_set*: data.fits pb.fits mask.fits|| data.fits, pb.fits, mask || data.fits, pb.fits mask ||
-     || data.fits, "" mask || data.fits, "", mask || data.fits "", mask.fits || data.fits, "" ""
-
-      **NOTE**: Do not confuse the '||' symbol as part of the input, this is simply a separator in the examples.
-
-      **Be careful**: -data.fits, , mask.fits- is valid but it will be interpreter as: [data.fits, mask.fits, ''].
-
-
-      **Examples as a <dict>:** , for multiple data sets. All the previous rules are applied.   
-      *input_data_set*:  
-        1 : [data.fits, pb.fits, mask.fits]  
-        2 : [data.fits, "", mask.fits]  
-        3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
-        4 : data.fits  
-
-        *input_data_set*: {   
-        1 : [data.fits, pb.fits, mask.fits]  
-        2 : [data.fits, "", mask.fits]  
-        3 : data.fits pb.fits mask.fits || data.fits, pb.fits, mask.fits || data.fits pb.fits, mask.fits  
-        4 : data.fits  
-        }
+    `input_data_set`, `input_file`, and `enable_tap_service` are mutually
+    exclusive input modes.
 
   input_file: |
     **input_file** (in config.yaml)
 
-    - **Description:** Path to the text file (.txt, .lst, .dat) that includes all the Paths to each of 
-    the data sets on which to run the pipeline.
-    - **Type:** string
-    - Example: 
-      1 : data.fits pb.fits mask.fits  
-      2 : data1.fits pb1.fits mask1.fits  
-      3 : data2.fits pb2.fits mask2.fits
+    - **Description:** Text file containing one dataset definition per line.
+      Each line follows the same order as `input_data_set`: cube, primary beam,
+      mask, ancillary image.
+    - **Type:** string or null
 
-      **NOTE** The required format for each line within the file is the same as for *input_data_set*, 
-    with the exception of the use of '[ ]'. The latter is not allowed, since when reading the file, the 
-    pipeline will not identify it as a Python 'list' but rather as a character within the filename, which will 
-    generate an error. Example of how lines should be entered into the file:
+    `input_data_set`, `input_file`, and `enable_tap_service` are mutually
+    exclusive input modes.
 
   enable_tap_service: |
     **enable_tap_service** (in config.yaml)
 
-    - **Description:** If True, allows execution of the module *datap.py*, which downloads data from the 
-    ALMA archive based on parameters selected in the *download_par_file*
+    - **Description:** If True, ESPADA queries/downloads ALMA archive products
+      using `download_par_file`.
     - **Type:** boolean
+
+    When this is True, `input_data_set` and `input_file` must be empty.
 
   download_par_file: |
     **download_par_file** (in config.yaml)
 
-    - **Description:** Path (including filename) to the file containing desired parameters for downloading data 
-    from ALMA's archive. This file is included by default in this repository under the name *download_par.yaml*.
-    - **Type:** string
+    - **Description:** Path to the TAP download configuration file. If null, the
+      packaged `adplib/tap/download_par.yaml` is used.
+    - **Type:** string or null
 
   enable_sofia: |
     **enable_sofia** (in config.yaml)
 
-    - **Description:**  If True, allows execution of the module *sofia.py*, which uses external SoFiA software.
+    - **Description:** If True, ESPADA runs the external SoFiA-2 command through
+      the `SoPar` wrapper.
     - **Type:** boolean
 
   run_mode: |
     **run_mode** (in config.yaml)
 
-    - **Description:** Indicates the type of emission that SoFiA should search for in the selected data cube. 
-    Available modes are 'emission', 'absorption', and 'both'. If 'both' is selected, SoFiA will first search for 
-    absorptions and then run again to search for emissions. See description of 'abs_flag_cube' parameter for more details.
+    - **Description:** Source-finding mode.
     - **Type:** string
+    - **Accepted values:** `emission`, `absorption`, `both`
+
+    In `both` mode, ESPADA runs absorption first and emission second.
+
+  use_mask: |
+    **use_mask** (in config.yaml)
+
+    - **Description:** If True and a mask is available from local input or TAP,
+      ESPADA passes that mask to SoFiA as `input.mask`.
+    - **Type:** boolean
 
   abs_flag_cube: |
     **abs_flag_cube** (in config.yaml)
 
-    - **Description:** If True, uses the mask obtained during SoFiA's first run in 'both' mode (i.e., absorptions) as a 
-    flag mask for emission searches.
+    - **Description:** Used only with `run_mode: both`. If True, the absorption
+      mask from the first SoFiA run is passed as a flag cube for the emission
+      run.
     - **Type:** boolean
-  
+
   auto_setup: |
     **auto_setup** (in config.yaml)
 
-    - **Description:** If True, adjusts certain SoFiA parameters based on specific keywords found in data cube headers.
+    - **Description:** If True, ESPADA adjusts selected SoFiA parameters from
+      FITS header information before running SoFiA.
     - **Type:** boolean
 
   sofia_abs_file: |
     **sofia_abs_file** (in config.yaml)
 
-    - **Description:** Path (including filename) to a file containing parameters necessary for running SoFiA to search for absorptions.
-    - **Type:** string
+    - **Description:** Path to the SoFiA `.par` file used for absorption runs.
+      If null, ESPADA uses the packaged default.
+    - **Type:** string or null
 
   sofia_emi_file: |
     **sofia_emi_file** (in config.yaml)
 
-    - **Description:** Path (including filename) to a file containing parameters necessary for running SoFiA to search for emissions.
-    - **Type:** string
+    - **Description:** Path to the SoFiA `.par` file used for emission runs.
+      If null, ESPADA uses the packaged default.
+    - **Type:** string or null
 
   enable_sip: |
     **enable_sip** (in config.yaml)
 
-    - **Description:** If True, allows the execution of the *sipar.py* module, which uses the external SIP software.
+    - **Description:** If True, ESPADA runs the external
+      `sofia_image_pipeline` command through the SIP wrapper.
     - **Type:** boolean
-    - **Additional information**: 
-
-      **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in 
-      sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both 
-      files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the 
-      specific process where SoFiA2 is running.
-
-      **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
-      - **'input.data'**: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded 
-      via 'download_par.yaml'. A warning will indicate that it is being ignored.
-      - **'input.invert'**: Ignored, with warnings displayed if there is a conflict between selected mode and value in parameter files 
-      or terminal input.
-      - **'input.primaryBeam'**: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if 
-      specified in 'download_par.yaml'. 
 
   sip_par_file: |
     **sip_par_file** (in config.yaml)
 
-    - **Description:** Path (including filename) to the file containing the parameters necessary to run SIP.
-    - **Type:**
-    - **Additional information**: 
+    - **Description:** Path to the SIP argument YAML file. If null, ESPADA uses
+      the packaged `adplib/sip/sip_args.yaml`.
+    - **Type:** string or null
 
-      **NOTE**: During the execution of SoFiA there are multiple steps where various parameters specified in the files specified in 
-      sofia_abs_file and sofia_emi_file can potentially be changed. For simplicity and to better track these in the logger, for both 
-      files (if applicable) a temporary file is created consisting of: {filename}\_{tmp}\_{PID}.par, where PID indicates the PID of the 
-      specific process where SoFiA2 is running.
+  enable_group: |
+    **enable_group** (in config.yaml)
 
-      **NOTE**: Certain specific SoFiA parameters conflict with ADPAlmaP's workflow:
-      - *'input.data'*: Always ignored within SoFiA's parameters; instead, it uses those selected in *config.yaml* or downloaded 
-      via 'download_par.yaml'. A warning will indicate that it is being ignored.
-      - *'input.invert'*: Ignored, with warnings displayed if there is a conflict between selected mode and value in parameter files 
-      or terminal input.
-      - *'input.primaryBeam'*: Ignored only if downloading files via TAP service is enabled; otherwise, downloaded files are used if 
-      specified in 'download_par.yaml'. 
+    - **Description:** If True, ESPADA groups overlapping SoFiA detections and
+      reruns SoFiA/SIP for grouped sources when possible.
+    - **Type:** boolean or null
+
+  overlap_mode: |
+    **overlap_mode** (in config.yaml)
+
+    - **Description:** Metric used by source grouping to decide whether sources
+      overlap enough to be grouped.
+    - **Type:** string or null
+    - **Accepted values:** `area`, `flux`, `absflux`
+
+  overlap_threshold: |
+    **overlap_threshold** (in config.yaml)
+
+    - **Description:** Threshold for grouping overlap. Values must be between 0
+      and 1.
+    - **Type:** float or null
+
+  server_address: |
+    **server_address** (in download_par.yaml)
+
+    - **Description:** ALMA TAP server base URL.
+    - **Type:** string
+    - **Accepted values:**
+      - `https://almascience.eso.org`
+      - `https://almascience.nrao.edu`
+      - `https://almascience.nao.ac.jp`
+
+  credentials: |
+    **credentials** (in download_par.yaml)
+
+    - **Description:** If True, ESPADA asks the ALMA TAP client to authenticate.
+    - **Type:** boolean
+
+  stored_credentials: |
+    **stored_credentials** (in download_par.yaml)
+
+    - **Description:** If True, the ALMA client may use stored credentials.
+    - **Type:** boolean
+
+  query_type: |
+    **query_type** (in download_par.yaml)
+
+    - **Description:** Type of ALMA archive query.
+    - **Type:** string
+    - **Accepted values:** `proposal`, `member_ous_id`, `conesearch`,
+      `target`, `keysearch`, `free`
+
+  query_par: |
+    **query_par** (in download_par.yaml)
+
+    - **Description:** Container for query-specific parameters plus common query
+      filters.
+    - **Type:** mapping
+
+    Required query-specific keys depend on `query_type`. The common keys
+    `point`, `public`, `published`, `print_targets`, and `print_query` must also
+    be present.
+
+  proposal_id: |
+    **proposal_id** (inside query_par)
+
+    - **Description:** ALMA proposal identifier for `query_type: proposal`.
+    - **Type:** string
+
+  member_ous_id: |
+    **member_ous_id** (inside query_par)
+
+    - **Description:** ALMA member OUS identifier or list of identifiers for
+      `query_type: member_ous_id`.
+    - **Type:** string or list
+
+  ra: |
+    **ra** (inside query_par)
+
+    - **Description:** Right ascension used by `query_type: conesearch`.
+    - **Type:** integer or float
+
+  dec: |
+    **dec** (inside query_par)
+
+    - **Description:** Declination used by `query_type: conesearch`.
+    - **Type:** integer or float
+
+  search_radius: |
+    **search_radius** (inside query_par)
+
+    - **Description:** Search radius used by `conesearch` and `target` queries.
+    - **Type:** integer or float
+
+  sources: |
+    **sources** (inside query_par)
+
+    - **Description:** Source names used by `query_type: target`.
+    - **Type:** list
+
+  search_dict: |
+    **search_dict** (inside query_par)
+
+    - **Description:** Dictionary of archive columns and match values used by
+      `query_type: keysearch`.
+    - **Type:** dictionary
+
+  query_str: |
+    **query_str** (inside query_par)
+
+    - **Description:** Raw ADQL query string used by `query_type: free`.
+    - **Type:** string
+
+  point: |
+    **point** (inside query_par)
+
+    - **Description:** Common TAP query option used by the ALMA query helpers.
+    - **Type:** boolean
+
+  public: |
+    **public** (inside query_par)
+
+    - **Description:** If True, include public archive products in the query.
+    - **Type:** boolean
+
+  published: |
+    **published** (inside query_par)
+
+    - **Description:** If True, restrict query behavior to published products as
+      implemented by the TAP helper.
+    - **Type:** boolean
+
+  print_targets: |
+    **print_targets** (inside query_par)
+
+    - **Description:** If True, print target information from the TAP query.
+    - **Type:** boolean
+
+  print_query: |
+    **print_query** (inside query_par)
+
+    - **Description:** If True, print the generated query.
+    - **Type:** boolean
+
+  download_par: |
+    **download_par** (in download_par.yaml)
+
+    - **Description:** Container for product download and filtering options.
+    - **Type:** mapping
+
+  remove_compressed_file: |
+    **remove_compressed_file** (inside download_par)
+
+    - **Description:** If True, remove compressed archive files after extraction.
+    - **Type:** boolean
+
+  remove_archive_mask: |
+    **remove_archive_mask** (inside download_par)
+
+    - **Description:** If True, remove the original archive mask after creating
+      the integer mask version used by SoFiA.
+    - **Type:** boolean
+
+  dryrun: |
+    **dryrun** (inside download_par)
+
+    - **Description:** If True, estimate/download-plan information is printed
+      without downloading products.
+    - **Type:** boolean
+
+  print_urls: |
+    **print_urls** (inside download_par)
+
+    - **Description:** If True, print selected archive product URLs.
+    - **Type:** boolean
+
+  filename_must_include: |
+    **filename_must_include** (inside download_par)
+
+    - **Description:** List of strings that selected product filenames must
+      contain. Use this to narrow archive products.
+    - **Type:** list
+
+  data_dir: |
+    **data_dir** (inside download_par)
+
+    - **Description:** Directory where downloaded products should be stored. If
+      null, the ALMA client default cache location is used.
+    - **Type:** string or null
+
+  catalog_file: |
+    **catalog_file** (in sip_args.yaml)
+
+    - **Description:** SoFiA catalog file used by SIP when ESPADA cannot infer
+      the current run catalog.
+    - **Type:** string, list, or null
+
+  source_id: |
+    **source_id** (in sip_args.yaml)
+
+    - **Description:** Source id or list of source ids to render. ESPADA can also
+      use source lists inferred from SoFiA outputs.
+    - **Type:** integer, list, or null
+
+  output_image_file_type: |
+    **output_image_file_type** (in sip_args.yaml)
+
+    - **Description:** Output image suffix passed to SIP.
+    - **Type:** string or null
+    - **Accepted values:** `png`, `jpg`, `pdf`, `svg`
+
+  spec_full_range: |
+    **spec_full_range** (in sip_args.yaml)
+
+    - **Description:** If True, request spectra over the full spectral range.
+    - **Type:** boolean
+
+  syn_beam_dimensions: |
+    **syn_beam_dimensions** (in sip_args.yaml)
+
+    - **Description:** Optional synthesized beam dimensions `[bmaj, bmin, bpa]`.
+    - **Type:** list or null
+
+  channel_width: |
+    **channel_width** (in sip_args.yaml)
+
+    - **Description:** Channel width passed to SIP when needed.
+    - **Type:** float or null
+
+  min_size: |
+    **min_size** (in sip_args.yaml)
+
+    - **Description:** Minimum image size requested from SIP.
+    - **Type:** float, integer, or null
+
+  snr_range: |
+    **snr_range** (in sip_args.yaml)
+
+    - **Description:** SNR range for plotting the lowest contour.
+    - **Type:** list or null
+
+  surveys_list: |
+    **surveys_list** (in sip_args.yaml)
+
+    - **Description:** Survey names passed to SIP for background imagery. Use
+      `['none']` for offline/no-survey mode.
+    - **Type:** list or null
+
+  combo: |
+    **combo** (in sip_args.yaml)
+
+    - **Description:** Combined-image option for SIP. It may be a boolean or a
+      path-like string depending on SIP usage.
+    - **Type:** boolean, string, or null
+
+  user_image: |
+    **user_image** (in sip_args.yaml)
+
+    - **Description:** User-supplied image or list of images for SIP overlays.
+    - **Type:** string, list, or null
+
+  percentile_range: |
+    **percentile_range** (in sip_args.yaml)
+
+    - **Description:** Percentile range for user-image display scaling.
+    - **Type:** list or null
+
+  spec_line: |
+    **spec_line** (in sip_args.yaml)
+
+    - **Description:** Spectral line name passed to SIP.
+    - **Type:** string, list, or null
+    - **Accepted values include:** `HI`, `CO(1-0)`, `CO(2-1)`, `CO(3-2)`,
+      `OH_1612`, `OH_1665`, `OH_1667`, `OH_1720`
+
+  no_source_id: |
+    **no_source_id** (in sip_args.yaml)
+
+    - **Description:** If True, request SIP output without source id labels.
+    - **Type:** boolean or null
+
+  channel_maps: |
+    **channel_maps** (in sip_args.yaml)
+
+    - **Description:** If True, request SIP channel maps.
+    - **Type:** boolean or null
+
+  spec_only: |
+    **spec_only** (in sip_args.yaml)
+
+    - **Description:** If True, request spectra only, without spatial images.
+    - **Type:** boolean or null
+
+  plot_units: |
+    **plot_units** (in sip_args.yaml)
+
+    - **Description:** If True, request SIP moment-0 plot units conversion where
+      supported.
+    - **Type:** boolean or null
+
+  overwrite: |
+    **overwrite** (in sip_args.yaml)
+
+    - **Description:** If True, allow SIP to overwrite existing image products.
+    - **Type:** boolean or null

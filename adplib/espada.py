@@ -1382,7 +1382,7 @@ def main():
         if args.sip_args: args.sip_args = sipargs_to_dict(args.sip_args)
         if args.info:
             show_info(args.info)
-            sys.exit(-1)
+            return
         debug_mode = args.debug
         
     ##############################################################################################
