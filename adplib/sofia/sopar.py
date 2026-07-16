@@ -871,7 +871,7 @@ class SoPar(dict):
         if not hasattr(self, "input_data") or not self.input_data:
             logger.critical(
                 "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case."
             )
             raise
@@ -882,7 +882,7 @@ class SoPar(dict):
         if not fits_path.exists():
             logger.critical(
                 f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case.")
             raise
 
@@ -1641,7 +1641,7 @@ class SoPar(dict):
         if not hasattr(self, "input_data") or not self.input_data:
             logger.critical(
                 "Attribute 'input_data' is not defined or is None. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case."
             )
             raise
@@ -1651,7 +1651,7 @@ class SoPar(dict):
         if not fits_path.exists():
             logger.critical(
                 f"File FITS '{fits_path}' does not exist. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case.")
             raise
 
@@ -1672,7 +1672,7 @@ class SoPar(dict):
             error_msg = (
                 "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
                 "Quality assesment ended. "
-                "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
+                "Please open an issue on https://github.com/Borjamomo96/ESPADA.git" 
                 "with your specific case.")
             logger.error(error_msg)
             raise RecoverableValueError(error_msg)
@@ -1686,7 +1686,7 @@ class SoPar(dict):
             if not pb_path.exists():
                 logger.critical(
                     f"File FITS '{pb_path}' does not exist. Fatal error. Please open an"
-                    " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your" 
+                    " issue on https://github.com/Borjamomo96/ESPADA.git with your" 
                     "specific case.")
                 raise
 
@@ -1708,7 +1708,7 @@ class SoPar(dict):
                 error_msg = (
                     "ADP Alma pipeline is not designed to handle data files with more than 4 dimensions. "
                     " Quality assesment aborted. "
-                    "Please open an issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git" 
+                    "Please open an issue on https://github.com/Borjamomo96/ESPADA.git" 
                     "with your specific case.")
                 logger.error(error_msg)
                 raise RecoverableValueError(error_msg)

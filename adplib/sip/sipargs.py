@@ -1134,7 +1134,7 @@ class SiPar(dict):
                 logger.critical(
                     "You have found a case that has not been taken into "
                     "account and may be misleading. Please open an issue on "
-                    "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific case."
+                    "https://github.com/Borjamomo96/ESPADA.git with your specific case."
                 )
                 raise
               

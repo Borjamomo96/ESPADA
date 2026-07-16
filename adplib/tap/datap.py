@@ -400,11 +400,6 @@ class datap(dict):
                 This is likely the output of e.g. 'conesearch', 'target', 'catalog', & 'keysearch' 
                 functions.
 
-        fitsonly : bool, optional
-            (Default value = False)
-            Download individual fits files only (fitsonly=True). This option will not download the 
-            raw data (e.g. 'asdm' files), weblogs, or README files.
-
         dryrun : bool, optional
             (Default value = False)
             Allow the user to do a test run to check the size and number of files to download without
@@ -840,7 +835,7 @@ class datap(dict):
                 logger.critical(
                 "No valid primary beam files were successfully processed. Fatal error. "
                 "Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                "https://github.com/Borjamomo96/ESPADA.git with your specific case."
                 )
                 sys.exit(-1)
 
@@ -919,7 +914,7 @@ class datap(dict):
                 logger.critical(
                 "No valid mask files were successfully processed. Fatal error. "
                 "Please open an issue on GitLab "
-                "https://gitlab.com/adp-group1/adp-alma-pipeline with your specific case."
+                "https://github.com/Borjamomo96/ESPADA.git with your specific case."
                 )
                 sys.exit(-1)
 

@@ -1364,7 +1364,7 @@ def main():
             '-i', '--info', dest='info',  metavar='TOPIC',
             type=str, default=None,
             help="Displays detailed information about a file or parameter. Example: "
-            "-i file=config.yaml or -i parameter=fitsonly"
+            "-i file=config.yaml"
         )
         parser.add_argument(
             '--debug', action='store_true', 
@@ -1582,7 +1582,7 @@ def main():
                     logger.critical(
                         f"Unexpected error: {e}. "
                          "Please open an issue on GitHub "
-                         "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                         "https://github.com/Borjamomo96/ESPADA.git with your "
                          "specific case."
                     )
                     raise 
@@ -1629,7 +1629,7 @@ def main():
                         logger.critical(
                             f"Unexpected error: {e}. "
                              "Please open an issue on GitHub "
-                             "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                             "https://github.com/Borjamomo96/ESPADA.git with your "
                              "specific case."
                         )
                         raise 
@@ -1679,7 +1679,7 @@ def main():
         current_logger.critical(
             f"Unexpected error: {e}. "
                 "Please open an issue on GitHub "
-                "https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your "
+                "https://github.com/Borjamomo96/ESPADA.git with your "
                 "specific case."
         )
         if debug_mode:

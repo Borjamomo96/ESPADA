@@ -151,7 +151,6 @@ input_data_set: [data_cube.fits, primary_beam.fits, mask.fits, continuum.fits]
 
 enable_sofia: True
 run_mode: both
-use_pb: True
 use_mask: True
 abs_flag_cube: True
 auto_setup: True
@@ -216,7 +215,7 @@ ESPADA uses YAML configuration files, except for the native SoFiA `.par` files.
 | Logger | `clear_logs`, `log_file` | Configure log cleanup and log-file location. |
 | Input data | `input_data_set`, `input_file` | Provide local data cube, primary beam, mask, and continuum files. |
 | TAP service | `enable_tap_service`, `download_par_file` | Enable ASA download and point to `download_par.yaml`. |
-| SoFiA | `enable_sofia`, `run_mode`, `use_pb`, `use_mask`, `abs_flag_cube`, `auto_setup`, `sofia_abs_file`, `sofia_emi_file` | Configure source finding. |
+| SoFiA | `enable_sofia`, `run_mode`, `use_mask`, `abs_flag_cube`, `auto_setup`, `sofia_abs_file`, `sofia_emi_file` | Configure source finding. |
 | SIP | `enable_sip`, `sip_par_file` | Configure SIP image generation. |
 | Group | `enable_group`, `overlap_mode`, `overlap_threshold` | Configure optional grouping of overlapping detections. |
 
@@ -408,7 +407,7 @@ Example file contents:
 3: data3.fits pb3.fits mask3.fits
 ```
 
-The `use_mask` and `use_pb` options can disable masks or primary beams even when those files are present.
+The `use_mask` option can disable masks even when those files are present.
 
 ## Outputs
 

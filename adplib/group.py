@@ -85,14 +85,14 @@ class group(dict):
         if not cube_file.exists():
             logger.critical(
                 f"The data cube '{cube_file}' does not exist. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case.")
             return None
             
         if not mask_file.exists():
             logger.critical(
                 f"The mask '{mask_file}' does not exist. Fatal error. Please open an"
-                " issue on https://github.com/Borjamomo96/ADP-ALMA-Pipeline.git with your specific "
+                " issue on https://github.com/Borjamomo96/ESPADA.git with your specific "
                 "case.")
             return None
 
