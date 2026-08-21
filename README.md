@@ -557,7 +557,7 @@ Keeping extracted primary-beam and converted mask files can also avoid repeated 
 
 ## Acknowledgements
 
-ESPADA acknowledges support from the ESO/ALMA development study **"Prototype for ALMA Spectral Line Advanced Data Product Pipeline"**, funded through the ESO **Advanced Study for Upgrades of the Atacama Large Millimeter/submillimeter Array (ALMA)** framework.
+ESPADA acknowledges support from the ESO/ALMA development study **"Prototype for ALMA Spectral Line Advanced Data Product Pipeline"**, funded through the ESO **Advanced Study for Upgrades of the Atacama Large Millimeter/submillimeter Array (ALMA)** (CFP/ESO/22/328/AMA).
 
 The `datap` module incorporates and adapts functionality from [ALminer](https://alminer.readthedocs.io/), the ALMA archive mining and visualisation toolkit. ESPADA also relies on the external SoFiA-2 and SIP packages.
 
