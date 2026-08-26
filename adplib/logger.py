@@ -9,6 +9,10 @@ from logging.handlers import QueueHandler
 
 
 class ColoredFormatter(logging.Formatter):
+    """
+    Formatter that adds ANSI colors to console log records.
+    """
+
     COLORS = {
         logging.DEBUG: "\033[34m",  # BLUE
         logging.INFO: "\033[32m",  # GREEN
@@ -19,6 +23,10 @@ class ColoredFormatter(logging.Formatter):
     MODULE_COLOR = "\033[38;5;45m"  # Neon blue
 
     def format(self, record):
+        """
+        Format a log record with colored level and module names.
+        """
+
         RESET = "\033[0m"
         color = self.COLORS.get(record.levelno, RESET)
         record.levelname = f"{color}{record.levelname}{RESET}"
@@ -29,16 +37,28 @@ class ColoredFormatter(logging.Formatter):
 
 
 class Initial_Logger:
+    """
+    Early-process logger used before the full ESPADA logger is configured.
+    """
+
     _instance = None
     _buffer = deque(maxlen=1000)  
     
     def __new__(cls):
+        """
+        Return the singleton early logger instance.
+        """
+
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._setup()
         return cls._instance
     
     def _setup(self):
+        """
+        Configure the early console logger.
+        """
+
         self.logger = logging.getLogger("initial_espada_logger")
         self.logger.setLevel(logging.DEBUG)
         self.logger.propagate = False
@@ -48,6 +68,10 @@ class Initial_Logger:
         self.logger.addHandler(handler)
     
     def _log(self, level, msg):
+        """
+        Log a message and keep it in the early-message buffer.
+        """
+
         self.logger.log(level, msg)
         self._buffer.append((level, msg, datetime.now()))
     
@@ -58,9 +82,17 @@ class Initial_Logger:
     def critical(self, msg): self._log(logging.CRITICAL, msg)
     
     def get_buffer(self):
+        """
+        Return buffered messages collected before full logger setup.
+        """
+
         return list(self._buffer)
     
     def clear_buffer(self):
+        """
+        Clear buffered early messages.
+        """
+
         self._buffer.clear()
 
 
@@ -68,13 +100,25 @@ RAW_LEVEL = 15
 logging.addLevelName(RAW_LEVEL, "RAW")
 
 class CustomFormatter(logging.Formatter):
+    """
+    Formatter that leaves RAW log records undecorated.
+    """
+
     def format(self, record):
+        """
+        Format RAW records as plain messages and all other records normally.
+        """
+
         if record.levelno == RAW_LEVEL:
             return record.getMessage()
         return super().format(record)
 
 
 class Logger:
+    """
+    Shared ESPADA logger wrapper for console, file, and raw log output.
+    """
+
     # This singleton pattern is redundant
     _logger_instance = None
     _log_queue = None
@@ -85,7 +129,27 @@ class Logger:
         cls, output_dir=None, log_path="espada.log", 
         clear_logs=False, queue=None, early_buffer=None, debug_mode=False
     ):
+        """
+        Configure the shared ESPADA logger.
+
+        Parameters
+        ----------
+        output_dir : pathlib.Path, optional
+            Base directory where log files are written.
+        log_path : str or pathlib.Path, optional
+            Requested log path relative to output_dir, unless it is an accepted absolute path.
+        clear_logs : bool, optional
+            Remove previous log files in the selected log directory.
+        queue : multiprocessing.Queue, optional
+            Queue used by worker processes to forward log records.
+        early_buffer : list, optional
+            Reserved for early logger records.
+        debug_mode : bool, optional
+            Enable DEBUG level logging when true.
+        """
         
+        _ = early_buffer
+
         logger = logging.getLogger("espada_logger")
         logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
@@ -129,9 +193,9 @@ class Logger:
         new_stem = f"raw_{original_stem}_{timestamp}"
         final_log_path = final_log_path.with_name(new_stem).with_suffix(final_log_path.suffix)
 
-        # Limpiar el archivo de logs si es necesario
+        # Clear existing logs if requested
         if clear_logs:
-            # Elimino todos los logs antiguos del mismo tipo
+            # Remove older logs of the same type
             log_dir = final_log_path.parent
             #base_name = original_path.stem.split('_')[0]  
             #{base_name}_
@@ -139,7 +203,7 @@ class Logger:
             
             
             for old_log in log_dir.glob(pattern):
-                if old_log != final_log_path:  # No borro el nuevo
+                if old_log != final_log_path:  # Keep the new file
                     try:
                         old_log.unlink()
                     except Exception as e:
@@ -158,8 +222,7 @@ class Logger:
                 "%(asctime)s | %(levelname)s | [PID:%(process)d] %(module)s: - %(message)s"
             )
         )
-        #file_handler.setFormatter(ColoredFormatter()) #Para añadir al archivo .log este 
-        # formato no lo entiende bien. 
+        # ColoredFormatter writes ANSI codes that do not fit the plain .log format.
         
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.DEBUG if debug_mode else logging.INFO)
@@ -210,6 +273,9 @@ class Logger:
     def get_logger(
         cls, output_dir=None, log_path="espada.log", clear_logs=False, queue=None, debug_mode=False
     ):
+        """
+        Return the configured logger, creating it if needed.
+        """
         
         if cls._logger_instance is None:
             cls.setup_logger(
@@ -221,7 +287,10 @@ class Logger:
 
     @classmethod
     def raw(cls, message):
-        """Adds a raw message to the terminal"""
+        """
+        Add a raw message to the terminal and log file.
+        """
+
         if cls._logger_instance is not None:
             cls._logger_instance.log(RAW_LEVEL, message)
         else:
@@ -234,7 +303,7 @@ class Logger:
         Write a plain text message directly to the console 
         and to the log file.
         """
-        # Consola
+        # Console
         print(message)
         
         # Log file (raw write)
@@ -252,12 +321,13 @@ class Logger:
     @classmethod
     def log_to_file(cls, level, message):
         """
-        Registra un mensaje exclusivamente en el archivo de log con el formato habitual.
+        Write a message only to the log file using the standard log format.
         """
+
         if cls._logger_instance is not None:
             frame = inspect.currentframe().f_back
             module_name = frame.f_globals.get("__name__", "Unknown module")
-            #Solo el nombre del archivo no el modulo completo
+            # Keep only the file name, not the full module path.
             module_name = os.path.basename(module_name.split(".")[-1])
 
             record = cls._logger_instance.makeRecord(

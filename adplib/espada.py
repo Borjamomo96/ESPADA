@@ -67,6 +67,14 @@ espada -i <file|parameter>=<file_name|parameter_name>
 # Functions 
 
 def show_info(topic):
+    """
+    Print Markdown help for a documented file or parameter topic.
+
+    Parameters
+    ----------
+    topic : str
+        Topic requested from the CLI in 'file=name' or 'parameter=name' format.
+    """
 
     DOC_FILE = Path(__file__).parent / "doc/info_docs.yaml"
     console = Console()
@@ -222,7 +230,7 @@ def parse_sip_value(value):
         
         if current:
             items.append(''.join(current).strip())
-        # Limpiar comillas
+        # Strip surrounding quotes.
         cleaned = []
         for item in items:
             item = item.strip()
@@ -440,14 +448,29 @@ def worker_init(log_queue):
 
 
 def calculate_workers(data_pack_list, max_cores):
+    """
+    Estimate how many worker processes can run safely.
+
+    Parameters
+    ----------
+    data_pack_list : list
+        Input dataset tuples prepared for processing.
+    max_cores : int
+        Maximum number of CPU cores allowed by the configuration.
+
+    Returns
+    -------
+    int
+        Number of worker processes constrained by CPU, memory, and dataset count.
+    """
     total_files = len(data_pack_list)
     
-    #Estimación de memoria por proceso
+    # Memory estimate per process
     total_size = sum(os.path.getsize(data) for data, _, _, _ in data_pack_list if data)
     avg_size = (total_size / total_files) if total_files > 0 else 0
-    #Memoria disponible en GB
+    # Available memory in GB
     mem_available = psutil.virtual_memory().available / 1024**3  
-    #Heurística: 2.25 x tamaño + 1GB base
+    # Heuristic: 2.25x file size plus 1 GB baseline
     relative_memory_used_sofia = 2.25
     mem_per_process = (avg_size * relative_memory_used_sofia / 1024**3) + 1  
     max_workers_mem = int(mem_available // mem_per_process) if mem_per_process > 0 else max_cores
@@ -460,6 +483,21 @@ def calculate_workers(data_pack_list, max_cores):
 
 
 def calculate_sofia_threads(max_cores, max_workers):
+    """
+    Calculate the number of SoFiA threads assigned to each worker.
+
+    Parameters
+    ----------
+    max_cores : int
+        Maximum number of CPU cores allowed by the configuration.
+    max_workers : int
+        Number of worker processes that will run in parallel.
+
+    Returns
+    -------
+    int
+        Number of SoFiA threads per worker, capped for practical efficiency.
+    """
 
     cores_for_python = max_workers  # 1 core per worker
     #cores_for_system = max(1, max_cores // 10)  # 10% for the system
@@ -478,6 +516,21 @@ def calculate_sofia_threads(max_cores, max_workers):
 
 
 def reorganize_log(log_path, worker_results):
+    """
+    Build the final log file by grouping raw records by process ID.
+
+    Parameters
+    ----------
+    log_path : pathlib.Path
+        Path to the raw log file generated during execution.
+    worker_results : list
+        Worker reports collected by the parent process.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the reorganized log file.
+    """
     
     try:
         
@@ -494,13 +547,23 @@ def reorganize_log(log_path, worker_results):
         final_block = False
 
         
-        #Captura [PID:XXXX] y [XXXX]
+        # Capture [PID:XXXX] and [XXXX]
         pid_pattern = re.compile(r'\[(?:PID:)?(\d+)\]')  
         external_log_event_pattern = re.compile(
             r'\[(?:PID:)?(\d+)\]ESPADA_EVENT\s+external_log\s+(\{.*\})'
         )
 
         def append_external_log(target_lines, event):
+            """
+            Append a captured external software log to the reorganized log lines.
+
+            Parameters
+            ----------
+            target_lines : list
+                Lines for the current process group in the reorganized log.
+            event : dict
+                Parsed external-log event metadata emitted during execution.
+            """
             software_id = event.get("software_id", "External software")
             mode = event.get("mode")
             log_path_event = event.get("log_path")
@@ -558,7 +621,7 @@ def reorganize_log(log_path, worker_results):
 
             # For lines without PID ([PID]). There are a few
             if pid_match is None:
-                # Asignar al proceso principal
+                # Assign to the main process
                 current_pid = main_pid
                 
                 if "ESPADA ended" in line:
@@ -694,7 +757,7 @@ def _build_configuration_dict(adpalmap_config, adpalmap_datap):
     if main_config_raw:
         categorized_main['other'] = main_config_raw
 
-    # Configuración de descarga (solo si se usó TAP)
+    # Download configuration (only if TAP was used)
     download_config = None
     if adpalmap_config.enable_tap_service and adpalmap_datap is not None:
         download_config_raw = _dict_from_obj(adpalmap_datap)
@@ -736,6 +799,35 @@ def process_data(id_number,
                  sofia_threads, 
                  number_list
     ):
+    """
+    Run the configured processing steps for a single dataset.
+
+    Parameters
+    ----------
+    id_number : int
+        Dataset index in the current execution.
+    input_data : pathlib.Path
+        Spectral cube to process.
+    primary_beam : pathlib.Path or None
+        Primary-beam file associated with the input cube.
+    mask : pathlib.Path or None
+        Optional mask file associated with the input cube.
+    ancillary_data : list
+        Ancillary files passed to SIP.
+    adpalmap_config : adplib.config.Config
+        Validated ESPADA configuration.
+    args : argparse.Namespace
+        Parsed command-line arguments.
+    sofia_threads : int
+        Number of SoFiA threads assigned to this worker.
+    number_list : list
+        Dataset numbering information passed to SIP.
+
+    Returns
+    -------
+    tuple
+        SoFiA, SIP, QA, and grouping report sections for the parent process.
+    """
 
     # This logger instance was initialized in worker_init
     logger = Logger.get_logger()
@@ -1309,6 +1401,9 @@ def process_data(id_number,
 
 
 def main():
+    """
+    Run the ESPADA command-line entry point.
+    """
     
     ilogger = Initial_Logger()
     current_logger = ilogger
@@ -1728,7 +1823,7 @@ def main():
                 }
             }
             
-            # Crear Report con toda la información
+            # Create the report with all execution details
             adpalmap_report = Report(
                 output_dir=adpalmap_config.output_dir,
                 worker_results=worker_results,  
@@ -1764,9 +1859,9 @@ def main():
             try:
                 queue_listener.stop()
 
-                # Configuración
+                # Queue drain settings
                 max_wait_seconds = 5
-                batch_timeout = 0.5  # Timeout por batch
+                batch_timeout = 0.5  # Per-batch timeout
                 start_time = time.time()
                 messages_processed = 0
 

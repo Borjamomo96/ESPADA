@@ -164,9 +164,17 @@ def apply_input_region_crop(data, region, logger):
 
 
 def format_input_region(region):
+    """
+    Format a normalized input.region tuple for log messages.
+    """
+
     xmin, xmax, ymin, ymax, zmin, zmax = region
     return f"x=[{xmin},{xmax}], y=[{ymin},{ymax}], z=[{zmin},{zmax}]"
 
 
 def serialize_input_region(region):
+    """
+    Serialize an input.region tuple as the comma-separated value expected by SoFiA.
+    """
+
     return ", ".join(str(value) for value in region)

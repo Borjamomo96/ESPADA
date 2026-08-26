@@ -69,12 +69,35 @@ def update_status_counters(parsed_data, status):
 
 
 class Report:
+    """
+    Build ESPADA JSON and HTML reports from worker results and execution metadata.
+    """
 
     def __init__(
         self, output_dir, worker_results, template, 
         raw_log_path=None, organized_log_path=None, 
         pipeline_metadata=None, config=None
     ):
+        """
+        Initialize report paths, cached data, logs, and template resources.
+
+        Parameters
+        ----------
+        output_dir : pathlib.Path
+            Pipeline output directory where the report folder will be created.
+        worker_results : list
+            Worker result tuples collected after processing datasets.
+        template : pathlib.Path
+            HTML template used to render the report.
+        raw_log_path : pathlib.Path, optional
+            Path to the raw execution log.
+        organized_log_path : pathlib.Path, optional
+            Path to the reorganized execution log.
+        pipeline_metadata : dict, optional
+            Execution metadata included in the JSON and HTML reports.
+        config : adplib.config.Config, optional
+            Runtime configuration used by the pipeline.
+        """
 
         self.worker_results = worker_results
         self.template = template
@@ -111,13 +134,13 @@ class Report:
         self._create_directory_structure()
         self._copy_template_resources()
 
-        # Add additional etadata if missing
+        # Add additional metadata if missing.
         #self._enrich_pipeline_metadata()
     
 
     def parse_report(self):
         """
-        Parse the worker resuslts into a COMPLETE and NEUTRAL structure.
+        Parse the worker results into a complete and neutral structure.
         """
 
         if self.parsed_data is not None:
@@ -137,7 +160,7 @@ class Report:
                 'total_warnings': 0,
                 'total_errors': 0,
                 'performance_metrics': {
-                    # Se puede llenar con info de timing si está disponible
+                    # Can be filled with timing data when available.
                 }
             },
             
@@ -228,13 +251,13 @@ class Report:
                     software_info = {
                         # Id
                         'software_id': sw['software_id'],
-                        'software_version': '',  # CAMBIAR. Incluir la versión de software
+                        'software_version': '',  # CHANGE. Include the software version.
                         'mode': sw.get('mode', ''), 
                         
                         # execution info
                         'execution_info': {
                             'pid': sw.get('PID'),
-                            'start_time': '',  # TODO: Obtener tiempos reales
+                            'start_time': '',  # TODO: Get actual execution times.
                             'end_time': '',
                             'duration_seconds': None,
                             'exit_code': exit_code,
@@ -252,7 +275,7 @@ class Report:
                             'software_exit_message': sw.get('sofia_exit_message', ''),
                             'software_subprocess_error': sw.get('sofia_subprocess_error', ''),
                             'warning_count': warnings,
-                            'warnings_list': [],  # CAMBIAR. Se puede quitar
+                            'warnings_list': [],  # CHANGE. Can be removed.
                             'is_group': is_group
                         },
                         
@@ -280,7 +303,7 @@ class Report:
                         'outputs': {
                             'files_generated': sw.get('outputs', {}).get('files', []),
                             'images_generated': [],
-                            'quality_metrics': {}  # CAMBIAR. Métricas cuantitativas por añadir
+                            'quality_metrics': {}  # CHANGE. Quantitative metrics to be added.
                         }
                     }
                     
@@ -325,18 +348,18 @@ class Report:
                 'ok'
             )
             dataset_complete = {
-                # Identificación
+                # Identification
                 'dataset_id': dataset_identifier,
                 'input_name': input_name,
                 'input_path': input_path,
-                # Metadatos del FITS
+                # FITS metadata
                 'fits_metadata': self._extract_fits_metadata(input_path or input_name),
-                # Resultados por software (TODO el detalle)
+                # Per-software results with full details
                 'software_results': all_software,
-                # Imágenes (para HTML)
+                # Images for HTML
                 'images': images,
                 'images_grouped': self._organize_images_for_html(images),
-                # Status general
+                # Overall status
                 'status': dataset_status,
                 'qa_by_mode': qa_by_mode
             }
@@ -441,7 +464,10 @@ class Report:
 
     
     def _copy_template_resources(self):
-        
+        """
+        Copy static report resources from the template package into the report directory.
+        """
+
         try:
             
             base_resources_dir = self.template.parent.parent
@@ -719,7 +745,7 @@ class Report:
         bool: True if the conversion was successful
         """
         try:
-            # Comando Ghostscript para convertir EPS a PNG
+            # Ghostscript command used to convert EPS to PNG.
             cmd = [
                 'gs',
                 '-dSAFER',
@@ -729,17 +755,17 @@ class Report:
                 '-sDEVICE=png16m',
                 '-dGraphicsAlphaBits=4',
                 '-dTextAlphaBits=4',
-                '-r150',  # Resolución DPI
+                '-r150',  # DPI resolution
                 f'-sOutputFile={png_path}',
                 str(eps_path)
             ]
-            
-            # Ejecutar conversión
+
+            # Run conversion.
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30  # Timeout de 30 segundos
+                timeout=30  # 30-second timeout
             )
             
             if result.returncode == 0: 
@@ -989,8 +1015,8 @@ class Report:
                 logger.warning("Placeholder not found in JSON, skipping JSON injection")
                 return
             
-            # Escapar el contenido para JSON (la función json.dumps lo hace automáticamente)
-            escaped_content = json.dumps(organized_content)[1:-1]  # Quita las comillas externas
+            # Escape content for JSON; json.dumps does this automatically.
+            escaped_content = json.dumps(organized_content)[1:-1]  # Remove outer quotes.
             json_content = json_content.replace(
                 "___ESPADA_ORGANIZED_LOG_PLACEHOLDER___",
                 escaped_content

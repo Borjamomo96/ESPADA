@@ -8,7 +8,10 @@ ilogger = Initial_Logger()
 
 
 def parse_single_dataset(data_set, id):
-    """Procesa un único conjunto de datos (ya sea string, lista o lista con strings anidados)."""
+    """
+    Parse a single dataset entry from a string, list, or nested string list.
+    """
+
     files = []
     no_valid_entries = ['""',"''",'none','None','null','Null', '']
     
@@ -48,7 +51,7 @@ def parse_single_dataset(data_set, id):
             f"Not valid format for the set '{id}': {data_set} (type {type(data_set)})"
         )
     
-    # Validaciones comunes
+    # Common validations.
     if not files:
         raise ValueError(f"No files were provided in the set: '{id}'")
 
@@ -62,7 +65,7 @@ def parse_single_dataset(data_set, id):
 
     expanded_files = []
     for file_path in files:
-        if file_path and file_path != "":  # Solo expandir si no está vacío
+        if file_path and file_path != "":  # Expand only when not empty.
             expanded_files.append(os.path.expanduser(file_path))
         else:
             expanded_files.append(file_path)
@@ -80,7 +83,7 @@ def validate_fits_files(data_set_list, id_list):
         new_dataset = []
         for file in data_set:
             if file:  
-                # Asegurarse de que la ruta está expandida
+                # Make sure the path is expanded.
                 expanded_file = os.path.expanduser(file) if isinstance(file, str) else file
                 
                 if not str(expanded_file).endswith(".fits"):
@@ -145,8 +148,7 @@ class Config(dict):
 
         #The dict constructor is used and every key phrase in the .yaml file become an attribute of this class
         super(Config, self).__init__(**kwargs)
-        #Garantiza que cualquier acceso futuro al diccionario o la adición de nuevas claves también se refleje
-        #en la estructura de atributos de la instancia.
+        # Ensure future dictionary access or new keys are mirrored in instance attributes.
         self.__dict__ = self # Load config file and set attributes
         
         if reconfigure or not Config._configured:
@@ -163,6 +165,18 @@ class Config(dict):
 
 
     def configure(self, config_path=None, config_par=None, **kwargs):
+        """
+        Load the ESPADA configuration file and apply CLI parameter overrides.
+
+        Parameters
+        ----------
+        config_path : str or pathlib.Path, optional
+            Path to the master configuration file. If omitted, the package default is used.
+        config_par : dict, optional
+            Configuration overrides passed from -cp|--config-parameter.
+        **kwargs
+            Additional initialization values stored by the constructor.
+        """
 
         if config_path is None:
             
@@ -196,8 +210,7 @@ class Config(dict):
         with open(config_path, 'r') as f:
             config_dict = yaml.safe_load(f)
         
-        #Inicializa los datos específicos directos desde el config.yaml. No contempla posibles futuras 
-        # modificaciones de self (e.g añadiendo nuevos valores dentro del programa) 
+        # Initialize direct values from config.yaml. Future in-program updates are not considered here.
         for k, v in config_dict.items():
             setattr(self, k, v)
 
@@ -215,7 +228,10 @@ class Config(dict):
 
 
     def init_directory(self):
-        
+        """
+        Resolve and create the output directory for the current run.
+        """
+
         if self.output_dir is None:
             #script_dir = Path(__file__).parent.parent
             script_dir = Path.cwd()
@@ -290,8 +306,8 @@ class Config(dict):
                     f"Value provided: {self.overlap_threshold}."
                 )    
                      
-        # Check for 'run_mode' y 'overlap_mode'. 
-        # Allowed values for this parameters 
+        # Check for 'run_mode' and 'overlap_mode'.
+        # Allowed values for this parameters
         valid_values = {
             'run_mode': ['emission', 'absorption', 'both'],
             'overlap_mode': ['flux', 'absflux', 'area'],
@@ -375,11 +391,14 @@ class Config(dict):
                    
 
     def parse_input_data_set(self):
-        
+        """
+        Parse and validate datasets provided directly in input_data_set.
+        """
+
         data_type = type(self.input_data_set).__name__
         data_set_list = []
 
-        # Caso 1: Dict. Manejo los mismo que con list o str pero multiples veces
+        # Case 1: dict. Handle each value as a list or string dataset.
         if data_type == "dict":
             for id, data_set in self.input_data_set.items():
                 parsed_files = parse_single_dataset(data_set, id=id)
@@ -387,7 +406,7 @@ class Config(dict):
                 
             self.input_data_set = validate_fits_files(data_set_list, self.input_data_set.keys())
 
-        # Caso 2: list o str
+        # Case 2: list or str.
         elif data_type in ["list", "str"]:
             parsed_files = parse_single_dataset(self.input_data_set, id="0")
             data_set_list.append(parsed_files)
@@ -401,7 +420,10 @@ class Config(dict):
   
     
     def parse_input_file(self):
-        
+        """
+        Parse and validate datasets listed in input_file.
+        """
+
         input_file_path = Path(self.input_file)
 
         if input_file_path.suffix.lower() not in [".txt", ".lst", ".dat"]:
@@ -414,10 +436,10 @@ class Config(dict):
                 f"Input file '{input_file_path}' not found"
             )
         
-        #Para comprobar si hay permisos de lectura o no
+        # Check whether the file can be read.
         try:
             with open(input_file_path, "r") as f:
-                pass  # Solo verificar que se puede abrir
+                pass  # Only verify that it can be opened.
         except IOError as e:
             raise IOError(
                 f"Cannot read input file '{input_file_path}': {str(e)}"
@@ -429,7 +451,7 @@ class Config(dict):
             for line in f:
                 line = line.strip()
                 
-                # Ignoro líneas vacías y comentarios
+                # Ignore empty lines and comments.
                 if not line or line.startswith('#'):
                     continue
                     
@@ -455,4 +477,3 @@ class Config(dict):
     
         self.input_data_set = validate_fits_files(data_set_list, id_list)
             
-

@@ -17,6 +17,9 @@ from adplib.logger import Logger
 logger= Logger.get_logger()
 
 class group(dict): 
+    """
+    Dictionary-backed helper for grouping overlapping SoFiA detections.
+    """
 
     def __init__(self, **kwargs):
         """
@@ -38,7 +41,22 @@ class group(dict):
 
 
     def find_mask_sofia(self, sopar=None, mode=None):
-        
+        """
+        Locate the SoFiA 3D mask for a run mode.
+
+        Parameters
+        ----------
+        sopar : adplib.sofia.sopar.SoPar, optional
+            SoFiA parameter object from the current run.
+        mode : str, optional
+            Run mode used to select the expected mask name.
+
+        Returns
+        -------
+        pathlib.Path or None
+            Path to the mask file if found.
+        """
+
         if (hasattr(sopar , 'mask3d') 
         and getattr(sopar, 'mask3d') is not None
         ):
@@ -73,6 +91,21 @@ class group(dict):
 
 
     def group_sofia_detections(self, cube_file, mask_file):
+        """
+        Group overlapping SoFiA detections and write a grouped mask.
+
+        Parameters
+        ----------
+        cube_file : pathlib.Path
+            Input cube used to compute source overlap metrics.
+        mask_file : pathlib.Path
+            SoFiA detection mask containing source IDs.
+
+        Returns
+        -------
+        pathlib.Path or None
+            Path to the grouped mask, or None when grouping cannot be performed.
+        """
 
         print_all       = True      # prints overlap metrics for all source pairs;
                                     # if False, this info is only given for overlapping pairs
@@ -258,7 +291,7 @@ class group(dict):
         if len(groups) and writemask:
             logger.info("Modifying mask in order to group sources and delete un-grouped sources...")
             
-            # Usar 'mask' en lugar de recargar el archivo
+            # Reuse the in-memory mask instead of reloading the file.
             mask_out = Path(mask_file).parent / f"group_{Path(mask_file).name}"
             msk_new = mask.copy()  
             

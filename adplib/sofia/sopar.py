@@ -167,6 +167,20 @@ def strip_inline_comment(line):
 
 
 def parse_parfile(file_path):
+    """
+    Parse a SoFiA parameter file into a key-value dictionary.
+
+    Parameters
+    ----------
+    file_path : str or pathlib.Path
+        Path to the SoFiA parameter file.
+
+    Returns
+    -------
+    dict
+        Parameter names mapped to their string values.
+    """
+
     config = {}
     with open(file_path, 'r') as f:
         for line in f:
@@ -180,6 +194,21 @@ def parse_parfile(file_path):
 
 
 def compare_parfiles(file_path, temp_file_path):
+    """
+    Compare two SoFiA parameter files and return changed values.
+
+    Parameters
+    ----------
+    file_path : str or pathlib.Path
+        Path to the original parameter file.
+    temp_file_path : str or pathlib.Path
+        Path to the modified temporary parameter file.
+
+    Returns
+    -------
+    dict
+        Parameters whose values differ in the temporary file.
+    """
 
     original = parse_parfile(file_path)
     modified = parse_parfile(temp_file_path)
@@ -202,6 +231,20 @@ def get_sofia_exit_message(exit_code):
 
 
 def mask_float2int(file_path):
+    """
+    Create an integer FITS mask when the provided mask uses floating-point data.
+
+    Parameters
+    ----------
+    file_path : str or pathlib.Path
+        Path to the input FITS mask.
+
+    Returns
+    -------
+    pathlib.Path or str
+        Path to the integer mask, the original path if no conversion is needed,
+        or an empty string if conversion fails.
+    """
 
     file_path = Path(file_path)
     new_file_path = file_path.with_name(file_path.stem + '_int' + file_path.suffix)
@@ -285,6 +328,9 @@ def find_previous_qa_reports(input_data, adpalmap_config, pid, logger):
 
 
 class SoPar(dict): 
+    """
+    Dictionary-backed representation of a SoFiA parameter file and run state.
+    """
 
     GROUP_DELETE_SUFFIXES = (
         "_mom1.fits",
@@ -318,6 +364,16 @@ class SoPar(dict):
 
         
     def configure(self, sofia_file_path=None, **kwargs):
+        """
+        Load the selected SoFiA parameter file into this object.
+
+        Parameters
+        ----------
+        sofia_file_path : str or pathlib.Path, optional
+            Path to a SoFiA parameter file. If omitted, the package default is used.
+        **kwargs
+            Additional initialization values stored by the constructor.
+        """
 
 
         if sofia_file_path is None:
@@ -445,11 +501,11 @@ class SoPar(dict):
                     "output.directory", 
                 }: continue
 
-                # Actualizar o añadir parámetros
+                # Update or add parameters
                 if hasattr(self, normalized_key):
                     setattr(self, normalized_key, value)
                 else:
-                    # Añadir como nuevo atributo si no existe
+                    # Add as a new attribute if it does not exist
                     setattr(self, normalized_key, value)
                     logger.warning(f"Added new parameter '{key}' with value '{value}'.")
         ##############################################################################################
@@ -461,7 +517,7 @@ class SoPar(dict):
                     and sop_par['input.data'] is not None):
                 logger.warning(
                     f"Ignoring value '{sop_par['input.data']}' for the 'input_data' parameter "
-                    "provided vía '-sop' comand. This must be set in the "
+                    "provided via '-sop' command. This must be set in the "
                     "'input_dataset' or 'input_file' parameters in the "
                     f"{self.adpalmap_config.config_path} file"
                 )
@@ -483,7 +539,7 @@ class SoPar(dict):
                 and sop_par['input.primaryBeam'] is not None):
             logger.warning(
                 f"Ignoring value '{sop_par['input.primaryBeam']}' for the 'input.primaryBeam' "
-                "parameter provided vía '-sop' comand. This must be set in the 'input_dataset'"
+                "parameter provided via '-sop' command. This must be set in the 'input_dataset'"
                 f" or 'input_file' parameters in the {self.adpalmap_config.config_path} file"
             )
         if(hasattr(self, "input_primaryBeam") and  self.input_primaryBeam):
@@ -508,7 +564,7 @@ class SoPar(dict):
                 and sop_par['input.mask'] is not None):
             logger.warning(
                 f"Ignoring value '{sop_par['input.mask']}' for the 'input.mask' parameter provided "
-                "vía '-sop' comand. This must be set in the 'input_dataset'"
+                "via '-sop' command. This must be set in the 'input_dataset'"
                 f" or 'input_file' parameters in the {self.adpalmap_config.config_path} file"
             )
         if(hasattr(self, "input_mask") and self.input_mask):
@@ -520,7 +576,7 @@ class SoPar(dict):
             )
         
         if mask:
-            #Comprueba si la máscara es descargada o no. Si no compruebo que sea tipo int()
+            # Check whether the mask was downloaded before converting local masks to integers.
             if self.adpalmap_config.enable_tap_service:
                 if self.adpalmap_config.use_mask:
                     logger.info(f"The mask '{mask}' set as 'input.mask'.")
@@ -634,37 +690,37 @@ class SoPar(dict):
             if (sop_par and 'scfind.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['scfind.enable']}' for the 'scfind.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'reliability.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['reliability.enable']}' for the 'reliability.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'contsub.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['contsub.enable']}' for the 'scfind.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'scaleNoise.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['scaleNoise.enable']}' for the 'scaleNoise.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'rippleFilter.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['rippleFilter.enable']}' for the 'rippleFilter.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'threshold.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['threshold.enable']}' for the 'threshold.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             if (sop_par and 'dilation.enable' in sop_par):
                 logger.warning(
                     f"Ignoring value '{sop_par['dilation.enable']}' for the 'dilation.enable' "
-                    "parameter provided in vía '-sop' comand."
+                    "parameter provided via '-sop' command."
                 )
             
             
@@ -688,7 +744,7 @@ class SoPar(dict):
         if sop_par and "output.directory" in sop_par: 
             logger.warning(
                     f"Ignoring value '{sop_par['output.directory']}' for the 'input_data' parameter "
-                    "provided vía '-sop' comand. This must be set in the "
+                    "provided via '-sop' command. This must be set in the "
                     f"'output.directory' parameter in the {self.adpalmap_config.config_path} file"
             )
         if hasattr(self, "output_directory") and self.output_directory:  
@@ -729,7 +785,7 @@ class SoPar(dict):
 
         elif self.adpalmap_config.run_mode == 'both' and run==0:
             if hasattr(self, "output_filename") and self.output_filename:
-                # Safe the original 'output.filename' for 'flag.cube'
+                # Save the original 'output.filename' for 'flag.cube'
                 self.original_output_filename = self.output_filename
                 self.output_filename = f"emission_{self.output_filename}"
                 sopar_log_path = f"{self.output_filename}_logfile.log"
@@ -738,7 +794,7 @@ class SoPar(dict):
                 self.output_filename = f"emission_{self.input_data.stem}"
                 sopar_log_path = f"emission_{self.input_data.stem}_logfile.log" 
 
-        # Safe the logfile and make sure that is Path() object
+        # Save the logfile and make sure that it is a Path object
         self.sopar_logfile = self.output_directory / sopar_log_path
         ##############################################################################################
 
@@ -928,7 +984,7 @@ class SoPar(dict):
             )
                 
 
-        # Otros parámetros pueden ser añadidos según las reglas específicas...
+        # Additional parameters can be added according to specific rules.
         logger.info(f"Auto-setup done. Mode: {self.mode}")
 
 
@@ -1164,6 +1220,14 @@ class SoPar(dict):
 
 
     def report_outputs(self, sopar_report):
+        """
+        Register expected SoFiA output products in a report entry.
+
+        Parameters
+        ----------
+        sopar_report : dict
+            Report dictionary returned by the SoFiA execution step.
+        """
         
         mode = sopar_report["mode"]
 
@@ -1226,6 +1290,17 @@ class SoPar(dict):
 
 
     def _cleanup_group_cubelet_outputs(self, cubelets_dir, output_filename):
+        """
+        Remove unwanted group products from a SoFiA cubelets directory.
+
+        Parameters
+        ----------
+        cubelets_dir : pathlib.Path
+            Directory containing SoFiA cubelet products.
+        output_filename : str
+            Output filename prefix used by the current SoFiA group run.
+        """
+
         if not cubelets_dir.is_dir():
             logger.debug(f"No SoFiA Group cubelets directory found for cleanup: {cubelets_dir}")
             return
@@ -1241,6 +1316,15 @@ class SoPar(dict):
 
 
     def _remove_group_output(self, path):
+        """
+        Remove a single unwanted group output file if it exists.
+
+        Parameters
+        ----------
+        path : str or pathlib.Path
+            Candidate file to remove.
+        """
+
         path = Path(path)
 
         if not path.exists():
@@ -1478,7 +1562,7 @@ class SoPar(dict):
         if region is not None:
             logger.info(f"Cropping provided mask to match SoFiA region")
             mask_3d = apply_input_region_crop(mask_3d, region, logger)
-            # Rocorto data_cube para poder usarlo más adelante
+            # Crop data_cube so it can be used later.
             data_cube = apply_input_region_crop(data_cube, region, logger)
             logger.info(f"Cropped shapes - data: {data_cube.shape}, mask: {mask_3d.shape}")
         

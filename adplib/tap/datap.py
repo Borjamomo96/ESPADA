@@ -49,7 +49,10 @@ ALMA_SERVERS = [
 
 
 def capture_output(input):
-    
+    """
+    Capture stdout produced by an expression and echo it through the ESPADA logger.
+    """
+
     f = io.StringIO()  
     with redirect_stdout(f):  
         input
@@ -58,20 +61,33 @@ def capture_output(input):
 
 
 def get_ancillary_names(pbcor_url):
+    """
+    Build expected ancillary-file URL patterns from a pbcor cube URL.
+
+    Parameters
+    ----------
+    pbcor_url : str
+        Access URL for a cube.I.pbcor product.
+
+    Returns
+    -------
+    dict or None
+        Expected continuum, primary-beam, and mask URL patterns.
+    """
 
     marker = 'cube.I.pbcor'
     marker_pos = pbcor_url.find(marker)
     
     if marker_pos == -1:
-        logger.error(f"URL '{pbcor_url}' no contiene '{marker}'")
+        logger.error(f"URL '{pbcor_url}' does not contain '{marker}'")
         return None
     
-    # Extraer desde el inicio hasta el FINAL de 'cube.I.pbcor'
-    # marker_pos es la posición donde empieza 'c'
-    # len(marker) es la longitud de 'cube.I.pbcor' (12 caracteres)
+    # Extract from the start through the end of 'cube.I.pbcor'.
+    # marker_pos is the position where 'c' starts.
+    # len(marker) is the length of 'cube.I.pbcor'.
     base_pattern = pbcor_url[:marker_pos + len(marker)]
     
-    # Generar patrones para archivos auxiliares
+    # Generate patterns for ancillary files.
     aux_names = {
         'continuum': base_pattern.replace('cube.I.pbcor', 'mfs.I.pbcor'),
         'primary_beam': base_pattern.replace('cube.I.pbcor', 'cube.I.pb'),
@@ -83,7 +99,9 @@ def get_ancillary_names(pbcor_url):
 
 def get_ancillary_patterns(dl_link_list):
     """
+    Return unique ancillary-file patterns derived from downloaded cube URLs.
     """
+
     ancillary_patterns = []
     
     for pbcor_url in dl_link_list:
@@ -96,6 +114,24 @@ def get_ancillary_patterns(dl_link_list):
 
 
 def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False):
+    """
+    Create an integer FITS mask when the provided mask uses floating-point data.
+
+    Parameters
+    ----------
+    file_path : str or pathlib.Path
+        Path to the input FITS mask.
+    remove_archive_mask : bool, optional
+        Remove the original mask file after creating or finding the integer copy.
+    from_downloadmask : bool, optional
+        Flag used to tailor error logging for archive-downloaded masks.
+
+    Returns
+    -------
+    pathlib.Path or str
+        Path to the integer mask, the original path if no conversion is needed,
+        or an empty string if conversion fails.
+    """
 
     file_path = Path(file_path)
     new_file_path = file_path.with_name(file_path.stem + '_int' + file_path.suffix)
@@ -140,6 +176,9 @@ def mask_float2int(file_path, remove_archive_mask=False, from_downloadmask=False
 
 
 class datap(dict): 
+    """
+    Dictionary-backed TAP download and query configuration helper.
+    """
 
     def __init__(self, **kwargs):
         """
@@ -169,9 +208,9 @@ class datap(dict):
         self.__dict__ = self 
         self.configure(**kwargs)
 
-        # Chech the parameter in download_par.yaml except query_type:
+        # Check the parameters in download_par.yaml except query_type.
         self.check_download_par()
-        #Check the parameter for the query type before continue:
+        # Check the parameter for the query type before continuing.
         self.check_query_par()
 
         # Attempting to connect to TAP servers with failover
@@ -179,10 +218,18 @@ class datap(dict):
 
 
     def configure(self, download_path=None, **kwargs):
+        """
+        Load TAP download configuration from the selected YAML file.
 
-        #Esta condición nunca se considera. La clase no se inicializa si el parámetro -d no se usa 
-        # (None por defecto). Si es not None pasa a las siguiente, por lo que es código que no 
-        # se usa. REMOVE
+        Parameters
+        ----------
+        download_path : str or pathlib.Path, optional
+            Path to the download-parameter YAML file. If omitted, the package default is used.
+        **kwargs
+            Additional initialization values stored by the constructor.
+        """
+
+        # This condition is retained for compatibility with the current initialization flow.
 
         if download_path is None:
             
@@ -453,7 +500,7 @@ class datap(dict):
             sys.exit(-1)
 
         if self.download_par['data_dir'] is None:
-            #La función alma.cache_location ya crea el directorio con el nombre en cuestión. 
+            # alma.cache_location creates the directory with the requested name.
             self.alma.cache_location = default_location
         else:
             if not os.path.exists(Path(self.download_par['data_dir'])):
@@ -509,14 +556,14 @@ class datap(dict):
 
         ancillary_patterns = get_ancillary_patterns(dl_link_list)
 
-        # Excluir explícitamente los archivos principales
+        # Explicitly exclude main files.
         main_filenames = [Path(url).name for url in dl_link_list]
 
-        # Filtrar data_table directamente
+        # Filter data_table directly.
         al_table = data_table[
             [i for i, v in enumerate(data_table['access_url'])
             if any(p in v for p in ancillary_patterns)
-            and Path(v).name not in main_filenames]  # Excluye principales
+            and Path(v).name not in main_filenames]  # Exclude main files.
         ]
 
         # To show ancillary data
@@ -725,7 +772,7 @@ class datap(dict):
 
         """
         """
-        # Construir índice: cada filename con su ruta local
+        # Build an index from each filename to its local path.
         local_files = {url.split('/')[-1]: download_dir / url.split('/')[-1] for url in al_link_list}
         
         cont_files, pb_files, mask_files = [], [], []
@@ -737,13 +784,13 @@ class datap(dict):
                 cont_files.append(""); pb_files.append(""); mask_files.append("")
                 continue
             
-            # Buscar qué filename contiene cada patrón
+            # Find which filename contains each pattern.
             continuum_path = ""
             pb_path = ""
             mask_path = ""
-            
-            # Compruebo nombre con nombre. Cuidado en incluir .name de lo contrario se
-            #compara ruta con nombre --> Siempte falla
+
+            # Compare names with names. Including .name matters because otherwise
+            # the comparison is path versus name and always fails.
             
             
             for filename, local_path in local_files.items():
@@ -790,14 +837,14 @@ class datap(dict):
             decompress_pb_files = []  
 
             for file in pb_files:
-                if file == "":  # Ignoro entradas vacías
+                if file == "":  # Ignore empty entries.
                     decompress_pb_files.append("")
                     continue
 
                 if file.suffix == ".gz":
                     extracted_file_path = file.with_suffix('')  
 
-                    # Compruebo si el archivo descomprimido ya existe
+                    # Check whether the decompressed file already exists.
                     if extracted_file_path.exists():
                         logger.info(
                             "The decompressed primary beam file already exists: "
@@ -809,7 +856,7 @@ class datap(dict):
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
                     else:
-                        # Intento descomprimir el archivo
+                        # Try to decompress the file.
                         try:
                             with gzip.open(file, 'rb') as gz_in:
                                 with open(extracted_file_path, 'wb') as extracted_out:
@@ -826,7 +873,7 @@ class datap(dict):
                         except Exception as e:
                             logger.error(f"Error decompressing file '{file}': {e}")
                 else:
-                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                    # If this is not a compressed file (.gz), add it to the list.
                     decompress_pb_files.append(file)
 
             if any(decompress_pb_files):
@@ -858,14 +905,14 @@ class datap(dict):
             decompressed_mask_files = []  
 
             for file in mask_files:
-                if file == "":  # Ignoro entradas vacías
+                if file == "":  # Ignore empty entries.
                     decompressed_mask_files.append("")
                     continue
 
                 if file.suffix == ".gz":
                     extracted_file_path = file.with_suffix('')  
 
-                    # Compruebo si el archivo descomprimido ya existe
+                    # Check whether the decompressed file already exists.
                     if extracted_file_path.exists():
                         logger.info(
                             "The decompressed mask file already exists: "
@@ -880,7 +927,7 @@ class datap(dict):
                             file.unlink()
                             logger.info(f"Compressed file deleted: {file}")
                     else:
-                        # Intento descomprimir el archivo
+                        # Try to decompress the file.
                         try:
                             with gzip.open(file, 'rb') as gz_in:
                                 with open(extracted_file_path, 'wb') as extracted_out:
@@ -902,7 +949,7 @@ class datap(dict):
                         except Exception as e:
                             logger.error(f"Error decompressing file '{file}': {e}")
                 else:
-                    # Si no es un archivo comprimido (.gz), lo agrego a la lista
+                    # If this is not a compressed file (.gz), add it to the list.
                     #Make a copy of the mask but with int values
                     decompressed_mask_files.append(
                         mask_float2int(file, self.download_par['remove_archive_mask'])
@@ -956,9 +1003,8 @@ class datap(dict):
         
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas 
-        #a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro 
-        #esta parte    
+        # CHANGE. filter_results calls several helper functions that are intentionally
+        # not included here yet, so this branch remains disabled for now.
         '''if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
                 TAP_df = TAP_df[TAP_df['publication_year'].notnull()]
@@ -1066,8 +1112,8 @@ class datap(dict):
 
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas a otras 
-        # muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro esta parte 
+        # CHANGE. filter_results calls several helper functions that are intentionally
+        # not included here yet, so this branch remains disabled for now.
         '''
         if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
@@ -1126,9 +1172,8 @@ class datap(dict):
 
         TAP_df = self.run_query(query)
 
-        #CHANGE. Aquí 'filter_results' es una función que si bien he revisado, hace llamadas 
-        # a otras muchas funciones que no quiero incluir, al menos por ahora. Asi que ignoro 
-        # esta parte 
+        # CHANGE. filter_results calls several helper functions that are intentionally
+        # not included here yet, so this branch remains disabled for now.
         '''
         if TAP_df is not None:
             if self.query_par['published']:  # case of self.query_par['published'] = True
@@ -1325,11 +1370,19 @@ class datap(dict):
         elif not self.query_par['published'] and self.query_par['published'] is not None:  
             TAP_df = TAP_df[TAP_df['publication_year'].isnull()]
     
-        #CHANGE. filter_result, esta función esta pero aún no esta implementada. 
+        # CHANGE. filter_result exists but is not implemented yet.
         return TAP_df
 
 
     def free(self):
+        """
+        Run a free-form TAP query from query_par['query_str'].
+
+        Returns
+        -------
+        pandas.DataFrame
+            TAP query results.
+        """
 
         TAP_df = self.run_query(self.query_par['query_str'])
 
@@ -1467,12 +1520,12 @@ class datap(dict):
             'server_address': str,
             'credentials': bool,
             'stored_credentials': bool,
-            'download_par': dict,  # Se espera que sea un diccionario para validación más profunda
+            'download_par': dict,  # Expected to be a dict for deeper validation.
         }
 
         required_params = list(expected_types.keys())
 
-        #Comprobamos los parámetros obligatorios
+        # Check required parameters.
         missing_params = [param for param in required_params if not hasattr(self, param)]
         if missing_params:
             param_list = ", ".join(missing_params)
@@ -1491,7 +1544,7 @@ class datap(dict):
                         f"but got {type(value).__name__}, '{value}'."
                     )
 
-        # Validar subparámetros en download_par si está presente
+        # Validate download_par subparameters when present.
         if hasattr(self, 'download_par') and isinstance(self.download_par, dict):
             download_par_expected_types = {
                 'remove_compressed_file': bool,

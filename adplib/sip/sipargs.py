@@ -15,44 +15,65 @@ from adplib.logger import Logger
 logger = Logger.get_logger()
 
 def get_union_args(union_type):
+    """
+    Return the concrete types accepted by a union-like type annotation.
+    """
+
     if hasattr(union_type, '__args__'):
         args = union_type.__args__
-        # Convertir None -> type(None)
+        # Convert None to type(None).
         return {arg if arg is not None else type(None) for arg in args}
     return {union_type}
 
 def strict_isinstance(value, union_type):
-    """isinstance() sin confusión bool<->int"""
+    """
+    Run isinstance() while keeping bool and int checks separate.
+    """
+
     if not isinstance(value, union_type):
         return False
     
-    # Casos especiales bool<->int
+    # Special bool/int cases.
     union_args = get_union_args(union_type)
     
     if isinstance(value, bool) and int in union_args:
-        # bool cuando se permite int → rechazar
+        # Reject bool values when int is allowed.
         return False
     if isinstance(value, int) and bool in union_args and type(value) is not bool:
-        # int cuando se permite bool → rechazar (excepto si es realmente bool)
+        # Reject int values when bool is allowed, unless the value is truly bool.
         return False
     
     return True
 
 
 class CatalogResult:
+    """
+    Result object used when resolving the catalog file passed to SIP.
+    """
+
     def __init__(self, catalog_path=None, error_msg=None):
-        
+        """
+        Store either a valid catalog path or an error message.
+        """
+
         self.catalog_path = Path(catalog_path) if catalog_path is not None else None
         self.error_msg = error_msg
         self.success = self.catalog_path is not None
     
     def __bool__(self):
+        """
+        Return true when a valid catalog path was found.
+        """
+
         return self.success
 
 
 class SiPar(dict): 
+    """
+    Dictionary-backed representation of SIP arguments and run state.
+    """
 
-    # Diccionario estático que mapea nombres de atributos a shortcuts
+    # Static mapping from attribute names to SIP command-line shortcuts.
     ATTRIBUTE_SHORTCUTS = {
          "catalog_file": ["-c", "--catalog"],
          "channel_width": ["-cw",  "--chan_width"],
@@ -74,7 +95,7 @@ class SiPar(dict):
          "overwrite": ["-ow", "--overwrite "]
     }
 
-    #Tipos esperados en los parámetros
+    # Expected parameter types.
     EXPECTED_TYPES = {
         'catalog_file': str | list | None,
         'channel_width': float | None,
@@ -141,8 +162,17 @@ class SiPar(dict):
 
     
     def configure(self, sip_file_path=None, **kwargs):
-        
-        
+        """
+        Load SIP arguments from the selected YAML file.
+
+        Parameters
+        ----------
+        sip_file_path : str or pathlib.Path, optional
+            Path to the SIP argument YAML file. If omitted, the package default is used.
+        **kwargs
+            Additional initialization values stored by the constructor.
+        """
+
         if sip_file_path is None:
 
             script_dir = Path(__file__).parent
@@ -186,7 +216,7 @@ class SiPar(dict):
                 "- Unclosed quotes or brackets"
             )
             Logger.log_to_file(logging.ERROR, error_msg)
-            # Crea una excepción específica para errores de configuración
+            # Raise a configuration-specific exception.
             raise ConfigurationError(error_msg) from e
         
         for k, v in sip_args_dict.items():
@@ -514,15 +544,15 @@ class SiPar(dict):
         
         ###########################------------catalog_file-------------##############################
                 if matched_attr == "catalog_file" and not self.adpalmap_config.enable_sofia:
-                    # Quiere decir que ha encontrado catalogos previos, tienen prioriodad
+                    # Previous catalogs were found and take priority.
                     if(self.catalog_file is not None):
                         logger.warning(
                             "The catalog(s) provide via -sarg will be ignored because those found from"
                             " previous run have priority"
                         )
                         continue
-                    #Esto se da porque en check args en este caso específico cuadno hay sarg
-                    #y nada maś simplemente se pasa y self.catalog_file permanece None
+                    # If only -sarg is present in this case, check_sip_args leaves
+                    # self.catalog_file as None.
                     elif(self.catalog_file is None):
                         if len(self.number_list) != len(value):
                             error_msg = (
@@ -711,7 +741,7 @@ class SiPar(dict):
         ##############################################################################################
         # Check the catalog files availables|set 
 
-        if sopar: # if adpalmap_config.enable_sofia: debería ser equivalente, a elección
+        if sopar: # Equivalent to adpalmap_config.enable_sofia for this branch.
             
             base_name = sopar.output_filename
             sip_output_dir = sopar.output_directory / f"{base_name}_figures"
@@ -921,7 +951,7 @@ class SiPar(dict):
         """
 
         if exclude is None:
-            exclude = []  # Si no se pasa, inicializamos como lista vacía
+            exclude = []  # Initialize as an empty list when omitted.
 
         cmd = ["sofia_image_pipeline"]
 
@@ -1030,18 +1060,35 @@ class SiPar(dict):
         list: List with the command set, where `-id` has the value `0`.
         """
 
-        # Asegurar que `-id` esté presente con el valor `0`
+        # Ensure that `-id` is present with value `0`.
         if "-id" in cmd:
             id_index = cmd.index("-id")
-            cmd[id_index + 1] = "0"  # Reemplazar el valor por "0"
+            cmd[id_index + 1] = "0"  # Replace the value with "0".
         else:
-            # Si `-id` no está en el comando, agregarlo al final
+            # Add `-id` at the end if it is not already in the command.
             cmd.extend(["-id", "0"])
 
         return cmd
     
 
     def set_catalog(self, sofia_catalog_txt, sofia_catalog_xml, output_directory):
+        """
+        Resolve the catalog file that SIP should use.
+
+        Parameters
+        ----------
+        sofia_catalog_txt : pathlib.Path
+            Expected SoFiA TXT catalog path.
+        sofia_catalog_xml : pathlib.Path
+            Expected SoFiA XML catalog path.
+        output_directory : pathlib.Path
+            Directory searched for catalogs from previous runs.
+
+        Returns
+        -------
+        CatalogResult
+            Catalog path or error message describing why no catalog could be resolved.
+        """
 
 
         existing_files = [file for file in [sofia_catalog_txt, sofia_catalog_xml] if file.exists()]
@@ -1058,7 +1105,7 @@ class SiPar(dict):
                 "from previous runs. "
                 f"Catalogs searched: {sofia_catalog_txt} || {sofia_catalog_xml}"
             )
-            #Si no hay en sip_args.yaml y no hay sargs
+            # No catalog is set in sip_args.yaml or -sarg.
             if self.catalog_file is None and not self.sargs:
                 error_msg = (
                     "No 'catalog_file' parameter was provided either in file 'sip_args.yaml' or via "
@@ -1067,7 +1114,7 @@ class SiPar(dict):
                 #logger.error(f"ValueError: {error_msg}")
                 return CatalogResult(error_msg=error_msg)
                 
-            #Si no hay en archivo y hay sargs, compruebo que haya -c o -catalog
+            # No catalog is set in the file, so check whether -c or --catalog was passed.
             elif self.catalog_file is None and self.sargs:
                 if (('-c' or '--catalog') not in self.sargs.keys()):
                     error_msg = (
@@ -1085,7 +1132,7 @@ class SiPar(dict):
                         )
                         return CatalogResult(error_msg=error_msg)
                 
-            #Si hay en archivo, debo comprobar que sea correcto en longitud.
+            # A file-defined catalog must have the correct length.
             elif self.catalog_file is not None:
                 catalog_list = self.catalog_file
                 if isinstance(catalog_list, list) and len(self.number_list) != len(catalog_list):
@@ -1140,13 +1187,31 @@ class SiPar(dict):
               
 
     def report_outputs(self, sip_report, output_dir, base_name, product_profile="regular"):
-        
+        """
+        Register expected SIP output products in a report entry.
+
+        Parameters
+        ----------
+        sip_report : dict
+            Report dictionary for the current SIP execution.
+        output_dir : pathlib.Path
+            Directory containing per-source SIP figures.
+        base_name : str
+            Base filename used by SIP products.
+        product_profile : str, optional
+            Product profile used to filter group-only outputs.
+        """
+
         if self.output_image_file_type:
             suffix = self.output_image_file_type
         else:
             suffix = 'png'
 
         def add_image(image_info):
+            """
+            Add an image entry unless it is excluded for the current product profile.
+            """
+
             if (
                 product_profile == "group" and
                 image_info.get("type") in self.GROUP_EXCLUDED_REPORT_TYPES
@@ -1364,6 +1429,20 @@ class SiPar(dict):
 
 
     def _output_suffix_from_report(self, sip_report):
+        """
+        Infer the SIP image suffix from the executed command stored in the report.
+
+        Parameters
+        ----------
+        sip_report : dict
+            SIP report dictionary containing the executed command.
+
+        Returns
+        -------
+        str
+            Output image suffix, defaulting to png.
+        """
+
         command = sip_report.get("command") or []
         for option in ("-x", "--suffix"):
             if option in command:
@@ -1374,6 +1453,15 @@ class SiPar(dict):
 
 
     def _remove_group_output(self, path):
+        """
+        Remove a single unwanted group output file if it exists.
+
+        Parameters
+        ----------
+        path : str or pathlib.Path
+            Candidate file to remove.
+        """
+
         path = Path(path)
 
         if not path.exists():
@@ -1392,12 +1480,21 @@ class SiPar(dict):
             
 
     def detect_source_count(self):
+        """
+        Count catalog sources for report product registration.
+
+        Returns
+        -------
+        int
+            Number of sources detected in the catalog, or 0 if it cannot be read.
+        """
+
         if not self.catalog_file:
             return 0
         
-        # Verifico si el archivo existe
+        # Check whether the file exists.
         if not self.catalog_file.exists():
-            # Verifico si la extensión es válida
+            # Check whether the extension is valid.
             valid_extensions = ['.txt', '.xml']
             if self.catalog_file.suffix.lower() in valid_extensions:
                 logger.warning(
@@ -1411,7 +1508,7 @@ class SiPar(dict):
                 )
             return 0
         
-        # Si el archivo existe
+        # If the file exists.
         if self.catalog_file.suffix.lower() == '.txt':
             try:
                 with open(self.catalog_file, 'r') as f:
