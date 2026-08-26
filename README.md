@@ -111,7 +111,13 @@ pyenv deactivate
 
 ## Installation
 
-Clone the repository and install it in editable/development mode:
+For a regular installation from PyPI:
+
+```bash
+python -m pip install espada-astro
+```
+
+For development, clone the repository and install it in editable mode:
 
 ```bash
 git clone https://github.com/Borjamomo96/ESPADA.git
@@ -119,7 +125,7 @@ cd ESPADA
 python -m pip install -e .
 ```
 
-Editable mode is recommended because it keeps all repository files available, including default configuration and parameter templates. Installing without `-e` may work, but some non-Python files may be unavailable depending on the packaging configuration.
+Editable mode is recommended when modifying ESPADA because it keeps all repository files available from the working tree.
 
 Verify that the command-line entry point is available:
 
@@ -547,7 +553,7 @@ Keeping extracted primary-beam and converted mask files can also avoid repeated 
 
 | Symptom | Possible fix |
 | --- | --- |
-| `espada: command not found` | Activate the correct environment and run `python -m pip install -e .` from the repository root. |
+| `espada: command not found` | Activate the correct environment and run `python -m pip install espada-astro`, or `python -m pip install -e .` from the repository root for development. |
 | Python-related errors on import or syntax | Check that Python `>= 3.10` is active. |
 | SoFiA or SIP fails immediately | Confirm that `sofia` and `sofia_image_pipeline` are installed and callable from the same environment. |
 | HTML report misses SoFiA EPS diagnostic plots | Install Ghostscript and re-run report generation. |

@@ -1,5 +1,5 @@
 [project]
-name = "espada"
+name = "espada-astro"
 version = "1.0.0"
 description = "ESPADA either downloads data via the TAP service or uses ALMA's own data and performs source searches using SOFIA software and produces images for publication or quick inspection using SIP software."
 authors = [
