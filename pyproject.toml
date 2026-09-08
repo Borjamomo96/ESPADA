@@ -21,6 +21,11 @@ dependencies = [
     "jinja2>=3.1.0"
 ]
 
+[project.urls]
+Documentation = "https://github.com/Borjamomo96/ESPADA/blob/main/docs/ESPADA_DOC.pdf"
+Repository = "https://github.com/Borjamomo96/ESPADA"
+Issues = "https://github.com/Borjamomo96/ESPADA/issues"
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"

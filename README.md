@@ -6,7 +6,7 @@ ESPADA is an end-to-end Python pipeline for generating advanced spectral-line da
 
 ESPADA is designed for minimal user intervention, while still allowing users to override the main pipeline configuration, SoFiA parameters, and SIP arguments when needed.
 
-📘 **Full documentation:** [ESPADA Documentation](docs/ESPADA_DOC.pdf)
+📘 **Full documentation:** [ESPADA Documentation](https://github.com/Borjamomo96/ESPADA/blob/main/docs/ESPADA_DOC.pdf)
 
 ## Contents
 
@@ -41,7 +41,7 @@ ESPADA is designed for minimal user intervention, while still allowing users to 
 At a high level, ESPADA follows this sequence:
 
 <p>
-  <img src="adpweb/images/Workflow_v2-1.png" alt="ESPADA workflow" width="450">
+  <img src="https://raw.githubusercontent.com/Borjamomo96/ESPADA/main/adpweb/images/Workflow_v2-1.png" alt="ESPADA workflow" width="450">
 </p>
 
 The main module, `espada`, orchestrates the workflow. The secondary modules are:
@@ -569,6 +569,8 @@ The `datap` module incorporates and adapts functionality from [ALminer](https://
 
 ## Citation and license
 
-A formal citation entry will be added when available. Users of ESPADA should also cite the relevant external tools and methods used in their analysis, including SoFiA-2, SIP, ALminer, and ALMA archive services as appropriate.
+If you use ESPADA in your research, please cite the software using the metadata in [CITATION.cff](https://github.com/Borjamomo96/ESPADA/blob/main/CITATION.cff) and specify the version used. A Zenodo DOI will be added once a release has been archived.
+
+Users of ESPADA should also cite the relevant external tools and methods used in their analysis, including SoFiA-2, SIP, ALminer, and ALMA archive services as appropriate.
 
 License information will be added when available.

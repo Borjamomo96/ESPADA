@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use ESPADA in your research, please cite this software."
+type: software
+title: "ESPADA: Enhanced Spectral-line Pipeline for the ALMA Data Archive"
+authors:
+  - given-names: "Borja"
+    family-names: "Montoro Molina"
+repository-code: "https://github.com/Borjamomo96/ESPADA"
+url: "https://github.com/Borjamomo96/ESPADA"
