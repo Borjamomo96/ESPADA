@@ -22,6 +22,30 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Check tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              version = tomllib.load(f)["project"]["version"]
+
+          tag = os.environ["RELEASE_TAG"]
+          expected = f"v{version}"
+
+          if tag != expected:
+              raise SystemExit(
+                  f"Version mismatch: tag is {tag}, "
+                  f"but pyproject.toml requires {expected}. "
+                  "Update the package version before tagging."
+              )
+
+          print(f"Version verified: {tag}")
+          PY
+
       - name: Install build tools
         run: python -m pip install --upgrade pip build
 
