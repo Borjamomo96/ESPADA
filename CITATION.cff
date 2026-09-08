@@ -1,9 +1,19 @@
 cff-version: 1.2.0
-message: "If you use ESPADA in your research, please cite this software."
+message: "If you use ESPADA in your research, please cite the software as described below."
+title: "ESPADA: An Automated Data-Processing Pipeline for ALMA"
 type: software
-title: "ESPADA: Enhanced Spectral-line Pipeline for the ALMA Data Archive"
+license: GPL-3.0-or-later
 authors:
   - given-names: "Borja"
-    family-names: "Montoro Molina"
+    family-names: "Montoro-Molina"
+    affiliation: "Chalmers University of Technology"
+    orcid: "https://orcid.org/0000-0001-9779-4895"
 repository-code: "https://github.com/Borjamomo96/ESPADA"
-url: "https://github.com/Borjamomo96/ESPADA"
+version: "1.0.1"
+abstract: "ESPADA is an end-to-end Python pipeline for the automated processing, validation and reporting of ALMA data products."
+keywords:
+  - ALMA
+  - astronomy
+  - data processing
+  - scientific software
+  - Python

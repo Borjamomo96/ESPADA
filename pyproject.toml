@@ -6,6 +6,8 @@ authors = [
     { name = "Borja Montoro Molina", email = "borjamomo96@gmail.com" }
 ]
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
     "numpy >= 2.1.2", 
@@ -27,7 +29,7 @@ Repository = "https://github.com/Borjamomo96/ESPADA"
 Issues = "https://github.com/Borjamomo96/ESPADA/issues"
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]

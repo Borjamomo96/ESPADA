@@ -573,4 +573,7 @@ If you use ESPADA in your research, please cite the software using the metadata 
 
 Users of ESPADA should also cite the relevant external tools and methods used in their analysis, including SoFiA-2, SIP, ALminer, and ALMA archive services as appropriate.
 
-License information will be added when available.
+ESPADA is licensed under the GNU General Public License, version 3
+or (at your option) any later version (SPDX: GPL-3.0-or-later).
+See [LICENSE](https://github.com/Borjamomo96/ESPADA/blob/main/LICENSE)
+for the full license text.
