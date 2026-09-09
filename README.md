@@ -1,5 +1,7 @@
 # ESPADA: Enhanced Spectral-line Pipeline for the ALMA Data Archive
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22663506.svg)](https://doi.org/10.5281/zenodo.22663506)
+
 > **Name note:** ESPADA was initially developed under the name **ADPALMAP**. Some legacy names may still appear in the code base, repository name, command-line entry point, documentation, or output labels. The command-line executable is now `espada`.
 
 ESPADA is an end-to-end Python pipeline for generating advanced spectral-line data products from ALMA data. It wraps and coordinates data discovery/download from the ALMA Science Archive, source finding and parameterisation with [SoFiA-2](https://gitlab.com/SoFiA-Admin/SoFiA-2), visualisation with the [SoFiA Imaging Pipeline (SIP)](https://github.com/kmhess/SoFiA-image-pipeline), optional grouping of related detections, logging, quality assessment, and final HTML/JSON reports.
@@ -569,7 +571,20 @@ The `datap` module incorporates and adapts functionality from [ALminer](https://
 
 ## Citation and license
 
-If you use ESPADA in your research, please cite the software using the metadata in [CITATION.cff](https://github.com/Borjamomo96/ESPADA/blob/main/CITATION.cff) and specify the version used. A Zenodo DOI will be added once a release has been archived.
+If you use ESPADA in your research, we kindly ask you to cite the software archived on [Zenodo](https://doi.org/10.5281/zenodo.22663506).
+
+You can use the following BibTeX entry:
+
+```bibtex
+@software{montoro_molina_espada,
+  author    = {Montoro-Molina, Borja},
+  title     = {{ESPADA}: An Automated Data-Processing Pipeline for {ALMA}},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22663506},
+  url       = {https://doi.org/10.5281/zenodo.22663506}
+}
+```
 
 Users of ESPADA should also cite the relevant external tools and methods used in their analysis, including SoFiA-2, SIP, ALminer, and ALMA archive services as appropriate.
 

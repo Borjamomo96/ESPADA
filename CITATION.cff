@@ -10,6 +10,7 @@ authors:
     orcid: "https://orcid.org/0000-0001-9779-4895"
 repository-code: "https://github.com/Borjamomo96/ESPADA"
 version: "1.0.1"
+doi: "10.5281/zenodo.22663505"
 abstract: "ESPADA is an end-to-end Python pipeline for the automated processing, validation and reporting of ALMA data products."
 keywords:
   - ALMA
