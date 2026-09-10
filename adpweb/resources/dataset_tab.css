@@ -239,6 +239,81 @@
     display: block;
 }
 
+/* Source correspondences alongside the grouped SIP panels. */
+.grouping-layout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.grouped-source-panels {
+    flex: 1 1 420px;
+    min-width: 0;
+}
+
+.grouping-summary {
+    flex: 0 1 360px;
+    min-width: 0;
+    box-sizing: border-box;
+    background: #f4f6f9;
+    border: 1px solid #d1d9e6;
+    border-radius: 8px;
+    padding: 15px 18px;
+    color: #2c3e50;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.grouping-summary h4 {
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #d1d9e6;
+    font-size: 15px;
+}
+
+.grouping-summary p {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.grouping-summary table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+}
+
+.grouping-summary th, .grouping-summary td {
+    padding: 8px 5px;
+    border-bottom: 1px solid #d1d9e6;
+    text-align: left;
+    vertical-align: top;
+}
+
+.grouping-summary small {
+    display: block;
+    margin-top: 4px;
+}
+
+.grouping-summary small, .grouping-note, .grouping-criterion {
+    color: #596579;
+}
+
+.grouping-summary a {
+    color: #234f8d;
+    text-decoration: underline;
+}
+
+.grouping-warnings {
+    padding-left: 18px;
+    color: #7a4512;
+}
+
+.source-container:focus-within > .source-toggle {
+    outline: 2px solid #4a6ea9;
+    outline-offset: 2px;
+}
+
 .placeholder {
     text-align: center;
     padding: 20px;

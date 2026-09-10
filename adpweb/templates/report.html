@@ -32,6 +32,8 @@
     <!-- Aquí van las pestañas desplegables por dataset -->
 
     {% for dataset in datasets %}
+      {% set dataset_anchor = 'dataset-' ~ loop.index %}
+      {% set grouping_by_mode = dataset.grouping_by_mode | default({}) %}
       <button type="button" class="collapsible {{ dataset.status }}">{{ dataset.input_path or dataset.input_name }}</button>
       <div class="content {{ dataset.status }}">
         <div class="flex-row">
@@ -237,7 +239,7 @@
               <div class="mode-container">
                   <h4 class="mode-title">Absorption Mode</h4>
                   {% for source_id, images in dataset.images_grouped.sip.regular.absorption.items()|sort %}
-                  <div class="source-container">
+                  <div class="source-container" id="{{ dataset_anchor }}-sip-regular-absorption-{{ source_id | e }}">
                       <button class="source-toggle" onclick="toggleSource(this)">
                           {% if source_id|string == '-1' %}
                               Overview of all single line sources ▼
@@ -263,11 +265,21 @@
               {% endif %}
 
               <!-- Group Absorption Mode -->
-              {% if dataset.images_grouped.sip.group.absorption %}
+              {% if dataset.images_grouped.sip.group.absorption or grouping_by_mode.get('absorption') %}
               <div class="mode-container">
                   <h4 class="mode-title">Absorption Mode - Group</h4>
+                  <div class="grouping-layout">
+                  {% if grouping_by_mode.get('absorption') %}
+                    {% with grouping_summary = grouping_by_mode.absorption,
+                            mode = 'absorption',
+                            regular_sources = dataset.images_grouped.sip.regular.absorption,
+                            grouped_sources = dataset.images_grouped.sip.group.absorption %}
+                      {% include 'grouping_summary.html' %}
+                    {% endwith %}
+                  {% endif %}
+                  <div class="grouped-source-panels">
                   {% for source_id, images in dataset.images_grouped.sip.group.absorption.items()|sort %}
-                  <div class="source-container">
+                  <div class="source-container" id="{{ dataset_anchor }}-sip-group-absorption-{{ source_id | e }}">
                       <button class="source-toggle" onclick="toggleSource(this)">
                           {% if source_id|string == '-1' %}
                               Overview of all single line sources ▼
@@ -288,7 +300,11 @@
                           </div>
                       </div>
                   </div>
+                  {% else %}
+                  <div class="placeholder">No grouped SIP images available</div>
                   {% endfor %}
+                  </div>
+                  </div>
               </div>
               {% endif %}
 
@@ -297,7 +313,7 @@
               <div class="mode-container">
                   <h4 class="mode-title">Emission Mode</h4>
                   {% for source_id, images in dataset.images_grouped.sip.regular.emission.items()|sort %}
-                  <div class="source-container">
+                  <div class="source-container" id="{{ dataset_anchor }}-sip-regular-emission-{{ source_id | e }}">
                       <button class="source-toggle" onclick="toggleSource(this)">
                           {% if source_id|string == '-1' %}
                               Overview of all single line sources ▼
@@ -323,11 +339,21 @@
               {% endif %}
 
               <!-- Group Emission Mode -->
-              {% if dataset.images_grouped.sip.group.emission %}
+              {% if dataset.images_grouped.sip.group.emission or grouping_by_mode.get('emission') %}
               <div class="mode-container">
                   <h4 class="mode-title">Emission Mode - Group</h4>
+                  <div class="grouping-layout">
+                  {% if grouping_by_mode.get('emission') %}
+                    {% with grouping_summary = grouping_by_mode.emission,
+                            mode = 'emission',
+                            regular_sources = dataset.images_grouped.sip.regular.emission,
+                            grouped_sources = dataset.images_grouped.sip.group.emission %}
+                      {% include 'grouping_summary.html' %}
+                    {% endwith %}
+                  {% endif %}
+                  <div class="grouped-source-panels">
                   {% for source_id, images in dataset.images_grouped.sip.group.emission.items()|sort %}
-                  <div class="source-container">
+                  <div class="source-container" id="{{ dataset_anchor }}-sip-group-emission-{{ source_id | e }}">
                       <button class="source-toggle" onclick="toggleSource(this)">
                           {% if source_id|string == '-1' %}
                               Overview of all single line sources ▼
@@ -348,7 +374,11 @@
                           </div>
                       </div>
                   </div>
+                  {% else %}
+                  <div class="placeholder">No grouped SIP images available</div>
                   {% endfor %}
+                  </div>
+                  </div>
               </div>
               {% endif %}
               
@@ -356,7 +386,8 @@
               {% if not dataset.images_grouped.sip.regular.absorption and 
                     not dataset.images_grouped.sip.regular.emission and
                     not dataset.images_grouped.sip.group.absorption and
-                    not dataset.images_grouped.sip.group.emission %}
+                    not dataset.images_grouped.sip.group.emission and
+                    not grouping_by_mode %}
               <div class="image-gallery">
                   <div class="placeholder">No SIP sources available</div>
               </div>
@@ -657,6 +688,27 @@
       } else {
           button.innerHTML = button.innerHTML.replace('▲', '▼');
       }
+    }
+
+    // Follow summary IDs without requiring users to find and open the panel.
+    function openSourceLink(link) {
+      const target = document.getElementById(link.hash.slice(1));
+      if (!target) return true;
+
+      const datasetContent = target.closest('.content');
+      if (datasetContent) {
+        datasetContent.classList.add('open');
+        datasetContent.style.height = 'auto';
+        datasetContent.previousElementSibling.classList.add('active');
+      }
+      const button = target.querySelector('.source-toggle');
+      const images = target.querySelector('.source-images');
+      if (button && images && !images.classList.contains('active')) {
+        toggleSource(button);
+      }
+      if (button) button.focus({ preventScroll: true });
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return false;
     }
   </script>
 </body>

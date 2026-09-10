@@ -185,6 +185,7 @@ class Report:
             input_name = None
             images = []
             qa_by_mode = {}
+            grouping_by_mode = {}
             error_exist = False
             warning_exist = False
             no_sources_exist = False
@@ -200,6 +201,13 @@ class Report:
                         input_name = str(sw['input_name'])
                     if not input_name and input_path:
                         input_name = Path(input_path).stem
+
+                    # Grouping metadata is not a separate software execution.
+                    if sw['software_id'] == 'Grouping':
+                        summary = sw.get('grouping_summary')
+                        if summary is not None:
+                            grouping_by_mode[sw.get('mode', '')] = summary
+                        continue
                     
                     # Group flag
                     is_group = software_list is dataset_tuple[3]
@@ -361,7 +369,8 @@ class Report:
                 'images_grouped': self._organize_images_for_html(images),
                 # Overall status
                 'status': dataset_status,
-                'qa_by_mode': qa_by_mode
+                'qa_by_mode': qa_by_mode,
+                'grouping_by_mode': grouping_by_mode
             }
 
             #######################################################################################
@@ -938,7 +947,8 @@ class Report:
             'softwares': html_softwares,
             'images': dataset['images'],
             'images_grouped': dataset['images_grouped'],
-            'qa_by_mode': dataset.get('qa_by_mode', {}) 
+            'qa_by_mode': dataset.get('qa_by_mode', {}),
+            'grouping_by_mode': dataset.get('grouping_by_mode', {})
         }
         
         self._html_summary_cache[dataset_id] = html_summary

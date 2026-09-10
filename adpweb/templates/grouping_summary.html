@@ -1,0 +1,86 @@
+{% macro source_link(source_id, category, sources) -%}
+  {% if source_id in sources or source_id|string in sources %}
+    <a href="#{{ dataset_anchor }}-sip-{{ category }}-{{ mode }}-{{ source_id | e }}"
+       onclick="return openSourceLink(this)"
+       title="Open {{ category }} SIP source {{ source_id | e }}">{{ source_id | e }}</a>
+  {% else %}
+    {{ source_id | e }}
+  {% endif %}
+{%- endmacro %}
+
+<aside class="grouping-summary" aria-label="Grouping summary for {{ mode }}">
+  <h4>Grouping summary</h4>
+  <p class="grouping-counts">
+    <strong>{{ grouping_summary.input_source_count }} original detections
+      &rarr; {{ grouping_summary.group_count }} groups</strong>
+  </p>
+  <p>
+    {{ grouping_summary.grouped_source_count }} detections included in groups.
+    {% if grouping_summary.final_source_count is not none %}
+      {{ grouping_summary.final_source_count }} final SoFiA sources.
+    {% elif grouping_summary.group_count %}
+      Final SoFiA source count unavailable.
+    {% endif %}
+  </p>
+  <p class="grouping-criterion">
+    Overlap: {{ grouping_summary.overlap_mode | e }};
+    threshold: {{ grouping_summary.overlap_threshold }} for both detections.
+  </p>
+
+  {% if grouping_summary.groups %}
+  <table>
+    <thead>
+      <tr><th scope="col">Final grouped source</th><th scope="col">Original sources</th></tr>
+    </thead>
+    <tbody>
+      {% for group in grouping_summary.groups %}
+      <tr>
+        <td>
+          {% if group.status == 'matched' and group.final_source_id is not none %}
+            {{ source_link(group.final_source_id, 'group', grouped_sources) }}
+          {% elif group.status == 'not_recovered' %}
+            No final match
+          {% elif group.status == 'ambiguous' %}
+            Ambiguous mapping
+            {% if group.final_source_ids %}
+            <small>Possible IDs:
+              {% for source_id in group.final_source_ids %}
+                {{ source_link(source_id, 'group', grouped_sources) }}{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </small>
+            {% endif %}
+          {% else %}
+            Final ID unavailable
+          {% endif %}
+        </td>
+        <td>
+          {% for source_id in group.original_ids %}
+            {{ source_link(source_id, 'regular', regular_sources) }}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+          <small>Input mask label: {{ group.input_mask_label }}</small>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="grouping-note">Original IDs refer to the initial SIP sources; final IDs refer to the grouped SoFiA catalogue.</p>
+  {% elif grouping_summary.status == 'no_groups' %}
+  <p>No detections met the grouping criterion.</p>
+  {% endif %}
+
+  {% if grouping_summary.ungrouped_source_ids %}
+  <p>Not included in the grouped mask:
+    {% for source_id in grouping_summary.ungrouped_source_ids %}
+      {{ source_link(source_id, 'regular', regular_sources) }}{% if not loop.last %}, {% endif %}
+    {% endfor %}.
+  </p>
+  {% endif %}
+
+  {% if grouping_summary.warnings %}
+  <ul class="grouping-warnings">
+    {% for warning in grouping_summary.warnings %}
+    <li>{{ warning | e }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</aside>

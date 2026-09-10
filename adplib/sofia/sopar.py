@@ -900,6 +900,9 @@ class SoPar(dict):
 
         self.reliability_enable = "false"
 
+        # The final labelled mask is needed to verify IDs against the input groups.
+        self.output_writeMask = "true"
+
         self.output_filename = f"group_{self.output_filename}"
         
         # '{self.output_filename}' Already contain prefixx 'group_'
@@ -1139,7 +1142,9 @@ class SoPar(dict):
                 logger.info(f"SoFiA will try to run again in mode: emission.")
         
         except Exception as e:
-            logger.error(f"{e}")
+            error = f"Could not complete SoFiA execution. Mode: {self.mode}. Error: {e}"
+            sopar_report.update({"exit_code": 1, "sofia_subprocess_error": str(e)})
+            logger.error(error)
 
         finally:
             # This step should be here if we want to add outputs from SoFiA-2 no matter if it fails or

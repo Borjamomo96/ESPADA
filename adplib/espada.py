@@ -1054,7 +1054,7 @@ def process_data(id_number,
     ##############################################################################################
     
     ##############################################################################################
-    # Run 
+    # Run Group
     
     if adpalmap_config.enable_group:
     
@@ -1065,6 +1065,7 @@ def process_data(id_number,
             if adpalmap_config.run_mode == 'absorption':
                 
                 do_group = True
+                # Necessary if SoFiA is disabled
                 try:
                     adpalmap_sopar_abs
                 except NameError:
@@ -1080,7 +1081,7 @@ def process_data(id_number,
                                                        primary_beam=primary_beam, 
                                                        mask=mask
                                                        ) 
-
+                # Necessary if SIP is disabled
                 try:
                     adpalmap_sipar
                 except NameError:
@@ -1118,6 +1119,8 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             input_data, abs_group_mask
                         )
+                        if adpalmap_group.grouping_summary is not None:
+                            group_report.append(adpalmap_group.summary_report('absorption'))
                         Logger.raw("================================")
                         logger.info("Source Grouping finished")
                         Logger.raw("================================")
@@ -1131,6 +1134,9 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2 
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            adpalmap_group.resolve_sofia_groups(
+                                abs_group_mask, adpalmap_sopar_abs, abs_sopar_group_report
+                            )
                             adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
@@ -1203,6 +1209,8 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             adpalmap_sopar_emi.input_data, emi_group_mask
                         )
+                        if adpalmap_group.grouping_summary is not None:
+                            group_report.append(adpalmap_group.summary_report('emission'))
                         Logger.raw("================================")
                         logger.info("Source Grouping finished")
                         Logger.raw("================================")
@@ -1216,6 +1224,9 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia()
+                            adpalmap_group.resolve_sofia_groups(
+                                emi_group_mask, adpalmap_sopar_emi, emi_sopar_group_report
+                            )
                             adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP
@@ -1305,6 +1316,8 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             adpalmap_sopar_abs.input_data, abs_group_mask
                         )
+                        if adpalmap_group.grouping_summary is not None:
+                            group_report.append(adpalmap_group.summary_report('absorption'))
                         #Logger.raw("================================")
                         logger.info("Source Grouping finished")
                         #Logger.raw("================================")
@@ -1318,6 +1331,9 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             abs_sopar_group_report = adpalmap_sopar_abs.run_sofia()
+                            adpalmap_group.resolve_sofia_groups(
+                                abs_group_mask, adpalmap_sopar_abs, abs_sopar_group_report
+                            )
                             adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
@@ -1345,6 +1361,8 @@ def process_data(id_number,
                         group_mask = adpalmap_group.group_sofia_detections(
                             adpalmap_sopar_emi.input_data, emi_group_mask
                         )
+                        if adpalmap_group.grouping_summary is not None:
+                            group_report.append(adpalmap_group.summary_report('emission'))
                         #Logger.raw("================================")
                         logger.info("Source Grouping finished")
                         #Logger.raw("================================")
@@ -1358,6 +1376,9 @@ def process_data(id_number,
                             )
                             # Execute SoFiA-2
                             emi_sopar_group_report = adpalmap_sopar_emi.run_sofia(run=0)
+                            adpalmap_group.resolve_sofia_groups(
+                                emi_group_mask, adpalmap_sopar_emi, emi_sopar_group_report
+                            )
                             adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP

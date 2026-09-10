@@ -1,4 +1,6 @@
 from astropy.io import fits
+from astropy.table import Table
+from copy import deepcopy
 import networkx as netx
 import numpy as np
 from pathlib import Path
@@ -8,6 +10,7 @@ from adplib.sofia.region import (
     extract_input_region_from_header,
     format_input_region,
     normalize_input_region,
+    parse_input_region,
 )
 
 
@@ -15,6 +18,153 @@ from adplib.sofia.region import (
 import logging
 from adplib.logger import Logger
 logger= Logger.get_logger()
+
+
+def _unavailable_grouping_summary(summary, message):
+    """Keep group membership when final source IDs cannot be established."""
+    result = deepcopy(summary)
+    result['status'] = 'unavailable'
+    result['final_source_count'] = None
+    result['warnings'] = [message]
+    for entry in result['groups']:
+        entry.update(final_source_id=None, final_source_ids=[], status='unavailable')
+    return result
+
+
+def resolve_grouping_summary(
+    summary, input_mask_file, output_mask_file, catalog_file, input_region=None,
+    original_region=None,
+):
+    """Match original detections to final SoFiA groups using shared 3D voxels.
+
+    The input is the original emission/absorption mask, not the grouped mask.
+    ``input_region`` is the inclusive xyz region used by the grouped SoFiA
+    execution. ``original_region`` describes an already cropped original mask;
+    when omitted it is read from that mask's HISTORY.
+    Splits, merges and missing catalogue IDs never receive an inferred link.
+    """
+    result = deepcopy(summary)
+    if not result['groups']:
+        return result
+
+    try:
+        catalogue = Table.read(catalog_file, format='votable')
+        raw_ids = catalogue['id']
+        catalog_ids = {int(value) for value in raw_ids}
+        if (len(catalog_ids) != len(raw_ids)
+                or any(value <= 0 for value in catalog_ids)
+                or any(int(value) != value for value in raw_ids)):
+            raise ValueError('The final catalogue contains invalid or duplicate source IDs.')
+
+        label_to_ids = {entry['input_mask_label']: set() for entry in result['groups']}
+        source_to_group = {
+            int(source_id): entry['input_mask_label']
+            for entry in result['groups'] for source_id in entry['original_ids']
+        }
+        id_to_labels = {}
+        output_ids = set()
+
+        with fits.open(input_mask_file, memmap=True) as input_hdul, \
+                fits.open(output_mask_file, memmap=True) as output_hdul:
+            before = input_hdul[0].data
+            after = output_hdul[0].data
+            if before.ndim == 4 and before.shape[0] == 1:
+                before = before[0]
+            if after.ndim == 4 and after.shape[0] == 1:
+                after = after[0]
+            if before.ndim != 3 or after.ndim != 3:
+                raise ValueError('Grouping correspondence requires two 3D masks.')
+            if not all(np.issubdtype(array.dtype, np.integer) for array in (before, after)):
+                raise ValueError('Grouping correspondence requires integer source masks.')
+
+            region = parse_input_region(input_region)
+            if input_region is not None and str(input_region).strip() and region is None:
+                raise ValueError('Cannot interpret the grouped SoFiA input.region.')
+            if region is None and before.shape != after.shape:
+                region = extract_input_region_from_header(output_hdul[0].header, logger)
+            source_region = parse_input_region(original_region)
+            if source_region is None:
+                source_region = extract_input_region_from_header(input_hdul[0].header, logger)
+            if source_region is not None:
+                sxmin, sxmax, symin, symax, szmin, szmax = source_region
+                if before.shape != (szmax - szmin + 1, symax - symin + 1,
+                                    sxmax - sxmin + 1):
+                    raise ValueError('Original mask shape does not match its input.region.')
+                if region is None:
+                    region = extract_input_region_from_header(output_hdul[0].header, logger)
+                if region is None:
+                    region = source_region
+                # Translate global cube bounds to the original mask's local grid.
+                xmin, xmax, ymin, ymax, zmin, zmax = region
+                region = (xmin - sxmin, xmax - sxmin, ymin - symin,
+                          ymax - symin, zmin - szmin, zmax - szmin)
+            if region is not None:
+                region = normalize_input_region(region, before.shape, logger)
+                if region is None:
+                    raise ValueError('The grouped SoFiA input.region is outside the input mask.')
+                xmin, xmax, ymin, ymax, zmin, zmax = region
+                before = before[zmin:zmax + 1, ymin:ymax + 1, xmin:xmax + 1]
+            if before.shape != after.shape:
+                raise ValueError('Input and output grouping masks cannot be aligned.')
+
+            # Compare a plane at a time to avoid allocating another full cube.
+            for input_plane, output_plane in zip(before, after):
+                output_ids.update(int(value) for value in np.unique(output_plane)
+                                  if value > 0)
+                shared = (input_plane > 0) & (output_plane > 0)
+                if not shared.any():
+                    continue
+                pairs = np.unique(np.column_stack(
+                    (input_plane[shared], output_plane[shared])
+                ), axis=0)
+                for label, source_id in pairs:
+                    label, source_id = int(label), int(source_id)
+                    group_label = source_to_group.get(label)
+                    if group_label is None:
+                        continue  # Ungrouped detections do not define a group.
+                    label_to_ids[group_label].add(source_id)
+                    id_to_labels.setdefault(source_id, set()).add(group_label)
+
+        result['final_source_count'] = len(catalog_ids)
+        result['warnings'] = []
+        if output_ids != catalog_ids:
+            result['warnings'].append(
+                'Final mask and catalogue source IDs differ; only verified matches are linked.'
+            )
+        unmatched = sorted(catalog_ids - set(id_to_labels))
+        if unmatched:
+            result['warnings'].append(
+                f'Final sources with no overlap with the input groups: {unmatched}.'
+            )
+
+        for entry in result['groups']:
+            candidates = sorted(label_to_ids[entry['input_mask_label']])
+            entry['final_source_id'] = None
+            entry['final_source_ids'] = candidates
+            if not candidates:
+                entry['status'] = 'not_recovered'
+                result['warnings'].append(
+                    f"Original sources {entry['original_ids']}: no surviving overlap "
+                    'in the final mask.'
+                )
+            elif len(candidates) != 1 or len(id_to_labels[candidates[0]]) != 1:
+                entry['status'] = 'ambiguous'
+                result['warnings'].append(
+                    f"Original sources {entry['original_ids']}: ambiguous final IDs {candidates}."
+                )
+            elif candidates[0] not in catalog_ids:
+                entry['status'] = 'unavailable'
+            else:
+                entry['status'] = 'matched'
+                entry['final_source_id'] = candidates[0]
+
+        result['status'] = 'warning' if result['warnings'] else 'ok'
+        return result
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        return _unavailable_grouping_summary(
+            result, f'Could not verify final grouping IDs: {exc}'
+        )
+
 
 class group(dict): 
     """
@@ -114,6 +264,7 @@ class group(dict):
         overlap_threshold = self.adpalmap_config.overlap_threshold
         self.input_region_from_mask = None
         self.normalized_input_region_from_mask = None
+        self.grouping_summary = None
 
         if not cube_file.exists():
             logger.critical(
@@ -288,22 +439,44 @@ class group(dict):
             groups = []
             logger.warning("No overlapping pairs found.")
 
+        grouped_ids = {int(source_id) for members in groups for source_id in members}
+        self.grouping_summary = {
+            'input_source_count': len(ids),
+            'grouped_source_count': len(grouped_ids),
+            'group_count': len(groups),
+            'final_source_count': None if groups else 0,
+            'ungrouped_source_ids': sorted(int(source_id) for source_id in ids
+                                         if int(source_id) not in grouped_ids),
+            'overlap_mode': overlap_mode,
+            'overlap_threshold': float(overlap_threshold),
+            'status': 'pending' if groups else 'no_groups',
+            'warnings': [],
+            'groups': [
+                {'input_mask_label': int(min(members)),
+                 'original_ids': sorted(int(value) for value in members),
+                 'final_source_id': None, 'final_source_ids': [], 'status': 'pending'}
+                for members in sorted(groups, key=min)
+            ],
+        }
+
         if len(groups) and writemask:
             logger.info("Modifying mask in order to group sources and delete un-grouped sources...")
             
             # Reuse the in-memory mask instead of reloading the file.
+            # SoFiA may overwrite this with its final mask. Correspondence is
+            # recovered from the original detections, which remain untouched.
             mask_out = Path(mask_file).parent / f"group_{Path(mask_file).name}"
             msk_new = mask.copy()  
             
             remaining_ids = set(ids)
             for gg in groups:
-                logger.info(f" group: {gg}")
+                logger.info(f"Original sources {sorted(gg)} -> input mask label {min(gg)}")
                 group_id = min(gg)
                 for source_id in gg:
                     if source_id in remaining_ids:
                         remaining_ids.remove(source_id)
                     if source_id != group_id:
-                        logger.info(f"          {source_id} -> {group_id}")
+                        logger.debug(f"Input mask relabel: {source_id} -> {group_id}")
                         msk_new[msk_new == source_id] = group_id
             
             for source_id in remaining_ids:
@@ -358,3 +531,47 @@ class group(dict):
         else:
             logger.warning("No sources to group")
             return None
+
+
+    def resolve_sofia_groups(self, original_mask_file, sopar, sofia_report):
+        """Resolve and log a completed grouped run without aborting its products."""
+        if self.grouping_summary is None:
+            return None
+        if sofia_report.get('error') or sofia_report.get('exit_code', 0) != 0:
+            resolved = _unavailable_grouping_summary(
+                self.grouping_summary,
+                'The grouped SoFiA run did not complete; final source IDs are unavailable.',
+            )
+        else:
+            base = Path(sopar.output_directory) / sopar.output_filename
+            resolved = resolve_grouping_summary(
+                self.grouping_summary, original_mask_file,
+                Path(f'{base}_mask.fits'), Path(f'{base}_cat.xml'),
+                input_region=getattr(sopar, 'input_region', None),
+                original_region=getattr(self, 'normalized_input_region_from_mask', None),
+            )
+        # Existing worker metadata points to this dictionary. Keep that reference
+        # while the same helper may subsequently process the other run mode.
+        self.grouping_summary.clear()
+        self.grouping_summary.update(resolved)
+        for entry in resolved['groups']:
+            if entry['status'] == 'matched':
+                logger.info(
+                    f"Grouped source {entry['final_source_id']} <- original sources "
+                    f"{entry['original_ids']} (input mask label {entry['input_mask_label']}). "
+                    f"Mode: {sopar.mode}."
+                )
+        for warning in resolved['warnings']:
+            logger.warning(f'Grouping summary ({sopar.mode}): {warning}')
+        return resolved
+
+
+    def summary_report(self, mode):
+        """Expose grouping metadata through the existing worker result tuple."""
+        return {
+            'software_id': 'Grouping',
+            'input_path': str(self.input_data),
+            'input_name': Path(self.input_data).stem,
+            'mode': mode,
+            'grouping_summary': self.grouping_summary,
+        }
