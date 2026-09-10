@@ -356,13 +356,17 @@ class group(dict):
         # Create dictionary with source information
         logger.info("Precomputing source properties...")
         source_props = {}
+        z_offset = normalized_region[4] if normalized_region is not None else 0
 
         for source_id in unique_ids:
             source_mask = (mask == source_id)
+            occupied_channels = np.flatnonzero(source_mask.any(axis=(1, 2)))
             aper_2d = source_mask.sum(axis=0).astype(bool)
             imag_2d = np.nansum(data * source_mask, axis=0)
             source_props[source_id] = {
                 'mask': source_mask,
+                'z_min': int(occupied_channels[0]) + z_offset,
+                'z_max': int(occupied_channels[-1]) + z_offset,
                 'aper_2d': aper_2d,
                 'imag_2d': imag_2d,
                 'total_area': aper_2d.sum(),
@@ -449,11 +453,21 @@ class group(dict):
                                          if int(source_id) not in grouped_ids),
             'overlap_mode': overlap_mode,
             'overlap_threshold': float(overlap_threshold),
+            'spectral_coordinates': {
+                'axis': 'z', 'index_base': 0, 'bounds': 'inclusive',
+                'reference': 'original_cube',
+            },
             'status': 'pending' if groups else 'no_groups',
             'warnings': [],
             'groups': [
                 {'input_mask_label': int(min(members)),
                  'original_ids': sorted(int(value) for value in members),
+                 'members': [
+                     {'source_id': int(value),
+                      'z_min': source_props[value]['z_min'],
+                      'z_max': source_props[value]['z_max']}
+                     for value in sorted(members)
+                 ],
                  'final_source_id': None, 'final_source_ids': [], 'status': 'pending'}
                 for members in sorted(groups, key=min)
             ],
@@ -473,6 +487,11 @@ class group(dict):
                 logger.info(f"Original sources {sorted(gg)} -> input mask label {min(gg)}")
                 group_id = min(gg)
                 for source_id in gg:
+                    props = source_props[source_id]
+                    logger.info(
+                        f"Original source {source_id}: channels {props['z_min']}..{props['z_max']} "
+                        '(zero-based, inclusive, original cube).'
+                    )
                     if source_id in remaining_ids:
                         remaining_ids.remove(source_id)
                     if source_id != group_id:

@@ -1,20 +1,26 @@
-{% macro source_link(source_id, category, sources) -%}
+{% macro source_link(source_id, category, sources, label=none, css_class='') -%}
   {% if source_id in sources or source_id|string in sources %}
     <a href="#{{ dataset_anchor }}-sip-{{ category }}-{{ mode }}-{{ source_id | e }}"
-       onclick="return openSourceLink(this)"
-       title="Open {{ category }} SIP source {{ source_id | e }}">{{ source_id | e }}</a>
+       onclick="return openSourceLink(this)" class="{{ css_class }}"
+       title="Open {{ category }} SIP source {{ source_id | e }}">{{ (label if label is not none else source_id) | e }}</a>
   {% else %}
-    {{ source_id | e }}
+    <span class="{{ css_class }}">{{ (label if label is not none else source_id) | e }}</span>
   {% endif %}
 {%- endmacro %}
 
 <aside class="grouping-summary" aria-label="Grouping summary for {{ mode }}">
   <h4>Grouping summary</h4>
-  <p class="grouping-counts">
-    <strong>{{ grouping_summary.input_source_count }} original detections
-      &rarr; {{ grouping_summary.group_count }} groups</strong>
-  </p>
-  <p>
+  {% set counts %}
+    <p class="grouping-counts"><strong>{{ grouping_summary.input_source_count }} original detections
+      <span aria-hidden="true">&rarr;</span> {{ grouping_summary.group_count }} groups</strong></p>
+  {% endset %}
+  {% set criterion %}
+    <p class="grouping-criterion">Overlap: {{ grouping_summary.overlap_mode | e }}
+      &middot; Threshold: &gt; {{ grouping_summary.overlap_threshold }} for both detections</p>
+  {% endset %}
+  {% if not grouping_summary.groups %}
+  <div class="grouping-heading">{{ counts }}{{ criterion }}</div>
+  <p class="grouping-note">
     {{ grouping_summary.grouped_source_count }} detections included in groups.
     {% if grouping_summary.final_source_count is not none %}
       {{ grouping_summary.final_source_count }} final SoFiA sources.
@@ -22,22 +28,20 @@
       Final SoFiA source count unavailable.
     {% endif %}
   </p>
-  <p class="grouping-criterion">
-    Overlap: {{ grouping_summary.overlap_mode | e }};
-    threshold: {{ grouping_summary.overlap_threshold }} for both detections.
-  </p>
+  {% endif %}
 
   {% if grouping_summary.groups %}
   <table>
     <thead>
-      <tr><th scope="col">Final grouped source</th><th scope="col">Original sources</th></tr>
+      <tr class="grouping-overview"><td>{{ counts }}</td><td>{{ criterion }}</td></tr>
+      <tr><th scope="col">Final grouped source</th><th scope="col">Original detections &middot; channel range</th></tr>
     </thead>
     <tbody>
       {% for group in grouping_summary.groups %}
       <tr>
         <td>
           {% if group.status == 'matched' and group.final_source_id is not none %}
-            {{ source_link(group.final_source_id, 'group', grouped_sources) }}
+            {{ source_link(group.final_source_id, 'group', grouped_sources, 'Source ' ~ group.final_source_id) }}
           {% elif group.status == 'not_recovered' %}
             No final match
           {% elif group.status == 'ambiguous' %}
@@ -54,16 +58,45 @@
           {% endif %}
         </td>
         <td>
-          {% for source_id in group.original_ids %}
-            {{ source_link(source_id, 'regular', regular_sources) }}{% if not loop.last %}, {% endif %}
-          {% endfor %}
-          <small>Input mask label: {{ group.input_mask_label }}</small>
+          <div class="grouping-members">
+          {% if group.members is defined %}
+            {% for member in group.members %}
+              {{ source_link(member.source_id, 'regular', regular_sources,
+                             member.source_id ~ ' · ' ~ member.z_min ~ '–' ~ member.z_max,
+                             'grouping-chip') }}
+            {% endfor %}
+          {% else %}
+            {% for source_id in group.original_ids %}
+              {{ source_link(source_id, 'regular', regular_sources, css_class='grouping-chip') }}
+            {% endfor %}
+            <span class="grouping-note">Channel ranges unavailable</span>
+          {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  <p class="grouping-note">
+    {{ grouping_summary.grouped_source_count }} detections included in groups.
+    {% if grouping_summary.final_source_count is not none %}
+      {{ grouping_summary.final_source_count }} final SoFiA sources.
+    {% elif grouping_summary.group_count %}
+      Final SoFiA source count unavailable.
+    {% endif %}
+  </p>
   <p class="grouping-note">Original IDs refer to the initial SIP sources; final IDs refer to the grouped SoFiA catalogue.</p>
+  {% if grouping_summary.spectral_coordinates is defined %}
+  <p class="grouping-note">Channel indices: zero-based, inclusive, relative to the original cube.</p>
+  {% endif %}
+  <details class="grouping-details">
+    <summary>Mask label details</summary>
+    <ul>
+      {% for group in grouping_summary.groups %}
+      <li>Input mask label {{ group.input_mask_label }}: original sources {{ group.original_ids | join(', ') }}.</li>
+      {% endfor %}
+    </ul>
+  </details>
   {% elif grouping_summary.status == 'no_groups' %}
   <p>No detections met the grouping criterion.</p>
   {% endif %}
