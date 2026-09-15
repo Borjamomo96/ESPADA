@@ -269,8 +269,8 @@ class Config(dict):
             'enable_sip': bool,
             'sip_par_file': str | None,
             'enable_group': bool | None,
-            'overlap_mode': str | None,
-            'overlap_threshold': float | None
+            'overlap_mode': str,
+            'overlap_threshold': int | float
         }
 
         # Required parameters, up to date
@@ -286,6 +286,24 @@ class Config(dict):
                 f"'{self.config_path.name}': {param_list}"
             )
 
+        # Grouping settings require explicit values, even when grouping is disabled.
+        if self.overlap_mode not in ('flux', 'absflux', 'area'):
+            raise ValueError(
+                "The parameter 'overlap_mode' must be one of: flux, absflux, area; "
+                f"it cannot be blank. Value provided: {self.overlap_mode!r}."
+            )
+
+        if (
+            isinstance(self.overlap_threshold, bool)
+            or not isinstance(self.overlap_threshold, (int, float))
+            or not 0 <= self.overlap_threshold <= 1
+        ):
+            raise ValueError(
+                "The parameter 'overlap_threshold' must be a number between 0 and 1 "
+                "(inclusive); it cannot be blank. "
+                f"Value provided: {self.overlap_threshold!r}."
+            )
+
         # Check the (type)
         for param, expected_type in expected_types.items():
             if hasattr(self, param):
@@ -298,19 +316,10 @@ class Config(dict):
                     )
 
 
-        # Check for 'overlap_threshold'
-        if hasattr(self, 'overlap_threshold') and self.overlap_threshold is not None:
-            if not (0 <= self.overlap_threshold <= 1):
-                raise ValueError(
-                    f"The parameter 'overlap_threshold' must be a float between 0 and 1. "
-                    f"Value provided: {self.overlap_threshold}."
-                )    
-                     
-        # Check for 'run_mode' and 'overlap_mode'.
+        # Check for 'run_mode'.
         # Allowed values for this parameters
         valid_values = {
             'run_mode': ['emission', 'absorption', 'both'],
-            'overlap_mode': ['flux', 'absflux', 'area'],
         }
         for param, valid_values_list in valid_values.items():
             if hasattr(self, param):

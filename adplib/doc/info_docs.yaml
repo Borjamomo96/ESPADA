@@ -47,6 +47,9 @@ file:
     - overlap_threshold
 
     **Important notes**
+    - All keys listed above must be present. Missing keys are not filled in
+      automatically. A blank YAML value is null and is accepted only for
+      parameters whose documented type includes null.
     - Exactly one input source must be selected: TAP service, `input_data_set`,
       or `input_file`.
     - `quality_assessment` and `quality_assesment` are not valid config keys in
@@ -201,7 +204,8 @@ parameter:
     **log_file** (in config.yaml)
 
     - **Description:** Path to the log file. Relative paths are resolved inside
-      `output_dir`.
+      `output_dir`. If blank (null), use `log_dir/espada.log` inside `output_dir`.
+      The raw log filename includes a timestamp.
     - **Type:** string or null
 
   input_data_set: |
@@ -289,14 +293,16 @@ parameter:
     **sofia_abs_file** (in config.yaml)
 
     - **Description:** Path to the SoFiA `.par` file used for absorption runs.
-      If null, ESPADA uses the packaged default.
+      If blank (null), use packaged `adplib/sofia/sofia_default.par`.
+      ESPADA applies the absorption settings before running SoFiA.
     - **Type:** string or null
 
   sofia_emi_file: |
     **sofia_emi_file** (in config.yaml)
 
     - **Description:** Path to the SoFiA `.par` file used for emission runs.
-      If null, ESPADA uses the packaged default.
+      If blank (null), use packaged `adplib/sofia/sofia_default.par`.
+      ESPADA applies the emission settings before running SoFiA.
     - **Type:** string or null
 
   enable_sip: |
@@ -317,7 +323,8 @@ parameter:
     **enable_group** (in config.yaml)
 
     - **Description:** If True, ESPADA groups overlapping SoFiA detections and
-      reruns SoFiA/SIP for grouped sources when possible.
+      reruns SoFiA/SIP for grouped sources when possible. If blank (null),
+      grouping is skipped.
     - **Type:** boolean or null
 
   overlap_mode: |
@@ -325,15 +332,19 @@ parameter:
 
     - **Description:** Metric used by source grouping to decide whether sources
       overlap enough to be grouped.
-    - **Type:** string or null
+    - **Type:** string
     - **Accepted values:** `area`, `flux`, `absflux`
+    - **Required:** Cannot be blank, even when grouping is disabled.
 
   overlap_threshold: |
     **overlap_threshold** (in config.yaml)
 
     - **Description:** Threshold for grouping overlap. Values must be between 0
-      and 1.
-    - **Type:** float or null
+      and 1, inclusive.
+    - **Type:** integer or float
+    - **Examples:** `0`, `0.8`, `1`, `1.0`
+    - **Required:** Cannot be blank, even when grouping is disabled. Booleans
+      and quoted numeric strings are not accepted.
 
   server_address: |
     **server_address** (in download_par.yaml)

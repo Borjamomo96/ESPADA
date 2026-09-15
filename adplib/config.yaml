@@ -1,63 +1,65 @@
 # Configuration default file for ESPADA 
+# All keys must be present. Blank values are YAML null and are accepted only
+# where the type includes null. "If blank" describes the resulting behavior.
 
 ############### 
 #   GENERAL   #
 ###############
 
-make_report: True                  # <bool> (Default value = False) Creates a directory with an HTML report that shows a quick look at the run results.
-verbose: True                       # <bool> (Default value = False) Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
-num_cores: 1                       # <int> (Default value = 12) Sets the maximum number of cores that can be used to run ESPADA. The minimum number is 1, and the maximum depends on the device.
-output_dir:                         # <str> (Default espada_run/) Create a directory where all products obtained during an ESPADA run will be stored. This directory overrides all other directory variables. 
+make_report: True                                                           # <bool> Creates a directory with an HTML report that shows a quick look at the run results.
+verbose: True                                                               # <bool> Displays through terminal the outputs from SoFiA-2 and SIP as they are executed.
+num_cores: 1                                                                # <int | null> Maximum CPU core budget. If blank: use the available CPU cores. Actual parallelism also depends on memory and dataset count. The minimum is 1.
+output_dir:                                                                 # <str | null> Directory for ESPADA outputs. If blank: use espada_run/ under the current working directory. Overrides module output directories.
 
 ################
 #    LOGGER    #
 ################
 
-clear_logs: True                    # <bool> (Default value = True) Delete all available .log files in the folder specified in log_file and only leave those corresponding to the current run.
-log_file: log_dir/espada.log      # <str> (Default value = 'log_dir/espada.log') Path to the log file. Relative paths are resolved inside output_dir. Absolute paths are only accepted if they lie within output_dir.
+clear_logs: True                                                            # <bool> Delete all available .log files in the folder specified in log_file and only leave those corresponding to the current run.
+log_file: log_dir/espada.log                                                # <str | null> Log file path. If blank: use log_dir/espada.log inside output_dir. Relative paths resolve inside output_dir; absolute paths must lie within it. The raw log filename includes a timestamp.
 
 ##################
 #   INPUT DATA   #
 ##################
 
-input_data_set: # <str> | <list> (Default value = ) Path to the dataset where the pipeline will be executed, read the documentation to see examples of possible inputs.
+input_data_set:                                                             # <str | list | dict | null> Local FITS datasets. If blank: select input_file or enable_tap_service instead. Exactly one input source must be selected.
     #1:
     #2:  
     #3: 
     #4: 
 
-input_file: # (Default = ) Path to the input dataset file. The structure follows the same rules as for the 'input_data_set' parameter at some extend. Read the documentation to see examples of possible inputs.
+input_file:                                                                 # <str | null> Text file listing datasets (.txt, .lst or .dat). If blank: select input_data_set or enable_tap_service instead. Exactly one input source must be selected.
 
 #####################
 #    TAP SERVICE    #
 #####################
 
-enable_tap_service: False                                                # <bool> (Default value = False) Allows you to use the 'datap' module to download datasets from the ALMA archive and run the pipeline on them.
-download_par_file:      # <str>  (Default value = packaged adplib/tap/download_par.yaml) Path to the parameter file for download.
+enable_tap_service: False                                                   # <bool> Allows you to use the 'datap' module to download datasets from the ALMA archive and run the pipeline on them.
+download_par_file:                                                          # <str | null> TAP download parameter file. If blank: use packaged adplib/tap/download_par.yaml.
 
 #################
 #     SOFIA     #
 #################
 
-enable_sofia : True                                                         # <bool> (Default value = True) Allows you to use the 'sopar' module where the software SoFiA-2 is executed
-run_mode: 'both' #'emission', 'absorption'                                  # <str> (Default value = 'emission') Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
-use_mask: False                                                             # <bool> (Default value = False) Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
-abs_flag_cube: True                                                         # <bool> (Default value = True) Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
-auto_setup: False                                                           # <bool> (Default value = True) Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
-sofia_abs_file :     # <str>  (Default value = packaged adplib/sofia/sofia_abs_default.par) Path to the SoFiA-2 parameter file optimized to found 'absorption'.
-sofia_emi_file :     # <str>  (Default value = packaged adplib/sofia/sofia_emi_default.par) Path to the SoFiA-2 parameter file optimized to found 'emission'.
+enable_sofia : True                                                         # <bool> Allows you to use the 'sopar' module where the software SoFiA-2 is executed
+run_mode: 'both' #'emission', 'absorption'                                  # <str> Determines the type of sources being searched and optimizes the pipeline accordingly. To search for both types, use 'both' mode.
+use_mask: False                                                             # <bool> Determines whether the mask either specified in 'input_data_set' or 'input_file' or available in the ALMA archive will be used when running SoFiA-2 or not.
+abs_flag_cube: True                                                         # <bool> Used only for run_mode: 'both'. Set the absorption sources found for 'absorption' as a flag cube for the 'emission' in SoFiA-2.
+auto_setup: False                                                           # <bool> Automatically optimizes certain key parameters based on data cube header information before running SoFiA-2. See documentation for more details.
+sofia_abs_file :                                                            # <str | null> SoFiA-2 parameter file for absorption. If blank: use packaged adplib/sofia/sofia_default.par; ESPADA applies the absorption settings.
+sofia_emi_file :                                                            # <str | null> SoFiA-2 parameter file for emission. If blank: use packaged adplib/sofia/sofia_default.par; ESPADA applies the emission settings.
 
 #################
 #      SIP      #
 #################
 
-enable_sip : True                                               # <bool> (Default value = True) Allows you to use the 'siparg' module where the software SIP is executed
-sip_par_file :     # <str>  (Default value = packaged adplib/sip/sip_args.yaml) Path to the SIP argument file.
+enable_sip : True                                                           # <bool> Allows you to use the 'siparg' module where the software SIP is executed
+sip_par_file :                                                              # <str | null> SIP argument file. If blank: use packaged adplib/sip/sip_args.yaml.
 
 #################
 #     GROUP     #
 #################
 
-enable_group: True                                             # <bool> (Default = True) Allows you to use the 'group' module where source grouping is performed
-overlap_mode :  'absflux'   # 'flux', 'absflux' or 'area'       # <str> (Default value = 'absflux') Determines the type of overlap is going to be applied to group sources.
-overlap_threshold : 0.8                                         # <float> (Default value = 0.8) Set the limit applied to the 'overlap_mode' selected from 0 to 1.
+enable_group: True                                                          # <bool | null> Enable source grouping. If blank: skip grouping.
+overlap_mode :  'absflux'                                                   # <str> Required: flux, absflux or area. Cannot be blank, even when grouping is disabled.
+overlap_threshold : 0.8                                                     # <int | float> Required overlap threshold between 0 and 1, inclusive. Cannot be blank, even when grouping is disabled.
