@@ -77,6 +77,8 @@
                     </div>
                   {% elif sw.error %}
                     <div class="sw-exit-detail">{{ sw.error }}</div>
+                  {% elif sw.skip_reason %}
+                    <div class="sw-exit-detail">{{ sw.skip_reason }}</div>
                   {% endif %}
                 </li>
               {% endfor %}

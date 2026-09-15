@@ -45,6 +45,8 @@ def resolve_software_status(sw, error, warnings, exit_code):
 
     if error:
         return 'error'
+    if sw.get('status') == NO_SOURCES_STATUS:
+        return NO_SOURCES_STATUS
     if warnings is not None and warnings > DEFAULT_WARNING_THRESHOLD:
         return 'warning'
     return 'ok'
@@ -188,7 +190,7 @@ class Report:
             grouping_by_mode = {}
             error_exist = False
             warning_exist = False
-            no_sources_exist = False
+            software_statuses = set()
             #######################################################################################    
             # COMPLETE INFORMATION BY SOFTWARE
 
@@ -244,7 +246,7 @@ class Report:
                     error = sw.get('error', '')
                     warnings = sw.get('warning_number')
                     exit_code = sw.get('exit_code')
-                    if exit_code is None:
+                    if exit_code is None and not sw.get('skip_reason'):
                         exit_code = 0 if not error else 1
                     
                     sw_status = resolve_software_status(sw, error, warnings, exit_code)
@@ -252,7 +254,7 @@ class Report:
                     has_error, has_warning = update_status_counters(parsed_data, sw_status)
                     error_exist = error_exist or has_error
                     warning_exist = warning_exist or has_warning
-                    no_sources_exist = no_sources_exist or sw_status == NO_SOURCES_STATUS
+                    software_statuses.add(sw_status)
                    
                     ###############################################################################
                     # COMPLETE SOFTWARE INFORMATION
@@ -277,6 +279,7 @@ class Report:
                             'status': sw_status,
                             'status_severity': sw_status_severity,
                             'error_message': error,
+                            'skip_reason': sw.get('skip_reason', ''),
                             'error_type': (
                                 'runtime' if error and sw_status_severity == 'error' else None
                             ),
@@ -351,8 +354,9 @@ class Report:
             )
             dataset_status = (
                 'error' if error_exist else
-                NO_SOURCES_STATUS if no_sources_exist else
-                'warning' if warning_exist else
+                'ok' if 'ok' in software_statuses else
+                'warning' if 'warning' in software_statuses else
+                NO_SOURCES_STATUS if software_statuses == {NO_SOURCES_STATUS} else
                 'ok'
             )
             dataset_complete = {
@@ -914,9 +918,11 @@ class Report:
                 else None
             )
             error_message = sw['status_info']['error_message']
+            skip_reason = sw['status_info'].get('skip_reason', '')
             status_title = (
                 software_exit_message
                 or error_message
+                or skip_reason
                 or sw['status_info']['status']
             )
             html_softwares.append({
@@ -926,6 +932,7 @@ class Report:
                 'log_path': sw['logs']['log_path'],
                 'log_content': sw['logs']['log_content'],
                 'error': error_message,
+                'skip_reason': skip_reason,
                 'sw_status': sw['status_info']['status'],
                 'sw_status_severity': sw['status_info'].get('status_severity', ''),
                 'exit_code': sw['execution_info']['exit_code'],

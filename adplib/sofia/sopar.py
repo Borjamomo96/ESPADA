@@ -1013,6 +1013,7 @@ class SoPar(dict):
         SystemExit: If SoFia encounters an error during execution.
         """
     
+        self.last_exit_code = None
         os.makedirs(self.output_directory, exist_ok=True)
         self.output_directory = Path(self.output_directory)
     ##############################################################################################
@@ -1147,6 +1148,8 @@ class SoPar(dict):
             logger.error(error)
 
         finally:
+            # SIP needs the outcome of this run, including grouped reruns.
+            self.last_exit_code = sopar_report["exit_code"]
             # This step should be here if we want to add outputs from SoFiA-2 no matter if it fails or
             # not. The reliability and diagnostic plot should always be in the report.  
             # Add outputs for the html report

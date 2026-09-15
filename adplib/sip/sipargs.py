@@ -742,6 +742,20 @@ class SiPar(dict):
         # Check the catalog files availables|set 
 
         if sopar: # Equivalent to adpalmap_config.enable_sofia for this branch.
+
+            # Check the current run before considering any older catalogs on disk.
+            if getattr(sopar, "last_exit_code", None) == 8:
+                reason = "SIP skipped: SoFiA detected no sources (exit code 8)."
+                sip_report.update({
+                    "mode": sopar.mode,
+                    "status": "no_sources",
+                    "skip_reason": reason,
+                    "exit_code": None,
+                    "command": [],
+                    "error": "",
+                })
+                logger.info(f"{reason} Mode: {sopar.mode}.")
+                return sip_report
             
             base_name = sopar.output_filename
             sip_output_dir = sopar.output_directory / f"{base_name}_figures"
