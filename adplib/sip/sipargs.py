@@ -298,7 +298,7 @@ class SiPar(dict):
 
             if self.adpalmap_config.run_mode == "absorption":
                 sofia_catalog_txt = output_dir / f"espada_{input_name}" / f"absorption_{input_name}_cat.txt"
-                sofia_catalog_xml = output_dir / "espada_{input_name}" / f"absorption_{input_name}_cat.xml"
+                sofia_catalog_xml = output_dir / f"espada_{input_name}" / f"absorption_{input_name}_cat.xml"
                 abs_cat_file = self.set_catalog(
                     sofia_catalog_txt, 
                     sofia_catalog_xml,
@@ -1130,7 +1130,7 @@ class SiPar(dict):
                 
             # No catalog is set in the file, so check whether -c or --catalog was passed.
             elif self.catalog_file is None and self.sargs:
-                if (('-c' or '--catalog') not in self.sargs.keys()):
+                if '-c' not in self.sargs and '--catalog' not in self.sargs:
                     error_msg = (
                         "No 'catalog_file' parameter was found either in file 'sip_args.yaml' or "
                         "via the '-sarg|--sip-arguments'."
@@ -1138,11 +1138,12 @@ class SiPar(dict):
                     #logger.error(f"ValueError: {error_msg}")
                     return CatalogResult(error_msg=error_msg)
                 else:
-                    if Path(self.sargs['-c']).exists():
-                        return CatalogResult(catalog_path=self.sargs['-c'])
+                    catalog_path = self.sargs.get('-c', self.sargs.get('--catalog'))
+                    if Path(catalog_path).exists():
+                        return CatalogResult(catalog_path=catalog_path)
                     else:
                         error_msg = (
-                            f"The catalog file '{self.sargs['-c']}' does not exist."
+                            f"The catalog file '{catalog_path}' does not exist."
                         )
                         return CatalogResult(error_msg=error_msg)
                 
