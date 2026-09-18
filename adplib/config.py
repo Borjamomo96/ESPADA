@@ -3,8 +3,50 @@ import os, yaml, sys
 from pathlib import Path
 
 # Logger:
-from adplib.logger import Initial_Logger
+from adplib.logger import Initial_Logger, Logger
 ilogger = Initial_Logger()
+
+
+def load_run_parameters(adpalmap_config, args):
+    """Capture the required parameter files before downloads or dataset processing.
+
+    The returned dictionaries contain source paths, text, and parsed values.
+    Workers receive these snapshots and create their own mutable parameter copies.
+    """
+    from adplib.sofia.sopar import SoPar
+    from adplib.sip.sipargs import SiPar
+
+    logger = Logger.get_logger()
+    run_parameters = {"sofia": {}, "sip": None}
+
+    if adpalmap_config.enable_sofia or adpalmap_config.enable_group:
+        modes = ("absorption", "emission") if adpalmap_config.run_mode == "both" else (
+            adpalmap_config.run_mode,
+        )
+        source_files = {}
+        for mode in modes:
+            file_path = (
+                adpalmap_config.sofia_abs_file
+                if mode == "absorption" else adpalmap_config.sofia_emi_file
+            )
+            source_path = SoPar.resolve_parameter_path(file_path)
+            source_key = source_path.resolve()
+            if source_key not in source_files:
+                source_files[source_key] = SoPar.load_parameters(source_path)
+            run_parameters["sofia"][mode] = source_files[source_key]
+
+    if adpalmap_config.enable_sip or adpalmap_config.enable_group:
+        # Group-only runs currently do not apply SIP command-line overrides.
+        sargs = args.sip_args if adpalmap_config.enable_sip else None
+        run_parameters["sip"] = SiPar.load_parameters(adpalmap_config.sip_par_file, sargs)
+
+    if run_parameters["sofia"] or run_parameters["sip"] is not None:
+        logger.info(
+            "Required parameter files have been captured in memory for this execution. "
+            "Changes to those files will apply to subsequent executions. "
+            "Dataset-specific checks and external-tool validation are still pending."
+        )
+    return run_parameters
 
 
 def parse_single_dataset(data_set, id):

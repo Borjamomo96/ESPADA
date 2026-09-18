@@ -1,4 +1,5 @@
 from pathlib import Path
+from copy import deepcopy
 import yaml
 import re
 import subprocess
@@ -134,151 +135,168 @@ class SiPar(dict):
     )
 
 
-    def __init__(self, **kwargs):
+    def __init__(self, parameter_data=None, **kwargs):
+        """Create independent SIP parameters from a startup snapshot or a file.
+
+        ``parameter_data`` is a dictionary returned by ``load_parameters``.
+        File-based callers may still supply ``sip_file_path`` instead. Dataset
+        context is checked after the YAML values have been validated and copied.
         """
-        Reads the SIP optional parameters|command file and creates a SiPar object.
-        
-        Parameters
-        ----------
-        sip_file_path: str, default None
-            Path to the configuration file. 
-
-        Returns
-        -------
-        self
-
-        Attributes
-        ----------
-        All the optional parameters|command that could be enter into the terminal while running SIP 
-        """
-
         super(SiPar, self).__init__(**kwargs)
-        self.__dict__ = self 
-        
-        self.configure(**kwargs)
-        
-        #Check the parameter from the sip_args.yaml
+        self.__dict__ = self
+        self.configure(parameter_data=parameter_data, **kwargs)
         self.check_sip_args()
 
-    
-    def configure(self, sip_file_path=None, **kwargs):
-        """
-        Load SIP arguments from the selected YAML file.
-
-        Parameters
-        ----------
-        sip_file_path : str or pathlib.Path, optional
-            Path to the SIP argument YAML file. If omitted, the package default is used.
-        **kwargs
-            Additional initialization values stored by the constructor.
-        """
-
+    @classmethod
+    def load_parameters(cls, sip_file_path=None, sargs=None):
+        """Read the YAML once and check its values before terminal arguments."""
         if sip_file_path is None:
-
-            script_dir = Path(__file__).parent
-            sip_file_path = script_dir / "sip_args.yaml"
-            self.sip_file_path = sip_file_path
-
-            if not sip_file_path.exists():
-                error_msg = (
-                    "No SIP configuration file was provided and the default configuration file "
-                    f"{sip_file_path} could not be found. Provide a valid SIP configuration "
-                    "file or check if you have deleted or moved the default file."
-                )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise FileNotFoundError(error_msg)
-            else:
-                logger.info(f"The file in {sip_file_path} have been loaded successfully")
-
+            source_path = Path(__file__).parent / "sip_args.yaml"
         else:
-            sip_file_path = Path(os.path.expanduser(sip_file_path))
-            self.sip_file_path = sip_file_path
-
-            if not sip_file_path.exists():
-                error_msg = f"Sip parameter file {sip_file_path} not found."
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise FileNotFoundError(error_msg)
-            else:
-                logger.info(f"The file in {sip_file_path} have been loaded successfully")
-
-            
+            source_path = Path(sip_file_path).expanduser()
+        with open(source_path, 'r') as source:
+            content = source.read()
         try:
-            with open(sip_file_path, 'r') as f:
-                sip_args_dict = yaml.safe_load(f)
-        
-        except yaml.YAMLError as e:
-            error_msg = (
-                f"Error parsing YAML configuration file '{sip_file_path}': {str(e)}. "
-                "Please check the file syntax. Common issues include: "
-                "- Missing quotes around strings with special characters\n"
-                "- Incorrect indentation\n"
-                "- Invalid list/array syntax (use [value1, value2] not [value1,,value2])\n"
-                "- Unclosed quotes or brackets"
-            )
-            Logger.log_to_file(logging.ERROR, error_msg)
-            # Raise a configuration-specific exception.
-            raise ConfigurationError(error_msg) from e
-        
-        for k, v in sip_args_dict.items():
-            
-            setattr(self, k, v)
+            values = yaml.safe_load(content)
+        except yaml.YAMLError as error:
+            raise ConfigurationError(
+                f"Error parsing SIP YAML configuration file '{source_path}': {error}"
+            ) from error
+        cls.validate_parameters(values, source_path, sargs)
+        logger.info(f"SIP parameters loaded into memory from: {source_path}")
+        logger.info(
+            "SIP file and terminal parameter checks passed. Dataset-specific "
+            "checks and catalog resolution are still pending."
+        )
+        return {'path': source_path, 'content': content, 'values': values}
 
+    def configure(self, sip_file_path=None, parameter_data=None, **kwargs):
+        """Copy the validated startup values, or load them for file-based calls."""
+        if parameter_data is None:
+            sargs = self.sargs if self.adpalmap_config.enable_sip else None
+            parameter_data = self.load_parameters(sip_file_path, sargs)
+        self.update(deepcopy(parameter_data['values']))
+        self.sip_file_path = parameter_data['path']
+        self.sip_file_content = parameter_data['content']
+
+    @classmethod
+    def validate_parameters(cls, values, source_path, sargs=None):
+        """Check the complete YAML, then the supplied terminal arguments.
+
+        These checks need no dataset. They do not apply overrides or select
+        catalogs and images; that remains part of preparing each dataset.
+        """
+        if not isinstance(values, dict):
+            raise ConfigurationError(
+                f"SIP configuration file '{source_path}' must contain a YAML mapping."
+            )
+        missing = [key for key in cls.EXPECTED_TYPES if key not in values]
+        if missing:
+            raise ValueError(
+                f"Required SIP parameters missing in '{source_path}': {', '.join(missing)}"
+            )
+
+        # The file must be valid on its own, even if a terminal argument replaces a value.
+        for from_terminal, parameters in ((False, values), (True, sargs or {})):
+            for key, value in parameters.items():
+                if from_terminal:
+                    source = f"'-sarg {key}'"
+                    for name, shortcuts in cls.ATTRIBUTE_SHORTCUTS.items():
+                        if key in shortcuts:
+                            key = name
+                            break
+                    else:
+                        logger.warning(f"Unknown parameter '{key}' provided. It will be ignored.")
+                        continue
+                else:
+                    source = f"'{source_path}'"
+                    if key not in cls.EXPECTED_TYPES:
+                        logger.warning(
+                            f"Unknown parameter '{key}' in SIP configuration file {source}. "
+                            "Check the parameter name."
+                        )
+                        continue
+
+                expected_type = cls.EXPECTED_TYPES[key]
+                if not strict_isinstance(value, expected_type):
+                    raise ValueError(
+                        f"SIP parameter '{key}' in {source} must be of type {expected_type}, "
+                        f"but is of type {type(value)}."
+                    )
+                if value is None and not from_terminal:
+                    continue
+
+                ###########################---------source_id---------##############################
+                if key == 'source_id':
+                    if from_terminal:
+                        if not isinstance(value, list) or not all(isinstance(x, int) for x in value):
+                            raise ValueError(f"'source_id' in {source} must be a list of integers.")
+                    elif isinstance(value, list):
+                        for item in value:
+                            cleaned = str(item).replace('[', '').replace(']', '').replace(',', '').strip()
+                            try:
+                                int(cleaned)
+                            except ValueError as error:
+                                raise ValueError(
+                                    f"'source_id' in {source} contains a non-integer value: '{item}'"
+                                ) from error
+                ###########################---------syn_beam_dimensions---------##############################
+                elif key == 'syn_beam_dimensions':
+                    if value is None or len(value) > 3:
+                        raise ValueError(f"'{key}' in {source} must be a list of at most three values.")
+                    if not all(strict_isinstance(x, (int, float)) for x in value):
+                        raise ValueError(f"'{key}' in {source} must contain only integers or floats.")
+                ###########################---------snr_range / percentile_range---------##############################
+                elif key in {'snr_range', 'percentile_range'}:
+                    if value is None or len(value) != 2:
+                        raise ValueError(f"'{key}' in {source} must be a list of two values.")
+                ###########################---------spec_line---------##############################
+                elif key == 'spec_line':
+                    known_lines = ('HI', 'CO(1-0)', 'CO(2-1)', 'CO(3-2)',
+                                   'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720')
+                    if isinstance(value, list) and len(value) > 3:
+                        logger.warning(
+                            f"'spec_line' in {source} should contain at most three values "
+                            "(molecule, rest frequency in GHz, label)."
+                        )
+                    elif isinstance(value, str) and value not in known_lines:
+                        logger.warning(
+                            f"The line '{value}' in {source} is not among the supported "
+                            "single-entry spectral line names."
+                        )
+                ###########################---------output_image_file_type---------##############################
+                elif key == 'output_image_file_type':
+                    if value not in ('png', 'jpg', 'pdf', 'svg'):
+                        raise ValueError(
+                            f"'{key}' in {source} must be one of png, jpg, pdf, svg; got {value!r}."
+                        )
 
     def check_sip_args(self):
-        """
-        Validate the attributes for the SiPar class readed from the SIP arguments file.
-
-        Raises:
-        ----------
-            ValueError: If any parameter is missing or does not have the expected type.
-        """
-
-        # Parameters expected
-        required_params = list(self.EXPECTED_TYPES.keys())
-
-        # Values allowed for 'output_image_file_type' and 'spec_line'
-        valid_values = {
-            'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-            'spec_line': ['HI', 
-                          'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
-                          'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
-        }
-
-        # Check the parameters in sip arguments file. 
-        missing_params = [param for param in required_params if not hasattr(self, param)]
-        if missing_params:
-            param_list = ", ".join(missing_params)
-            plural = "s are" if len(missing_params) > 1 else " is"
-            raise ValueError(
-                f"The following required parameter{plural} missing in "
-                f"'{self.sip_file_path.name}': {param_list}"
-            )
-
-        if (len(self.number_list)>1):
-            self.EXPECTED_TYPES['catalog_file'] =  list | None
-            self.EXPECTED_TYPES['user_image'] =  list | None
-            
-        # Check argument type
-        for param, expected_type in self.EXPECTED_TYPES.items():
-            if hasattr(self, param):
-                value = getattr(self, param)
-                if not strict_isinstance(value, expected_type):
-                    error_msg = (
-                        f"The parameter '{param}' in the sip_args.yaml file must be of "
-                        f"type {expected_type}, but is of type {type(value)}."
+        """Validate dataset context and resolve its catalogs and ancillary image."""
+        logger.info(
+            f"Preparing SIP parameters for dataset '{self.input_data.stem}' "
+            f"from the in-memory configuration loaded from {self.sip_file_path}."
+        )
+        ###########################---------catalog_file / user_image: multiple datasets---------##############################
+        if len(self.number_list) > 1:
+            for key in ('catalog_file', 'user_image'):
+                value = getattr(self, key)
+                if value is not None and not isinstance(value, list):
+                    raise ValueError(
+                        f"'{key}' in '{self.sip_file_path}' must be a list when processing "
+                        "multiple datasets."
                     )
-                    Logger.log_to_file(logging.ERROR, error_msg)
-                    raise ValueError(error_msg)
-            else:
-                error_msg = (
-                    f"The required parameter '{param}' is not defined in the"
-                    " sip_args.yaml file."
-                )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
+                if self.adpalmap_config.enable_sip and self.sargs:
+                    for argument in self.ATTRIBUTE_SHORTCUTS[key]:
+                        if argument in self.sargs:
+                            value = self.sargs[argument]
+                            if value is not None and not isinstance(value, list):
+                                raise ValueError(
+                                    f"'{argument}' supplied through -sarg must be a list "
+                                    "when processing multiple datasets."
+                                )
 
-        # Extra check for specific parameters
-        ###########################------------catalog_file-------------##############################
+        ###########################---------catalog_file---------##############################
         if self.adpalmap_config.enable_sofia:
             if self.catalog_file is not None:
                 logger.warning(
@@ -357,69 +375,7 @@ class SiPar(dict):
                     raise RecoverableFileNotFoundError(abs_cat_file.error_msg) 
         ##############################################################################################
 
-        ###########################---------source_id---------##############################        
-        if hasattr(self, 'source_id') and getattr(self, 'source_id') is not None:
-            attr_value = getattr(self, 'source_id')
-            if isinstance(attr_value, list):
-                cleaned_values = []
-                for item in attr_value:
-                    # Convert str just to avoid mixed cases ["[2", "int(3)"]
-                    str_item = str(item)
-                    cleaned = str_item.replace('[', '').replace(']', '').replace(',', '').strip()
-                    try:
-                        cleaned_values.append(int(cleaned))
-                    except ValueError:
-                        error_msg = (
-                            f"'source_id' contains non-integer value: '{item}'"
-                        )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-                attr_value = cleaned_values
-                # Extra checks for values: -1 or 0
-
-        ############################################################################################## 
-        
-        ###########################---------syn_beam_dimensions---------##############################
-        if hasattr(self, 'syn_beam_dimensions') and getattr(self, 'syn_beam_dimensions') is not None:
-            attr_value = getattr(self, 'syn_beam_dimensions')
-            if len(attr_value) > 3:
-                error_msg = (
-                        f"The 'syn_beam_dimensions' parameter must be a list of a maximum of three "
-                        f"values. Provided value: {attr_value}."
-                    )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
-            elif not all(strict_isinstance(x, (int, float)) for x in attr_value):
-                error_msg = f"'source_id' must contain only integers or floats: {attr_value}"
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
-        ##############################################################################################
-
-        ###########################-------------snr_range---------------##############################
-        if hasattr(self, 'snr_range') and getattr(self, 'snr_range') is not None:
-            attr_value = getattr(self, 'snr_range')
-            if len(attr_value) != 2:
-                error_msg = (
-                        f"The 'snr_range' parameter must be a list of two values."
-                        f" Provided value: {attr_value}."
-                    )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
-        ##############################################################################################
-
-        ###########################----------percentile_range-----------##############################
-        if hasattr(self, 'percentile_range') and getattr(self, 'percentile_range') is not None:
-            attr_value = getattr(self, 'percentile_range')
-            if len(attr_value) != 2:
-                error_msg = (
-                    f"The 'percentile_range' parameter must be a list of two values."
-                    f" Provided value: {attr_value}."
-                )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
-        ##############################################################################################
-        
-        ##########################--------------user_image---------------#############################
+        ###########################---------user_image---------##############################
         if hasattr(self, 'user_image') and getattr(self, 'user_image') is not None:
             attr_value = getattr(self, 'user_image')
             if self.adpalmap_config.enable_tap_service and self.ancillary_data:
@@ -462,87 +418,18 @@ class SiPar(dict):
                         raise FileNotFoundError(error_msg)
         ##############################################################################################
 
-        ###########################-------------spec_line---------------##############################
-        if hasattr(self, 'spec_line') and getattr(self, 'spec_line') is not None:
-            attr_value = getattr(self, 'spec_line')
-            if isinstance(attr_value, list):
-                if len(attr_value) > 3:
-                    logger.warning(
-                        f"The 'spec_line' parameter if it is a list, must contain no more than 3 "
-                        "values (molecule, rest frequency in GHz, label)." 
-                        f" Provided value: {attr_value}. Alternatively, a small subset of lines "
-                        "can be accessed  by only providing one entry"
-                    )
-            elif isinstance(attr_value, str):
-                if attr_value not in valid_values['spec_line']:
-                    logger.warning(
-                        f"The line '{attr_value}' provide for the 'spec_line' parameter is not among"
-                        " the small subset of lines that can be accessed by providing one entry. "
-                        "See the documentation for more details."
-                    )
-        ##############################################################################################
-
-        ###########################-------output_image_file_type--------##############################
-        if hasattr(self, 'output_image_file_type') and getattr(self, 'output_image_file_type') is not None:
-            attr_value = getattr(self, 'output_image_file_type')
-            if attr_value not in valid_values['output_image_file_type']:
-                error_msg = (
-                    f"The parameter 'output_image_file_type' must have one of the following values:"
-                    f" {valid_values['output_image_file_type']}. Value provided: '{attr_value}'."
-                )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise ValueError(error_msg)
-        ##############################################################################################
-        
 
     def update_input_parameters(self):
-        """
-        Updates the parameters of the SiPar class with the values provided in the terminal arguments.
-
-        Parameters:
-        ----------
-        sip_args (dict): Dictionary with arguments provided from the terminal 
-                         (-sarg or --sip-arguments).
-        adpalmap_config: Config() class object with configuration from the configuration file.
-
-        Returns:
-        ----------
-        None: Directly updates the class attributes.
-        """
-
+        """Apply CLI overrides after YAML and dataset checks, preserving priority."""
         if self.sargs is not None:
-            
-            valid_values = {
-                'output_image_file_type': ['png', 'jpg', 'pdf', 'svg'],
-                'spec_line': ['HI', 
-                            'CO(1-0)', 'CO(2-1)', 'CO(3-2)', 
-                            'OH_1612', 'OH_1665', 'OH_1667', 'OH_1720'],
-            }
-
             for key, value in self.sargs.items():
-                # Check if the key matches any shortcut in ATTRIBUTE_SHORTCUTS
-                matched_attr = None
-                for attr_name, shortcut in self.ATTRIBUTE_SHORTCUTS.items():
-                    if key in shortcut:  
-                        matched_attr = attr_name
+                for matched_attr, shortcuts in self.ATTRIBUTE_SHORTCUTS.items():
+                    if key in shortcuts:
                         break
-                
-                if matched_attr is None:
-                    logger.warning(f"Unknown parameter '{key}' provided. It will be ignored.")
+                else:
                     continue
-                
-                expected_type = self.EXPECTED_TYPES.get(matched_attr)
 
-                if not strict_isinstance(value, expected_type):
-                    error_msg = (
-                        f"The parameter '{matched_attr}' via -sarg as '{key}' must be of "
-                        f"type {expected_type}, but is of type {type(value)}. Consider None as not "
-                        "entered in the terminal."
-                    )
-                    Logger.log_to_file(logging.ERROR, error_msg)
-                    raise ValueError(error_msg)
-        
-        ###########################------------catalog_file-------------##############################
+                ###########################---------catalog_file---------##############################
                 if matched_attr == "catalog_file" and not self.adpalmap_config.enable_sofia:
                     # Previous catalogs were found and take priority.
                     if(self.catalog_file is not None):
@@ -577,30 +464,7 @@ class SiPar(dict):
                             continue
         ##############################################################################################
 
-        ###########################---------source_id---------##############################        
-                elif matched_attr == "source_id":
-                    if not all(isinstance(x, int) for x in value):
-                        error_msg = f"'source_id' must contain only integers: {value}"
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-        ##############################################################################################        
-
-        ###########################---------syn_beam_dimensions---------##############################        
-                elif matched_attr == "syn_beam_dimensions":
-                    if len(value) > 3:
-                        error_msg = (
-                                f"The 'syn_beam_dimensions' parameter must be a list of a maximum of "
-                                f"three values. Provided value: {value}"
-                            )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-                    elif not all(strict_isinstance(x, (int, float)) for x in value):
-                        error_msg = f"'syn_beam_dimensions' must contain only integers or floats: {value}"
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-        ##############################################################################################
-
-        ##########################--------------user_image---------------#############################
+                ###########################---------user_image---------##############################
                 elif matched_attr == "user_image":
                     if self.adpalmap_config.enable_tap_service and self.ancillary_data:
                         logger.warning(
@@ -642,61 +506,8 @@ class SiPar(dict):
                                 raise FileNotFoundError(error_msg)                                 
         ##############################################################################################
 
-        ###########################-------------snr_range---------------##############################
-                elif matched_attr == "snr_range":
-                    if len(value) != 2:
-                        error_msg = (
-                                f"The 'snr_range' parameter must be a list of two values."
-                                f" Provided value: {value}."
-                            )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-        ##############################################################################################
-
-        ###########################----------percentile_range-----------##############################
-                elif matched_attr == "percentile_range":
-                    if len(value) != 2:
-                        error_msg = (
-                            f"The 'percentile_range' parameter must be a list of two values."
-                            f" Provided value: {value}."
-                        )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-        ##############################################################################################
-        
-        ###########################-------------spec_line---------------##############################
-                elif matched_attr == 'spec_line':
-                    if isinstance(value, list):
-                        if len(value) > 3:
-                            logger.warning(
-                                f"The 'spec_line' parameter if it is a list, must contain no more "
-                                "than 3 values (molecule, rest frequency in GHz, label)." 
-                                f" Provided value: {value}. Alternatively, a small subset of lines "
-                                "can be accessed  by only providing one entry"
-                            )
-                    elif isinstance(value, str):
-                        if value not in valid_values['spec_line']:
-                            logger.warning(
-                                f"The line '{value}' provide for the 'spec_line' parameter is not among"
-                                " the small subset of lines that can be accessed by providing one entry. "
-                                "See the documentation for more details."
-                            )
-        ##############################################################################################
-
-        ###########################-------output_image_file_type--------##############################
-                elif matched_attr =='output_image_file_type':
-                    if value not in valid_values['output_image_file_type']:
-                        error_msg = (
-                            f"The parameter 'output_image_file_type' must have one of the following "
-                            f"values: {valid_values['output_image_file_type']}. Value provided: " 
-                            f"'{value}'"
-                        )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
-        ##############################################################################################
-
-                # Update the attribute with the new value
-                setattr(self, matched_attr, value)
+                # Keep mutable CLI values local to this dataset too.
+                setattr(self, matched_attr, deepcopy(value))
 
 
     def run_sip(self, sopar=None, run=-1, product_profile="regular"):

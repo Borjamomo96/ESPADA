@@ -255,6 +255,14 @@ class Report:
                     error_exist = error_exist or has_error
                     warning_exist = warning_exist or has_warning
                     software_statuses.add(sw_status)
+
+                    # Use the SoFiA parameter-file content loaded at startup.
+                    # Checking the presence of the key preserves an empty captured file.
+                    # Read the file from disk only when the report does not contain that content.
+                    if 'sofia_parfile_content' in sw:
+                        parfile_content = sw['sofia_parfile_content']
+                    else:
+                        parfile_content = self._read_log_file(sw.get('sofia_parfile', ''))
                    
                     ###############################################################################
                     # COMPLETE SOFTWARE INFORMATION
@@ -293,9 +301,9 @@ class Report:
                         # Configuration
                         'configuration': {
                             'parfile_used': str(sw.get('sofia_parfile', '')) if 'sofia_parfile' in sw else '',
-                            'parfile_content': self._read_log_file(sw.get('sofia_parfile', '')),
+                            'parfile_content': parfile_content,
                             'formatted_parfile': self._format_parfile_content(
-                                self._read_log_file(sw.get('sofia_parfile', '')),
+                                parfile_content,
                                 sw.get('sofia_par_changes', {})
                             ) if 'sofia_parfile' in sw else '',
                             'parameters_changed': sw.get('sofia_par_changes', {}),

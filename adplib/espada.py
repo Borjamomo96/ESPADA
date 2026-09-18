@@ -3,7 +3,7 @@ Contact: Borja Montoro Molina (borjamomo96@gmail.com)
 """
 #Configuration
 from adplib.exceptions import RecoverableError, ConfigurationError
-from adplib.config import Config
+from adplib.config import Config, load_run_parameters
 
 import os
 import shutil
@@ -797,7 +797,8 @@ def process_data(id_number,
                  adpalmap_config, 
                  args, 
                  sofia_threads, 
-                 number_list
+                 number_list,
+                 run_parameters
     ):
     """
     Run the configured processing steps for a single dataset.
@@ -822,6 +823,8 @@ def process_data(id_number,
         Number of SoFiA threads assigned to this worker.
     number_list : list
         Dataset numbering information passed to SIP.
+    run_parameters : dict
+        Parameter-file snapshots captured before any datasets were processed.
 
     Returns
     -------
@@ -851,6 +854,7 @@ def process_data(id_number,
         if adpalmap_config.run_mode == 'absorption':
 
             adpalmap_sopar_abs = SoPar(
+                parameter_data=run_parameters["sofia"]["absorption"],
                 sofia_file_path=adpalmap_config.sofia_abs_file, 
                 adpalmap_config=adpalmap_config,
                 mode='absorption',
@@ -888,6 +892,7 @@ def process_data(id_number,
             # 'mode' variable has only 'emission' or 'absorption' while adpalmap_config.run_mode
             # has also 'both' which has no sense for logs. The 'mode' variable is needed.
             adpalmap_sopar_emi = SoPar(
+                parameter_data=run_parameters["sofia"]["emission"],
                 sofia_file_path=adpalmap_config.sofia_emi_file, 
                 adpalmap_config=adpalmap_config,
                 mode='emission', 
@@ -924,6 +929,7 @@ def process_data(id_number,
         elif adpalmap_config.run_mode == 'both':
 
             adpalmap_sopar_abs = SoPar(
+                parameter_data=run_parameters["sofia"]["absorption"],
                 sofia_file_path=adpalmap_config.sofia_abs_file,
                 adpalmap_config=adpalmap_config,
                 mode='absorption',
@@ -931,6 +937,7 @@ def process_data(id_number,
                 sofia_threads=sofia_threads
                 )
             adpalmap_sopar_emi = SoPar(
+                parameter_data=run_parameters["sofia"]["emission"],
                 sofia_file_path=adpalmap_config.sofia_emi_file,
                 adpalmap_config=adpalmap_config,
                 mode='emission',
@@ -1004,6 +1011,7 @@ def process_data(id_number,
         sip_report = []
         
         adpalmap_sipar = SiPar(
+            parameter_data=run_parameters["sip"],
             sip_file_path = adpalmap_config.sip_par_file, adpalmap_config = adpalmap_config,
             input_data = input_data,  ancillary_data = ancillary_data,
             sargs = args.sip_args,
@@ -1070,6 +1078,7 @@ def process_data(id_number,
                     adpalmap_sopar_abs
                 except NameError:
                     adpalmap_sopar_abs = SoPar(
+                    parameter_data=run_parameters["sofia"]["absorption"],
                     sofia_file_path=adpalmap_config.sofia_abs_file, 
                     adpalmap_config=adpalmap_config,
                     mode='absorption',
@@ -1087,6 +1096,7 @@ def process_data(id_number,
                 except NameError:
                     try:
                         adpalmap_sipar = SiPar(
+                            parameter_data=run_parameters["sip"],
                             sip_file_path = adpalmap_config.sip_par_file, 
                             adpalmap_config = adpalmap_config,
                             input_data = input_data,  ancillary_data = ancillary_data,
@@ -1158,6 +1168,7 @@ def process_data(id_number,
                     adpalmap_sopar_emi
                 except NameError:
                     adpalmap_sopar_emi = SoPar(
+                    parameter_data=run_parameters["sofia"]["emission"],
                     sofia_file_path=adpalmap_config.sofia_emi_file, 
                     adpalmap_config=adpalmap_config,
                     mode='emission',
@@ -1175,6 +1186,7 @@ def process_data(id_number,
                 except NameError:
                     try:
                         adpalmap_sipar = SiPar(
+                            parameter_data=run_parameters["sip"],
                             sip_file_path = adpalmap_config.sip_par_file, 
                             adpalmap_config = adpalmap_config,
                             input_data = input_data,  ancillary_data = ancillary_data,
@@ -1248,6 +1260,7 @@ def process_data(id_number,
                     adpalmap_sopar_abs
                 except NameError:
                     adpalmap_sopar_abs= SoPar(
+                    parameter_data=run_parameters["sofia"]["absorption"],
                     sofia_file_path=adpalmap_config.sofia_abs_file, 
                     adpalmap_config=adpalmap_config,
                     mode='absorption',
@@ -1266,6 +1279,7 @@ def process_data(id_number,
                     adpalmap_sopar_emi
                 except NameError:
                     adpalmap_sopar_emi = SoPar(
+                    parameter_data=run_parameters["sofia"]["emission"],
                     sofia_file_path=adpalmap_config.sofia_emi_file, 
                     adpalmap_config=adpalmap_config,
                     mode='emission',
@@ -1284,6 +1298,7 @@ def process_data(id_number,
                 except NameError:
                     try:
                         adpalmap_sipar = SiPar(
+                            parameter_data=run_parameters["sip"],
                             sip_file_path = adpalmap_config.sip_par_file, 
                             adpalmap_config = adpalmap_config,
                             input_data = input_data,  ancillary_data = ancillary_data,
@@ -1537,7 +1552,10 @@ def main():
         queue_listener.start() 
 
         current_logger = logger
-    ############################################################################################## 
+    ##############################################################################################
+        # Charge in memory the parameters for SoFiA and SIP 
+        run_parameters = load_run_parameters(adpalmap_config, args) 
+        
         logger.info("ESPADA start point")
 
         log_flag = True
@@ -1672,7 +1690,7 @@ def main():
                     result = process_data(
                         id_number, data, primary_beam, mask, ancillary,
                         adpalmap_config,
-                        args, sofia_threads, number_list
+                        args, sofia_threads, number_list, run_parameters
                     )
                     worker_results.append(result)
 
@@ -1713,7 +1731,7 @@ def main():
                         process_data, 
                         id_number, data, primary_beam, mask, ancillary,
                         adpalmap_config,
-                        args, sofia_threads, number_list
+                        args, sofia_threads, number_list, run_parameters
                         )
                     for id_number, (data, primary_beam, mask, ancillary) in enumerate(complete_pack_list)
                 ]

@@ -3,6 +3,7 @@ import sys
 import subprocess
 #import tempfile 
 import json
+from copy import deepcopy
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
@@ -180,7 +181,6 @@ def parse_parfile(file_path):
     dict
         Parameter names mapped to their string values.
     """
-
     config = {}
     with open(file_path, 'r') as f:
         for line in f:
@@ -213,13 +213,10 @@ def compare_parfiles(file_path, temp_file_path):
     original = parse_parfile(file_path)
     modified = parse_parfile(temp_file_path)
 
-    changes = {}
-    for key, new_value in modified.items():
-        old_value = original.get(key)
-        if old_value != new_value:
-            changes[key] = new_value
-
-    return changes
+    return {
+        key: value for key, value in modified.items()
+        if original.get(key) != value
+    }
 
 
 def get_sofia_exit_message(exit_code):
@@ -338,14 +335,17 @@ class SoPar(dict):
         "_spec.txt",
     )
 
-    def __init__(self, **kwargs):
+    def __init__(self, parameter_data=None, **kwargs):
         """
-        Reads the SoFia parameters file and creates a SoPar object.
+        Create independent SoFiA run parameters from a snapshot or a file.
         
         Parameters
         ----------
-        config_path: str, default None
-            Path to the configuration file. If None, it will used the default SoFia parameters file.
+        parameter_data : dict, optional
+            Snapshot returned by load_parameters. Its values are copied for this run.
+        sofia_file_path : str or pathlib.Path, optional
+            Parameter file to read when no snapshot is provided; defaults to the
+            package's SoFiA parameter file.
 
         Returns
         -------
@@ -359,55 +359,92 @@ class SoPar(dict):
         super(SoPar, self).__init__(**kwargs)
         self.__dict__ = self
         
-        self.configure(**kwargs)
+        self.configure(parameter_data=parameter_data, **kwargs)
         self.group = False
 
         
-    def configure(self, sofia_file_path=None, **kwargs):
+    @staticmethod
+    def resolve_parameter_path(sofia_file_path=None):
+        """Resolve the source path without reading it or checking its existence."""
+
+        if sofia_file_path is None:
+            return Path(__file__).parent / 'sofia_default.par'
+        return Path(sofia_file_path).expanduser()
+
+
+    @classmethod
+    def load_parameters(cls, sofia_file_path=None):
+        """Read a parameter file once and preserve its text and parsed values.
+
+        This checks the syntax accepted by ESPADA. SoFiA validates its own
+        parameter names and values when the external command runs.
         """
-        Load the selected SoFiA parameter file into this object.
+
+        source_path = cls.resolve_parameter_path(sofia_file_path)
+        if not source_path.exists():
+            if sofia_file_path is None:
+                error_msg = (
+                    "No SoFiA parameter file was provided and the default parameter file "
+                    f"{source_path} could not be found. Provide a valid SoFiA parameter "
+                    "file or check if you have deleted or moved the default file."
+                )
+            else:
+                error_msg = f"Parameter file '{source_path}' not found."
+            raise FileNotFoundError(error_msg)
+
+        with open(source_path, 'r') as source:
+            content = source.read()
+
+        values = {}
+        for raw_line in content.splitlines():
+            line = strip_inline_comment(raw_line)
+            if not line:
+                continue
+            try:
+                key, value = line.split('=', 1)
+                key = key.strip().replace('.', '_')
+                value = value.strip()
+                if value.isdigit():
+                    value = int(value)
+                else:
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass
+                values[key] = value
+            except ValueError as error:
+                error_msg = (
+                    f"The line '{line}' has not a valid format "
+                    f"(module.parameter = value). File: {source_path}."
+                )
+                raise ValueError(error_msg) from error
+
+        logger.info(f"SoFiA parameters loaded into memory from: {source_path}")
+        logger.info(
+            "SoFiA parameter file syntax checked. Parameter values will be checked "
+            "by SoFiA when it runs."
+        )
+        return {'path': source_path, 'content': content, 'values': values}
+
+    def configure(self, sofia_file_path=None, parameter_data=None, **kwargs):
+        """
+        Apply independent parameters from a snapshot, or load a file for direct use.
 
         Parameters
         ----------
         sofia_file_path : str or pathlib.Path, optional
             Path to a SoFiA parameter file. If omitted, the package default is used.
+        parameter_data : dict, optional
+            Snapshot returned by load_parameters. When supplied, the source file
+            is not accessed, even if it has been edited or deleted.
         **kwargs
             Additional initialization values stored by the constructor.
         """
-
-
-        if sofia_file_path is None:
-            
-            script_dir = Path(__file__).parent
-            sofia_file_path = script_dir/'sofia_default.par'
-            self.sofia_file_path = sofia_file_path
-
-            if Path(sofia_file_path).exists():
-                self.read_sofia_par_file(sofia_file_path)
-                self.sofia_file_path = Path(sofia_file_path)
-
-            else:
-                error_msg = (
-                    f"Download file {Path(sofia_file_path)} not found."
-                    "No SoFiA parameter file was provided and the default parameter file "
-                    f"{sofia_file_path} could not be found. Provide a valid SoFiA parameter "
-                    "file or check if you have deleted or moved the default file."
-                    )
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise FileNotFoundError(error_msg)
-            
-        else:
-            sofia_file_path = Path(os.path.expanduser(sofia_file_path))
-            self.sofia_file_path = sofia_file_path
-
-            if not sofia_file_path.exists():
-                error_msg = f"Parameter file '{sofia_file_path}' not found."
-                Logger.log_to_file(logging.ERROR, error_msg)
-                raise FileNotFoundError(error_msg)
-            else:
-                logger.info(f"The file in '{sofia_file_path}' have been loaded successfully")
-
-            self.read_sofia_par_file(sofia_file_path)
+        if parameter_data is None:
+            parameter_data = self.load_parameters(sofia_file_path)
+        self.update(deepcopy(parameter_data['values']))
+        self.sofia_file_path = parameter_data['path']
+        self.sofia_parfile_content = parameter_data['content']
 
     
     def read_sofia_par_file(self, sofia_file_path):
@@ -428,39 +465,7 @@ class SoPar(dict):
         """
 
 
-        with open(sofia_file_path, 'r') as file:
-                for raw_line in file:
-                    
-                    # Remove comments and surrounding whitespace before parsing.
-                    line = strip_inline_comment(raw_line)
-                    if not line:
-                        continue
-                    
-                    try:
-                        k, v = line.split("=", 1)
-                        k = k.strip().replace(".", "_")
-                        k = k.strip()
-                        v = v.strip()
-                        
-                        # Convert v, if possible, to int or float, otherwise it remains as string.
-                        if v.isdigit():
-                            v = int(v)
-                        else:
-                            try:
-                                v = float(v)
-                            except ValueError:
-                                pass
-         
-                        # Set attributes to the class dinamically
-                        setattr(self, k, v)
-                        
-                    except: #CHANGE. Check is ValueError cover all the posibilities.
-                        error_msg = (
-                            f"The line '{line}' has not a valid format "
-                                     "(module.parameter = value)."
-                        )
-                        Logger.log_to_file(logging.ERROR, error_msg)
-                        raise ValueError(error_msg)
+        self.configure(sofia_file_path=sofia_file_path)
 
 
     def update_input_parameters(
@@ -483,7 +488,8 @@ class SoPar(dict):
         """
         
         logger.info(
-            f"Reading parameters from {self.sofia_file_path} and via -sop. Mode: {self.mode}."
+            f"Applying cached SoFiA parameters from {self.sofia_file_path} and overrides "
+            f"via -sop. Dataset: {input_data.stem}. Mode: {self.mode}."
         )
         
         ##############################################################################################
@@ -603,8 +609,9 @@ class SoPar(dict):
         if hasattr(self, "input_invert"):
             logger.warning(
                 f"Ignoring value '{self.input_invert}' for the 'input.invert' parameter provided "
-                f"in the parameter file {self.sofia_file_path}. This must be set through the "
-                f"'run_mode' parameter in the {self.adpalmap_config.config_path} file"
+                f"in the parameter file {self.sofia_file_path}. ESPADA controls this parameter "
+                "automatically according to the 'run_mode' parameter in the " 
+                f"{self.adpalmap_config.config_path} file. "
             )
 
         if sop_par is not None and "input.invert" in sop_par:
@@ -1045,6 +1052,7 @@ class SoPar(dict):
                 "mode": self.mode,  
                 "log_path": self.sopar_logfile,
                 "sofia_parfile" : self.sofia_file_path,
+                "sofia_parfile_content": self.sofia_parfile_content,
                 "command": [],
                 "exit_code": 0,
                 "sofia_exit_message": "",
@@ -1055,10 +1063,18 @@ class SoPar(dict):
         # Create a temp file with the updated parameters for SoFiA
         temp_file_path = self.create_tempfile()
 
-        # Update the report 
-        sopar_report.update(
-            {'sofia_par_changes' : compare_parfiles(self.sofia_file_path, temp_file_path)}
-        )
+        # Compare against the original text kept in memory, not the source file.
+        original = {}
+        for line in self.sofia_parfile_content.splitlines():
+            line = strip_inline_comment(line)
+            if '=' in line:
+                key, value = map(str.strip, line.split('=', 1))
+                original[key] = value
+        modified = parse_parfile(temp_file_path)
+        sopar_report['sofia_par_changes'] = {
+            key: value for key, value in modified.items()
+            if original.get(key) != value
+        }
 
         # Remove existing log file
         if  sopar_report["log_path"].exists():
@@ -1196,7 +1212,7 @@ class SoPar(dict):
                     tf.write(f"{key_transformed}={value}\n")
 
         logger.info(
-            "Creating temporary SoFiA parameter file based on the parameter file "
+            "Creating temporary SoFiA parameter file from cached parameters loaded from "
             f"{self.sofia_file_path}."
             )
         return str(temp_file_path)
