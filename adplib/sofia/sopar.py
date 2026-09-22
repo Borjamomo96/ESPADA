@@ -426,6 +426,7 @@ class SoPar(dict):
         )
         return {'path': source_path, 'content': content, 'values': values}
 
+
     def configure(self, sofia_file_path=None, parameter_data=None, **kwargs):
         """
         Apply independent parameters from a snapshot, or load a file for direct use.
@@ -1428,30 +1429,34 @@ class SoPar(dict):
             logger.info("Quality assesment ended.")
             return qa_report
         
-        # Check for SoFiA 2D mask
+        # Load the SoFiA 2D mask when available. The moment 8 image is an
+        # independent QA product and must still be saved when SoFiA finds no
+        # sources (exit code 8), in which case this mask is not generated.
         sofia_output_dir = Path(self.output_directory)
         input_file_name = Path(self.input_data).stem
 
         file_2d_mask = (
             sofia_output_dir / f"{self.mode}_{input_file_name}_mask-2d.fits"
         )
-        if not file_2d_mask.exists():
+        sofia_2d_mask = None
+        if file_2d_mask.exists():
+            try:
+                with fits.open(file_2d_mask) as hdul:
+                    sofia_2d_mask = hdul[0].data
+                    # Basic squeeze for 4D cases if needed
+                    if sofia_2d_mask.ndim == 4 and sofia_2d_mask.shape[0] == 1:
+                        sofia_2d_mask = np.squeeze(sofia_2d_mask, axis=0)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to load SoFiA 2D mask '{file_2d_mask}': {e}. "
+                    "Continuing QA with the moment 8 image."
+                )
+                sofia_2d_mask = None
+        else:
             logger.warning(
-                f"2D-Mask file from SoFia not found in {self.output_directory}."            
+                f"2D-Mask file from SoFia not found in {self.output_directory}. "
+                "Continuing QA with the moment 8 image."
             )
-            logger.info("Quality assesment ended.")
-            return qa_report       
-
-        try:
-            with fits.open(file_2d_mask) as hdul:
-                sofia_2d_mask = hdul[0].data
-                # Basic squeeze for 4D cases if needed
-                if sofia_2d_mask.ndim == 4 and sofia_2d_mask.shape[0] == 1:
-                    sofia_2d_mask = np.squeeze(sofia_2d_mask, axis=0)
-        except Exception as e:
-            logger.error(f"Failed to load SoFiA 2D mask: {e}")
-            logger.info("Quality assesment ended.")
-            return qa_report
 
 
         # Mask provide by the user or from the ALMA archive
@@ -1473,52 +1478,54 @@ class SoPar(dict):
                     f"Failed to load provided mask '{provided_mask_file}' for visualization: {e}"
                 )
 
-
-        if provided_mask_proj is not None:
-            fig, axs = plt.subplots(1, 3, figsize=(15, 6))
-        else:
-            fig, axs = plt.subplots(1, 2, figsize=(15, 6))
-        
+        fig = None
         try:
-            ax = axs[0]
             if self.mode == "absorption":
-                ax.set_title("Moment 8 Image (Absorption - Min Projection)")
+                mom8_title = "Moment 8 Image (Absorption - Min Projection)"
             else:
-                ax.set_title("Moment 8 Image (Emission - Max Projection)")
-            ax.imshow(mom8_ima, cmap='viridis', origin='lower')
-            ax.imshow(mom8_ima, cmap='viridis', origin='lower')
-            #ax.colorbar(label="Intensity")
+                mom8_title = "Moment 8 Image (Emission - Max Projection)"
 
-            ax = axs[1]
-            ax.set_title("SoFiA mask projection")
-            ax.imshow(sofia_2d_mask, cmap='viridis', origin='lower')
-            #ax.colorbar(label="Intensity")
+            panels = [(mom8_title, mom8_ima)]
+
+            if sofia_2d_mask is not None:
+                panels.append(("SoFiA mask projection", sofia_2d_mask))
 
             if provided_mask_proj is not None:
-                ax = axs[2]
-                ax.set_title("Provided mask projection")
-                ax.imshow(provided_mask_proj, cmap='viridis', origin='lower')
+                panels.append(("Provided mask projection", provided_mask_proj))
+
+            fig, axs = plt.subplots(
+                1,
+                len(panels),
+                figsize=(5 * len(panels), 6),
+                squeeze=False
+            )
+            for ax, (title, image) in zip(axs.ravel(), panels):
+                ax.set_title(title)
+                ax.imshow(image, cmap='viridis', origin='lower')
 
             qa_output_dir = Path(self.output_directory) / "quality_assesment_products"
             qa_output_dir.mkdir(parents=True, exist_ok=True)  
             qa_output_file = Path(f"{qa_output_dir / Path(self.output_filename)}_QA.png")
 
-            plt.savefig(qa_output_file, bbox_inches='tight')
+            fig.savefig(qa_output_file, bbox_inches='tight')
             logger.info(
-                f"QA mask image saved in {qa_output_dir}. Mode: {self.mode}"
+                f"QA image saved in {qa_output_dir}. Mode: {self.mode}"
                 )
             
             qa_report['outputs']['images'].append({
             "type": "mom8",
             "path": qa_output_file,
-            "description": "Mask comparison image",
+            "description": "Moment 8 image and available mask projections",
             "software-id": "qa"
             })
             
         except Exception as e:
-            logger.warning(f"Failed to save QA mask image comparison: {e}")
+            logger.warning(f"Failed to save QA image: {e}")
             logger.info(f"Quality assement ended . Mode: {self.mode}")
             return qa_report
+        finally:
+            if fig is not None:
+                plt.close(fig)
     ##############################################################################################
 
     ##############################################################################################        
