@@ -122,7 +122,7 @@ class SiPar(dict):
         "mom1",
         "mom2",
         "spec",
-        "spec_both",
+        "spec_full",
         "all_mom1",
         "all_mom2",
     }
@@ -131,7 +131,7 @@ class SiPar(dict):
         "_mom1",
         "_mom2",
         "_spec",
-        "_specboth",
+        "_specfull",
     )
 
 

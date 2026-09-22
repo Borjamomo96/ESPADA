@@ -1147,7 +1147,6 @@ def process_data(id_number,
                             adpalmap_group.resolve_sofia_groups(
                                 abs_group_mask, adpalmap_sopar_abs, abs_sopar_group_report
                             )
-                            adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
                             abs_sip_group_report = adpalmap_sipar.run_sip(
@@ -1156,6 +1155,8 @@ def process_data(id_number,
                             )
                             adpalmap_sipar.cleanup_group_outputs(abs_sip_group_report)
                             group_report.append(abs_sip_group_report)
+                            # SIP consumes the grouped SoFiA spectra and moment maps.
+                            adpalmap_sopar_abs.cleanup_group_outputs()
                     else:
                         logger.warning(
                             "Group execution aborted. mode: 'absorption'"
@@ -1239,7 +1240,6 @@ def process_data(id_number,
                             adpalmap_group.resolve_sofia_groups(
                                 emi_group_mask, adpalmap_sopar_emi, emi_sopar_group_report
                             )
-                            adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP
                             emi_sip_group_report = adpalmap_sipar.run_sip(
@@ -1248,6 +1248,8 @@ def process_data(id_number,
                             )
                             adpalmap_sipar.cleanup_group_outputs(emi_sip_group_report)
                             group_report.append(emi_sip_group_report)
+                            # SIP consumes the grouped SoFiA spectra and moment maps.
+                            adpalmap_sopar_emi.cleanup_group_outputs()
                     else:
                         logger.warning(
                             "Group execution aborted. mode: 'emission'"
@@ -1349,7 +1351,6 @@ def process_data(id_number,
                             adpalmap_group.resolve_sofia_groups(
                                 abs_group_mask, adpalmap_sopar_abs, abs_sopar_group_report
                             )
-                            adpalmap_sopar_abs.cleanup_group_outputs()
                             group_report.append(abs_sopar_group_report)
                             # Execute SIP
                             abs_sip_group_report = adpalmap_sipar.run_sip(
@@ -1358,6 +1359,8 @@ def process_data(id_number,
                             )
                             adpalmap_sipar.cleanup_group_outputs(abs_sip_group_report)
                             group_report.append(abs_sip_group_report)
+                            # SIP consumes the grouped SoFiA spectra and moment maps.
+                            adpalmap_sopar_abs.cleanup_group_outputs()
 
                 
                 if do_group_emission:
@@ -1394,7 +1397,6 @@ def process_data(id_number,
                             adpalmap_group.resolve_sofia_groups(
                                 emi_group_mask, adpalmap_sopar_emi, emi_sopar_group_report
                             )
-                            adpalmap_sopar_emi.cleanup_group_outputs()
                             group_report.append(emi_sopar_group_report)
                             # Execute SIP
                             emi_sip_group_report = adpalmap_sipar.run_sip(
@@ -1403,7 +1405,9 @@ def process_data(id_number,
                                 product_profile="group"
                             )
                             adpalmap_sipar.cleanup_group_outputs(emi_sip_group_report)
-                            group_report.append(emi_sip_group_report)               
+                            group_report.append(emi_sip_group_report)
+                            # SIP consumes the grouped SoFiA spectra and moment maps.
+                            adpalmap_sopar_emi.cleanup_group_outputs()
 
         except Exception as e:    
             logger.error(f"Unexpected error trying to group sources: {e}. Group execution aborted")
