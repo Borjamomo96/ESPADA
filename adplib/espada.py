@@ -13,6 +13,7 @@ import re
 import time
 from pathlib import Path
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 import numpy as np
 import psutil
 
@@ -35,8 +36,17 @@ from traceback import format_exc
 
 import sys
 
-DESCRIPTION = """
-ESPADA: Extracting Source Pipeline for Advance Data for ALMA
+try:
+    ESPADA_VERSION = version("espada-astro")
+except PackageNotFoundError:
+    ESPADA_VERSION = "unknown"
+
+
+ESPADA_FULL_NAME = "Extracting Source Pipeline for Advance Data for ALMA"
+
+DESCRIPTION = f"""
+ESPADA · Version {ESPADA_VERSION}
+{ESPADA_FULL_NAME}
 
 Overview:
 This pipeline automates ALMA data processing, including the SoFiA-2 and SIP softwares.
@@ -48,15 +58,6 @@ Included programs:
 - SIP: SoFia Imaging Pipeline
 - TAP: Automatic download from ALMA archive borrowing code from ALminer
 
-Main options:
-    -c, --config-file Main configuration file (YAML)
-    -cp, --config-parameters Parameters for config.yaml in key=value format
-    -sop, --sofia-parameters Parameters for SoFia in key=value format
-    -sarg, --sip-arguments Arguments for SIP
-    -i, --info Information about a file or parameter
-    --debug Run ESPARA in debug mode
-
-
 For detailed help on a file or parameter, use the command '-i|--info':
 espada -i <file|parameter>=<file_name|parameter_name>
 """
@@ -65,6 +66,35 @@ espada -i <file|parameter>=<file_name|parameter_name>
 
 
 # Functions 
+
+def format_startup_banner(num_cores):
+    """Describe the configured CPU budget and a snapshot of host resources."""
+    cpu_count = multiprocessing.cpu_count()
+    configured_cpu = str(num_cores) if num_cores is not None else f"{cpu_count} (auto)"
+    memory = psutil.virtual_memory()
+    separator = "─" * 72
+    return (
+        f"\n{separator}\n"
+        "  ESPADA — Pipeline started\n"
+        f"{separator}\n"
+        f"  Software : {ESPADA_FULL_NAME}\n"
+        f"  Version  : {ESPADA_VERSION}\n"
+        f"  CPU      : {configured_cpu} configured / {cpu_count} logical CPUs available\n"
+        f"  Memory   : {memory.available / 1024**3:.1f} GiB available / "
+        f"{memory.total / 1024**3:.1f} GiB total\n"
+        f"{separator}\n"
+    )
+
+def format_closing_banner():
+    """Mark the end of the execution."""
+
+    separator = "─" * 72
+    return (
+        f"\n{separator}\n"
+        "  ESPADA — Pipeline ended\n"
+        f"{separator}\n"
+    )
+
 
 def show_info(topic):
     """
@@ -545,6 +575,8 @@ def reorganize_log(log_path, worker_results):
         main_pid = None
         main_final = []
         final_block = False
+        closing_lines = format_closing_banner().splitlines(keepends=True)
+        closing_size = len(closing_lines)
 
         
         # Capture [PID:XXXX] and [XXXX]
@@ -616,53 +648,51 @@ def reorganize_log(log_path, worker_results):
 
     ##############################################################################################
 
-        for i, line in enumerate(lines):      
-            pid_match = (pid_pattern.search(line))
+        for i, line in enumerate(lines):
+            if not final_block and (
+                # Keep support for logs generated before the closing banner.
+                "ESPADA ended" in line
+                or (
+                    line == closing_lines[0]
+                    and lines[i:i + closing_size] == closing_lines
+                )
+            ):
+                final_block = True
+
+            if final_block:
+                main_final.append(line)
+                continue
+
+            pid_match = pid_pattern.search(line)
 
             # For lines without PID ([PID]). There are a few
             if pid_match is None:
                 # Assign to the main process
-                current_pid = main_pid
-                
-                if "ESPADA ended" in line:
-                    main_final.append(line)
-                    final_block = True
-                elif not final_block:
-                    pid_groups[main_pid].append(line)
-                else:
-                    main_final.append(line)
+                pid_groups[main_pid].append(line)
                 continue
 
             current_pid = pid_match.group(1)
             if current_pid not in pid_groups:
                 pid_groups[current_pid] = []
 
-            if "ESPADA ended" in line:
-                main_final.append(line)
-                final_block = True
-            else:    
-                if final_block == False:
-                    event_match = external_log_event_pattern.search(line)
-                    if event_match:
-                        try:
-                            append_external_log(
-                                pid_groups[current_pid],
-                                json.loads(event_match.group(2)),
-                            )
-                        except Exception as e:
-                            pid_groups[current_pid].append(
-                                f"    [INVALID ESPADA_EVENT external_log: {e}]\n"
-                            )
-                            aux_logger.warning(
-                                "Error parsing ESPADA_EVENT external_log while "
-                                f"reorganizing the final logfile: {e}"
-                            )
-                        continue
+            event_match = external_log_event_pattern.search(line)
+            if event_match:
+                try:
+                    append_external_log(
+                        pid_groups[current_pid],
+                        json.loads(event_match.group(2)),
+                    )
+                except Exception as e:
+                    pid_groups[current_pid].append(
+                        f"    [INVALID ESPADA_EVENT external_log: {e}]\n"
+                    )
+                    aux_logger.warning(
+                        "Error parsing ESPADA_EVENT external_log while "
+                        f"reorganizing the final logfile: {e}"
+                    )
+                continue
 
-                    pid_groups[current_pid].append(line)
-
-                else:
-                    main_final.append(line)
+            pid_groups[current_pid].append(line)
 
     ##############################################################################################
     
@@ -1556,12 +1586,12 @@ def main():
         queue_listener.start() 
 
         current_logger = logger
+        Logger.echo(format_startup_banner(adpalmap_config.num_cores))
+        sys.stdout.flush()
     ##############################################################################################
         # Charge in memory the parameters for SoFiA and SIP 
         run_parameters = load_run_parameters(adpalmap_config, args) 
         
-        logger.info("ESPADA start point")
-
         log_flag = True
         start, start_date = time.perf_counter(), datetime.now().isoformat()
     ##############################################################################################
@@ -1774,7 +1804,8 @@ def main():
 
     ##############################################################################################
 
-        logger.info("ESPADA ended")
+        Logger.echo(format_closing_banner())
+        sys.stdout.flush()
         if adpalmap_config is not None and adpalmap_config.make_report:
             logger.info(
                 "See the final reports for an overview of the results obtained during the "
